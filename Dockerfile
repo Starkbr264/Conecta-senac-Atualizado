@@ -1,15 +1,20 @@
-# Build stage
-FROM eclipse-temurin:20-jdk AS builder
+# ---------- ETAPA 1: build ----------
+FROM gradle:jdk21 AS build
 WORKDIR /app
-COPY demo-conecta-senac3.1 .
-COPY demo-conecta-senac3.1 ./gradle
-COPY demo-conecta-senac3.1 settings.gradle ./
-COPY demo-conecta-senac3.1 ./src
-RUN ./gradlew bootJar --no-daemon
 
-# Runtime stage
-FROM eclipse-temurin:20-jre
+COPY build.gradle settings.gradle* ./
+COPY src ./src
+
+RUN gradle clean bootJar -x test --no-daemon
+
+# ---------- ETAPA 2: run ----------
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/build/libs/*.jar app.jar
+
+# Pega o JAR gerado pelo plugin do Spring Boot.
+# Se o build gerar dois arquivos (um "-plain.jar" e outro sem
+# esse sufixo), use o SEM "-plain" — é o executável de verdade.
+COPY --from=build /app/build/libs/*.jar app.jar
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
