@@ -1,0 +1,102 @@
+/* ================================================================
+   search.css — Barras de pesquisa e filtros (todas as telas)
+   ================================================================ */
+
+/* ── Wrapper da barra de busca + filtros ──────────────────── */
+.search-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+/* ── Campo de busca ───────────────────────────────────────── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  transition: border-color .15s;
+}
+.search-bar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+.search-icon  { font-size: .9rem; color: var(--text3); flex-shrink: 0; }
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 0;
+  font-size: .9rem;
+  color: var(--text);
+  outline: none;
+  font-family: 'Outfit', sans-serif;
+}
+.search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text3);
+  font-size: .85rem;
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+.search-clear:hover { color: var(--text); background: var(--bg3); }
+
+/* ── Linha de filtros ─────────────────────────────────────── */
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+}
+.filter-label {
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text3);
+}
+.filter-select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg2);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: .87rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+}
+.filter-select:focus { border-color: var(--primary); }
+
+/* ── Contador de resultados ───────────────────────────────── */
+.count-badge {
+  display: inline-block;
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: .75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Highlight de resultado ───────────────────────────────── */
+.hl { background: color-mix(in srgb, var(--primary) 20%, transparent); border-radius: 2px; }

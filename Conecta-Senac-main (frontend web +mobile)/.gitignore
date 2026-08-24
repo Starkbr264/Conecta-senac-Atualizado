@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.DS_Store
+target/
+build/
+.git/
+.idea/
+*.iml
+.env
+.vscode/

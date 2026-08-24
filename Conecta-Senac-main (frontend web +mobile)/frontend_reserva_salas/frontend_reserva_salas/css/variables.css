@@ -1,0 +1,108 @@
+﻿/* ================================================================
+   variables.css — Tokens de design: cores, espaçamentos, sombras
+   Importado primeiro por main.css
+   ================================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+
+:root {
+  --bg:         #f5f7fa;
+  --surface:    #ffffff;
+  --surface2:   #f9fafb;
+  --bg2:        #f0f4f8;
+  --bg3:        #e8edf2;
+  --border:     #e8edf2;
+  --border2:    #d1d9e0;
+
+  --primary:    #1a3a5c;
+  --primary-h:  #0f2640;
+  --primary-l:  #eaf1fb;
+  --primary-d:  rgba(26,58,92,.10);
+
+  --accent:     #f59e0b;
+  --accent-l:   #fef3c7;
+  --accent-d:   rgba(245,158,11,.12);
+
+  --green:      #059669;
+  --green-l:    #d1fae5;
+  --green-d:    rgba(5,150,105,.12);
+
+  --red:        #dc2626;
+  --red-l:      #fee2e2;
+  --red-d:      rgba(220,38,38,.12);
+
+  --amber:      #d97706;
+  --amber-l:    #fef3c7;
+  --amber-d:    rgba(217,119,6,.12);
+
+  --blue:       #2563eb;
+  --blue-l:     #dbeafe;
+  --blue-d:     rgba(37,99,235,.12);
+
+  --text1:      #1a2332;
+  --text:       #1a2332;
+  --text2:      #4a5568;
+  --text3:      #8fa3b8;
+
+  --shadow:     0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.08), 0 8px 32px rgba(0,0,0,.06);
+  --r:          10px;
+  --r-lg:       16px;
+  --sidebar-w:  256px;
+  --t:          all .18s ease;
+
+  /* Status de turmas */
+  --st-ativa-bg:      #d1fae5; --st-ativa-txt:      #065f46; --st-ativa-brd:      #6ee7b7;
+  --st-iminente-bg:   #fef3c7; --st-iminente-txt:   #92400e; --st-iminente-brd:   #fcd34d;
+  --st-posterior-bg:  #dbeafe; --st-posterior-txt:  #1e40af; --st-posterior-brd:  #93c5fd;
+  --st-encerrada-bg:  #f1f5f9; --st-encerrada-txt:  #64748b; --st-encerrada-brd:  #cbd5e1;
+}
+
+
+[data-theme="dark"] {
+  --bg:        #060d16;
+  --surface:   #0d1826;
+  --surface2:  #111f30;
+  --bg2:       #0a1520;
+  --bg3:       #182840;
+  --border:    #1e3350;
+  --border2:   #2a4468;
+
+  --primary:   #5aabff;
+  --primary-h: #3d92f0;
+  --primary-l: rgba(90,171,255,.18);
+  --primary-d: rgba(90,171,255,.12);
+
+  --accent:    #f59e0b;
+  --accent-l:  rgba(245,158,11,.18);
+  --accent-d:  rgba(245,158,11,.10);
+
+  --green:     #10b981;
+  --green-l:   rgba(16,185,129,.18);
+  --green-d:   rgba(16,185,129,.10);
+
+  --red:       #f87171;
+  --red-l:     rgba(248,113,113,.16);
+  --red-d:     rgba(248,113,113,.10);
+
+  --amber:     #fbbf24;
+  --amber-l:   rgba(251,191,36,.16);
+  --amber-d:   rgba(251,191,36,.10);
+
+  --blue:      #60a5fa;
+  --blue-l:    rgba(96,165,250,.16);
+  --blue-d:    rgba(96,165,250,.10);
+
+  --text1:     #e8f1fb;
+  --text:      #e8f1fb;
+  --text2:     #9ab8d4;
+  --text3:     #5a7fa0;
+
+  --shadow:    0 1px 3px rgba(0,0,0,.3),  0 4px 16px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 8px 32px rgba(0,0,0,.35);
+
+  --st-ativa-bg:      rgba(16,185,129,.16);  --st-ativa-txt:     #6ee7b7;  --st-ativa-brd:     rgba(16,185,129,.35);
+  --st-iminente-bg:   rgba(251,191,36,.14);  --st-iminente-txt:  #fcd34d;  --st-iminente-brd:  rgba(251,191,36,.35);
+  --st-posterior-bg:  rgba(96,165,250,.14);  --st-posterior-txt: #93c5fd;  --st-posterior-brd: rgba(96,165,250,.35);
+  --st-encerrada-bg:  rgba(100,116,139,.12); --st-encerrada-txt: #94a3b8;  --st-encerrada-brd: rgba(100,116,139,.3);
+}

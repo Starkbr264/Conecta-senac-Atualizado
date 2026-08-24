@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: 'mcr.microsoft.com/mssql/server:2019-latest'
+    environment:
+      - 'ACCEPT_EULA=yes'
+      - 'MSSQL_PID=express'
+      - 'MSSQL_SA_PASSWORD=REDACTED_POSTGRES_PASSWORD'
+    ports:
+      - '1434:1433'
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "REDACTED_POSTGRES_PASSWORD" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 40s
+
+  sqlserver-init:
+    image: 'mcr.microsoft.com/mssql-tools'
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    entrypoint: ["/opt/mssql-tools/bin/sqlcmd", "-S", "sqlserver", "-U", "sa", "-P", "REDACTED_POSTGRES_PASSWORD", "-C", "-Q", "IF DB_ID('conectasenac') IS NULL CREATE DATABASE conectasenac;"]
+    restart: "no"
+
+volumes:
+  mssql_data:

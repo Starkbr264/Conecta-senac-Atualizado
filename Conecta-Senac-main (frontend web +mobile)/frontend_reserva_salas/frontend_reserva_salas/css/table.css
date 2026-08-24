@@ -1,0 +1,38 @@
+/* ================================================================
+   table.css — Tabelas de dados
+   ================================================================ */
+.tw { overflow-x: auto; }
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+.tbl thead tr {
+  border-bottom: 2px solid var(--border);
+}
+.tbl thead th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.tbl tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: var(--t);
+}
+.tbl tbody tr:hover     { background: var(--surface2); }
+.tbl tbody td           { padding: 11px 12px; vertical-align: middle; }
+.tbl tbody tr:last-child{ border-bottom: none; }
+
+.empty-row td {
+  text-align: center;
+  color: var(--text3);
+  padding: 36px;
+  font-size: .875rem;
+}
+.td-actions { display: flex; gap: 6px; flex-wrap: wrap; }

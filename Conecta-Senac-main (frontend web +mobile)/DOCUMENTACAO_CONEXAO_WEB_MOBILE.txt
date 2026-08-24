@@ -1,0 +1,264 @@
+=====================================================================
+ DOCUMENTAÇÃO — CONEXÃO WEB <-> MOBILE E COMENTÁRIOS DE SOLICITAÇÕES
+ Projeto: Reserva de Salas SENAC
+=====================================================================
+
+---------------------------------------------------------------------
+ 1. VISÃO GERAL DA ARQUITETURA
+---------------------------------------------------------------------
+O sistema é dividido em 3 partes que compartilham o MESMO banco de
+dados (fonte da verdade central):
+
+  1. Servidor central (Node.js puro, sem dependências externas)
+     Arquivo: server/index.js
+     Porta:   3333
+     Banco:   server/data/db.json (persistido em disco)
+     Funções:
+       - Serve o web (frontend_reserva_salas/) como arquivos estáticos;
+       - Expõe a API REST /api/* usada pelo mobile:
+           GET  /api/dados   -> baixa o banco completo (sincronização inicial)
+           POST /api/sinc    -> envia alterações locais (merge por id)
+           POST /api/login   -> valida credenciais
+           POST /api/reset   -> recarrega os dados de exemplo
+
+  2. Web (HTML/CSS/JS puro)
+     Pasta: frontend_reserva_salas/
+     Arquivo-chave: js/storage.js
+     - Carrega o cache local (localStorage) e em seguida sincroniza
+       com o servidor central (/_sincronizarServidor), baixando o
+       banco completo e substituindo o cache local.
+
+  3. Mobile (React Native + Expo Router)
+     Pasta: src/
+     Arquivos-chave:
+       - src/services/api.ts      -> cliente HTTP da API central
+       - src/services/storage.ts  -> cache local (AsyncStorage) com
+                                     "dirty tracking" das alterações
+       - src/hooks/useAuth.ts     -> login/sessão (valida no servidor)
+
+  Como funciona a sincronização (nos DOIS lados, web e mobile):
+     - Toda escrita local marca o registro como "alterado" e dispara
+       o envio ao servidor em background (best-effort);
+     - Exclusões locais são propagadas via /api/sinc com lista de ids;
+     - Ao iniciar, o app envia as pendências locais e DEPOIS baixa o
+       banco completo do servidor, que passa a ser a fonte da verdade.
+     Resultado: o que é alterado no WEB aparece no MOBILE e vice-versa,
+     sem que um cliente sobrescreva o banco central com dados divergentes.
+
+---------------------------------------------------------------------
+ 2. O QUE FOI FEITO NESTA ETAPA
+---------------------------------------------------------------------
+Objetivo: completar a conexão web <-> mobile e os comentários
+(resposta do coordenador) nas solicitações de sala.
+
+---------------------------------------------------------------------
+ 2.1 MOBILE — Nova aba "Pedidos" no painel do Instrutor
+---------------------------------------------------------------------
+Arquivo modificado: src/app/instrutor/index.tsx
+
+  - Adicionada a aba "Pedidos" (key: 'solicitacoes') no menu do
+    instrutor, com ícone de prancheta (clipboard-outline);
+  - Novo componente <MinhasSolicitacoes /> que lista TODAS as
+    solicitações do instrutor logado, ordenadas da mais recente para
+    a mais antiga, exibindo:
+        * Sala solicitada;
+        * Status (PENDENTE / APROVADA / RECUSADA) com badge colorido;
+        * Data e horário da solicitação;
+        * Turno(s) e horário;
+        * Turma vinculada (quando houver);
+        * Motivo informado pelo instrutor;
+        * COMENTÁRIO/RESPOSTA DO COORDENADOR (campo "resposta") com a
+          data em que foi respondida (campo "respondidaEm").
+  - Novo componente <StatusPillPedido /> para o badge de status.
+  - Novos estilos: solicitCard, motivoBox, motivoLabel, motivoTxt.
+
+  Importante: o comentário do coordenador viaja junto com a
+  solicitação no banco central (server/data/db.json), ou seja, quando
+  o coordenador responde no WEB, o instrutor vê a resposta no MOBILE
+  após a sincronização (pull-to-refresh ou ao abrir o app), e vice-versa.
+
+---------------------------------------------------------------------
+ 2.2 MOBILE — Envio de solicitação alinhado ao formato do WEB
+---------------------------------------------------------------------
+Arquivo modificado: src/app/instrutor/index.tsx (função enviar do
+modal "Solicitar Sala")
+
+  - No modo "Período", o app agora calcula os dias da semana
+    (diasSemana: ['seg','ter',...]) a partir das datas informadas,
+    preenchendo o mesmo formato que o web usa;
+  - O campo "turno" (primeiro turno selecionado) também é enviado,
+    para compatibilidade com solicitações antigas do web que usam
+    apenas "turno" no lugar de "turnos";
+  - Com isso, quando o coordenador aprova a solicitação (no web ou no
+    mobile), a reserva gerada automaticamente usa os dias e turnos
+    corretos, e a verificação de conflito funciona nos dois lados.
+
+---------------------------------------------------------------------
+ 2.3 WEB — Exibir comentário do coordenador nas solicitações
+---------------------------------------------------------------------
+Arquivo modificado: frontend_reserva_salas/js/coordenador_page.js
+(função rdSolics)
+
+  - Solicitações já respondidas (aprovadas/recusadas) agora exibem um
+    bloco destacado com:
+        * "Resposta do coordenador" + data/hora da resposta;
+        * O texto do comentário digitado no prompt ao aprovar/recusar
+          (campo "resposta" da solicitação).
+  - O bloco usa borda colorida de acordo com o status (verde para
+    aprovada, vermelha para recusada).
+
+---------------------------------------------------------------------
+ 2.4 WEB — Tipos de notificação alinhados ao MOBILE
+---------------------------------------------------------------------
+Arquivo modificado: frontend_reserva_salas/js/coordenador_page.js
+(função responderSolic)
+
+  - Ao aprovar uma solicitação, a notificação enviada ao instrutor
+    agora usa tipo "aprovada" (antes era "chave");
+  - Ao recusar, usa tipo "recusada" (antes era "aviso");
+  - Isso padroniza os ícones/estilos das notificações entre web e
+    mobile (os dois já reconhecem os tipos aprovada/recusada).
+
+---------------------------------------------------------------------
+ 3. ARQUIVOS ALTERADOS / CRIADOS
+---------------------------------------------------------------------
+  Modificados:
+    1. src/app/instrutor/index.tsx
+       - Aba "Pedidos" + MinhasSolicitacoes + comentário do coordenador
+       - Envio de solicitação com diasSemana e turno (formato web)
+       - Estilos novos
+
+    2. frontend_reserva_salas/js/coordenador_page.js
+       - Exibição da "Resposta do coordenador" nas solicitações
+       - Notificações com tipos aprovada/recusada
+
+  Criado:
+    3. DOCUMENTACAO_CONEXAO_WEB_MOBILE.txt (este arquivo)
+
+  Banco (gerado automaticamente ao iniciar):
+    server/data/db.json
+
+---------------------------------------------------------------------
+ 4. COMO INICIAR O SISTEMA
+---------------------------------------------------------------------
+  Servidor central (web + API do mobile):
+      node server/index.js
+      -> Web:   http://localhost:3333
+      -> API:   http://localhost:3333/api/dados
+
+  Mobile (Expo):
+      npx expo start
+      -> O app descobre sozinho o IP da máquina para falar com o
+         servidor na porta 3333 (via Expo/Constants hostUri).
+
+  Obs.: Abra os dois em terminais separados. O servidor PRECISA estar
+  rodando para que web e mobile compartilhem os dados.
+
+---------------------------------------------------------------------
+ 5. CREDENCIAIS DE TESTE
+---------------------------------------------------------------------
+  Admin:        Senac_GDF@Hotmail.com / Senac.DF2007
+  Coordenador:  coord.asanorte@senacdf.com / Coord@123
+  Instrutor:    katia.barros@senacdf.com / Inst@123
+  Recepção:     recep.asanorte@senacdf.com / Recep@123
+
+  Fluxo de teste sugerido (comentários):
+    1. Logar no WEB como instrutor e solicitar uma sala;
+    2. Logar no WEB como coordenador da mesma unidade, ir em
+       "Solicitações", aprovar ou recusar digitando um comentário;
+    3. Logar no MOBILE como instrutor e abrir a aba "Pedidos":
+       a solicitação deve aparecer com o status atualizado e o
+       comentário do coordenador.
+  (Se aprovada, a reserva é criada automaticamente e aparece no
+   calendário/mapa dos dois lados.)
+
+---------------------------------------------------------------------
+ 6. VALIDAÇÕES REALIZADAS
+---------------------------------------------------------------------
+  - TypeScript: npx tsc --noEmit -> sem erros de código (apenas os
+    avisos de depreciação pré-existentes do tsconfig, não relacionados
+    a esta etapa);
+  - Servidor: iniciado com sucesso em http://localhost:3333;
+  - API /api/dados: retorna o banco completo com as solicitações,
+    incluindo o campo "resposta" (comentário);
+  - API /api/sinc: teste de aprovação de solicitação com comentário e
+    notificação "aprovada" persistiu corretamente no banco;
+  - API /api/reset: restaurou o banco para os dados de exemplo após o
+    teste;
+ Fim da documentação
+  - Web: página de login carregada e sincronizada com o servidor
+    ("Banco sincronizado com o servidor central" no console).
+
+---------------------------------------------------------------------
+ 7. CORREÇÃO — DADOS DIVERGENTES ENTRE WEB E MOBILE
+---------------------------------------------------------------------
+---------------------------------------------------------------------
+ 7.1 O PROBLEMA
+---------------------------------------------------------------------
+  - O seed local do MOBILE (src/services/storage.ts) estava desatualizado
+    e divergia do servidor central:
+        * Mobile semeava apenas 5 unidades (1001 Asa Norte, 1002
+          Taguatinga, 1003 Ceilândia, 1004 Gama, 1005 Sobradinho);
+        * O servidor (server/seed.js) tem 10 unidades (1001..1010), e o
+          id 1002 é "Asa Sul" (não Taguatinga).
+  - Consequência: ao criar uma unidade no MOBILE, o id calculado era
+    1006 (maxId local + 1), que JÁ EXISTE no servidor como "Sobradinho".
+    O /api/sinc fazia upsert por id e SOBRESCREVIA Sobradinho em vez de
+    criar — por isso a unidade "nova" não aparecia corretamente no WEB.
+
+---------------------------------------------------------------------
+ 7.2 O QUE FOI CORRIGIDO
+---------------------------------------------------------------------
+  a) Seed do MOBILE alinhado ao servidor (src/services/storage.ts)
+     - Versão da semente migrada para "v2" (chave @sn_init_v2). Ao abrir
+       o app com a versão antiga gravada, o seed é re-executado uma vez;
+     - No primeiro uso, o app tenta BAIXAR o banco do servidor
+       (GET /api/dados) e usá-lo como semente — nascendo com exatamente
+       os mesmos dados do web;
+     - Se o servidor estiver offline, usa um seed EMBUTIDO que espelha o
+       server/seed.js (10 unidades 1001..1010, 42 usuários, 50 salas,
+       40 turmas, 31 reservas, 20 chaves, notificações e solicitações),
+       preservando registros já criados pelo usuário que não existam no
+       seed.
+
+  b) IDs de novos registros à prova de colisão (src/services/storage.ts)
+     - _nextId agora usa timestamp (13 dígitos) em vez de maxId+1,
+       garantindo que um registro criado no mobile nunca colida com ids
+       fixos do seed/servidor (<= 10001);
+     - O limite LIMITE_ID_SEED = 100000 separa registros com id oficial
+       (upsert) de registros recém-criados (protocolo "criados").
+
+  c) Protocolo de sincronização "criados" (server/index.js + api.ts + storage.ts)
+     - O corpo de POST /api/sinc agora aceita:
+         { alteracoes: {...}, criados: {...}, remocoes: {...} }
+     - Registros NOVOS (id provisório por timestamp) vão em "criados".
+       O servidor atribui o id oficial (próximo id livre) e devolve o
+       mapeamento antigo -> novo em "idsNovos";
+     - Assim, um cliente com cache desatualizado NUNCA sobrescreve um
+       registro existente no servidor usando um id que ele "inventou";
+     - O mobile aplica os ids oficiais devolvidos (e atualiza referências
+       como salaId/unidadeId/turmaId/instrutorId) no cache local.
+
+---------------------------------------------------------------------
+ 7.3 VALIDAÇÃO DA CORREÇÃO
+---------------------------------------------------------------------
+  - npx tsc --noEmit ................ sem erros;
+  - node --check server/index.js ... sintaxe OK;
+  - Teste de criação via /api/sinc:
+      POST /api/sinc
+      { "criados": { "unidades": [ { "id": 1789999999999,
+        "nome": "SENAC Teste Sync", ... } ] } }
+    Resposta: { "ok": true, "idsNovos": { "unidades": { "1789999999999": 1011 } } }
+    -> a unidade foi criada com id oficial 1011, SEM sobrescrever
+       Sobradinho (1006) nem qualquer outra;
+  - Em seguida POST /api/reset restaurou o banco de exemplo (10 unidades).
+
+  IMPORTANTE: instalações do mobile já existentes precisam apenas abrir o
+  app UMA vez com o servidor rodando — o seed v2 baixa o banco do servidor
+  e corrige o cache local automaticamente. Em seguida, as 10 unidades (e
+  todos os demais dados) ficarão idênticos no WEB e no MOBILE.
+
+ Fim da documentação
+=====================================================================
+ Fim da documentação
+=====================================================================

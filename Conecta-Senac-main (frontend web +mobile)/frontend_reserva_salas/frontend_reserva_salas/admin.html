@@ -1,0 +1,264 @@
+﻿<!DOCTYPE html>
+<!-- admin.html — Painel do Administrador: usuarios, unidades, salas, turmas, reservas, chaves e calendario -->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/phosphor.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrador — SENAC Reservas</title>
+
+</head>
+<body>
+<div class="layout">
+
+  
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="logo-wrap" id="logoWrap"><img id="logoImg" src="img/senac-logo-sem-fundo.webp" alt="SENAC"></div>
+      <div class="sb-nome" id="logoTxt">SENAC · GDF</div>
+      <div class="sb-sub">Reserva de Salas</div>
+      <span class="sb-badge admin">Administrador</span>
+    </div>
+    <nav class="sb-nav">
+      <span class="sb-section">Painel</span>
+      <button class="sb-btn" id="nav-dashboard" onclick="ir('dashboard')"><span class="ic">D</span>Dashboard</button>
+      <span class="sb-section">Gestão</span>
+      <button class="sb-btn" id="nav-usuarios"  onclick="ir('usuarios')"><span class="ic">U</span>Usuários</button>
+      <button class="sb-btn" id="nav-unidades"  onclick="ir('unidades')"><span class="ic">C</span>Unidades / CPS</button>
+      <span class="sb-section">Visão Global</span>
+      <button class="sb-btn" id="nav-salas"    onclick="ir('salas')"><span class="ic">S</span>Salas</button>
+      <button class="sb-btn" id="nav-turmas"   onclick="ir('turmas')"><span class="ic">T</span>Turmas</button>
+      <button class="sb-btn" id="nav-reservas" onclick="ir('reservas')"><span class="ic">R</span>Reservas</button>
+      <button class="sb-btn" id="nav-chaves"   onclick="ir('chaves')"><span class="ic"><i class="ph ph-key"></i></span>Chaves</button>
+      <button class="sb-btn" id="nav-calendario" onclick="ir('calendario')"><span class="ic"><i class="ph ph-calendar"></i></span>Calendário</button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sbIniciais">AD</div>
+        <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Administrador</div></div>
+      </div>
+      <button class="btn-sair" onclick="sair()">Sair do sistema</button>
+    </div>
+  </aside>
+
+  
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="tb-title" id="tbTitle">Dashboard</div>
+        <div class="tb-sub"   id="tbSub">Visão geral do sistema</div>
+      </div>
+      <div class="tb-right">
+        <button class="btn-tema" onclick="toggleTema()" title="Alternar tema"><i class="ph ph-moon"></i></button>
+      </div>
+    </header>
+
+    
+    <div class="pg ativa" id="pg-dashboard">
+      <div class="stats s4">
+        <div class="stat s-primary"><div class="stat-lbl">Total Usuários</div><div class="stat-val" id="stTotal">0</div></div>
+        <div class="stat s-blue">  <div class="stat-lbl">Coordenadores</div> <div class="stat-val" id="stCoord">0</div></div>
+        <div class="stat s-green"> <div class="stat-lbl">Instrutores</div>   <div class="stat-val" id="stInst">0</div></div>
+        <div class="stat s-amber"> <div class="stat-lbl">Unidades</div>      <div class="stat-val" id="stUnid">0</div></div>
+      </div>
+      <div class="stats s4" style="margin-top:0">
+        <div class="stat s-primary"><div class="stat-lbl">Salas</div>    <div class="stat-val" id="stSalas">0</div></div>
+        <div class="stat s-blue">  <div class="stat-lbl">Turmas</div>   <div class="stat-val" id="stTurmas">0</div></div>
+        <div class="stat s-green"> <div class="stat-lbl">Reservas</div> <div class="stat-val" id="stResv">0</div></div>
+        <div class="stat s-amber"> <div class="stat-lbl">Chaves</div>   <div class="stat-val" id="stChav">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ultimos Usuários</div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Unidade</th></tr></thead>
+          <tbody id="tbDash"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-usuarios">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Usuários do Sistema <span class="count-badge" id="countUsuarios"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdUsuarios', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button class="btn btn-primary" onclick="abrirUser(0)">+ Novo Usuário</button>
+        </div>
+        <div id="searchUsuarios"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Unidade</th><th>Ações</th></tr></thead>
+          <tbody id="tbUsuarios"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-unidades">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Unidades / CPS do SENAC-DF <span class="count-badge" id="countUnidades"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdUnidades', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button class="btn btn-primary" onclick="abrirUnid(0)">+ Nova Unidade</button>
+        </div>
+        <div id="searchUnidades"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Nome</th><th>Endereço</th><th>CEP</th><th>Ações</th></tr></thead>
+          <tbody id="tbUnidades"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-salas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Todas as Salas <span class="count-badge" id="countSalasAdmin"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdTodasSalas', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+        </div>
+        <div id="searchSalasAdmin"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Nome</th><th>Unidade</th><th>Tipo</th><th>Capacidade</th><th>Turnos</th></tr></thead>
+          <tbody id="tbSalasAdmin"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-turmas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Todas as Turmas <span class="count-badge" id="countTurmasAdmin"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdTodasTurmas', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+        </div>
+        <div id="searchTurmasAdmin"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Código</th><th>Curso</th><th>Unidade</th><th>Instrutor</th><th>Turno</th><th>Status</th></tr></thead>
+          <tbody id="tbTurmasAdmin"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-reservas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Todas as Reservas <span class="count-badge" id="countResAdmin"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdTodasReservas', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+        </div>
+        <div id="searchResAdmin"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Sala</th><th>Turma</th><th>Unidade</th><th>Turno</th><th>Período</th><th>Status</th></tr></thead>
+          <tbody id="tbResAdmin"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-chaves">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Todas as Chaves <span class="count-badge" id="countChavAdmin"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdTodasChaves', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+        </div>
+        <div id="searchChavAdmin"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Código</th><th>Sala</th><th>Unidade</th><th>Andar</th><th>Status</th></tr></thead>
+          <tbody id="tbChavAdmin"></tbody>
+        </table></div>
+      </div>
+
+        
+    </div>
+
+    
+    <div class="pg" id="pg-calendario">
+      <div class="card">
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="calAnterior()" title="Anterior"><i class="ph ph-caret-left"></i></button>
+            <span id="calPeriodo" class="cal-periodo">Calendário</span>
+            <button class="cal-nav-btn" onclick="calProximo()" title="Próximo"><i class="ph ph-caret-right"></i></button>
+            <button class="cal-today-btn" onclick="calHoje()">Hoje</button>
+          </div>
+          <div class="cal-view-toggle">
+            <button class="cal-view-btn ativo" data-vista="mes"    onclick="calVista('mes')">Mês</button>
+            <button class="cal-view-btn"        data-vista="semana" onclick="calVista('semana')">Semana</button>
+          </div>
+          <div class="cal-filters">
+            <select id="calFiltSala"  onchange="calFiltrar()"><option value="">Todas as salas</option></select>
+            <select id="calFiltTurno" onchange="calFiltrar()">
+              <option value="">Todos os turnos</option>
+              <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
+            </select>
+            <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdCalendario', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          </div>
+        </div>
+        <div class="cal-legenda">
+          <div class="cal-leg"><div class="cal-leg-dot mat"></div>Matutino</div>
+          <div class="cal-leg"><div class="cal-leg-dot ves"></div>Vespertino</div>
+          <div class="cal-leg"><div class="cal-leg-dot not"></div>Noturno</div>
+          <div class="cal-leg"><div class="cal-leg-dot avul"></div>Sem turma</div>
+        </div>
+        <div class="cal-layout">
+          <div id="calCorpo"></div>
+          <div class="cal-detalhe-wrap"><div id="calDetalhe" class="cal-detalhe"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalUser" style="display:none">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title"><span id="mUTitulo">Novo Usuário</span><button class="modal-close" onclick="fecharUser()"><i class="ph ph-x"></i></button></div>
+    <div class="fg" style="gap:12px">
+      <div class="ff"><label>Nome completo *</label><input type="text" id="mUNome" placeholder="Nome completo"></div>
+      <div class="ff"><label>E-mail *</label><input type="email" id="mUEmail" placeholder="email@senac.br"></div>
+      <div class="ff"><label>Senha</label><input type="password" id="mUSenha" placeholder="Deixe vazio para não alterar"></div>
+      <div class="fg g2" style="gap:12px;margin:0">
+        <div class="ff"><label>Perfil *</label>
+          <select id="mUPerfil">
+            <option value="coordenador">Coordenador</option>
+            <option value="instrutor">Instrutor</option>
+            <option value="recepcao">Recepção</option>
+          </select>
+        </div>
+        <div class="ff"><label>Unidade *</label><select id="mUUnidade"><option value="">— Selecione —</option></select></div>
+      </div>
+    </div>
+    <div id="mUMsg" class="fmsg"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="fecharUser()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarUser()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalUnid" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title"><span id="mNTitulo">Nova Unidade</span><button class="modal-close" onclick="fecharUnid()"><i class="ph ph-x"></i></button></div>
+    <div class="fg">
+      <div class="ff"><label>Nome *</label><input type="text" id="mNNome" placeholder="Ex.: CPS Taguatinga"></div>
+      <div class="ff"><label>Endereço</label><input type="text" id="mNEndereco" placeholder="Rua, número, bairro"></div>
+      <div class="ff"><label>CEP</label><input type="text" id="mNCep" placeholder="00000-000"></div>
+    </div>
+    <div id="mNMsg" class="fmsg"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="fecharUnid()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarUnid()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+    <div id="toasts"></div>
+<script src="js/storage.js"></script>
+    <script src="js/calendario_page.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/search.js"></script>
+<script src="js/admin_page.js"></script>
+</body>
+</html>

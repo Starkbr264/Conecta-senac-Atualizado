@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<!-- instrutor.html — Painel do Instrutor: turmas, solicitar sala, chaves, calendario -->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/phosphor.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instrutor — SENAC Reservas</title>
+
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="logo-wrap" id="logoWrap"><img id="logoImg" src="img/senac-logo-sem-fundo.webp" alt="SENAC"></div>
+      <div class="sb-nome" id="logoTxt">SENAC · GDF</div>
+      <div class="sb-sub" id="sbUnidade"></div>
+      <span class="sb-badge instrutor">Instrutor</span>
+    </div>
+    <nav class="sb-nav">
+      <span class="sb-section">Meu Painel</span>
+      <button class="sb-btn" id="nav-turmas"  onclick="ir('turmas')"> <span class="ic">T</span>Minhas Turmas</button>
+      <button class="sb-btn" id="nav-salas"   onclick="ir('salas')">  <span class="ic">S</span>Solicitar Sala</button>
+      <button class="sb-btn" id="nav-calendario" onclick="ir('calendario')"><span class="ic"><i class="ph ph-calendar"></i></span>Calendário</button>
+      <button class="sb-btn" id="nav-notifs"  onclick="ir('notifs')"> <span class="ic">N</span>Notificações
+        <span class="sb-notif" id="badgeNotif" style="display:none">0</span></button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-user"><div class="sb-avatar" id="sbIniciais">IN</div>
+        <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Instrutor</div></div></div>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div><div class="tb-title" id="tbTitle">Minhas Turmas</div><div class="tb-sub" id="tbSub"></div></div>
+      <div class="tb-right"><button class="btn-tema" onclick="toggleTema()"><i class="ph ph-moon"></i></button></div>
+    </header>
+
+    
+    <div class="pg ativa" id="pg-turmas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Turmas Atribuídas a Mim <span class="count-badge" id="countTurmasInst"></span></div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdTurmas', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+        </div>
+        <div id="searchTurmasInst"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Código</th><th>Curso</th><th>Turno</th><th>Sala Reservada</th><th>Status</th><th>Período</th></tr></thead>
+          <tbody id="tbTurmas"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-salas">
+      <div class="card"><div class="card-head"><div class="card-title">Disponibilidade de Salas</div>
+        <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdSalas', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <div id="listaSalas" class="mapa-andar-grid" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+
+    
+            
+    <div class="pg" id="pg-notifs">
+      <div class="card"><div class="card-head"><div class="card-title">Notificações</div>
+        <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdNotifs', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <div id="listaNotifs"></div>
+      </div>
+
+    
+    </div>
+
+    
+    <div class="pg" id="pg-calendario">
+      <div class="card">
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="calAnterior()" title="Anterior"><i class="ph ph-caret-left"></i></button>
+            <span id="calPeriodo" class="cal-periodo">Calendário</span>
+            <button class="cal-nav-btn" onclick="calProximo()" title="Próximo"><i class="ph ph-caret-right"></i></button>
+            <button class="cal-today-btn" onclick="calHoje()">Hoje</button>
+          </div>
+          <div class="cal-view-toggle">
+            <button class="cal-view-btn ativo" data-vista="mes"    onclick="calVista('mes')">Mês</button>
+            <button class="cal-view-btn"        data-vista="semana" onclick="calVista('semana')">Semana</button>
+          </div>
+          <div class="cal-filters">
+            <select id="calFiltSala"  onchange="calFiltrar()"><option value="">Todas as salas</option></select>
+            <select id="calFiltTurno" onchange="calFiltrar()">
+              <option value="">Todos os turnos</option>
+              <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
+            </select>
+            <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdCalendario', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          </div>
+        </div>
+        <div class="cal-legenda">
+          <div class="cal-leg"><div class="cal-leg-dot mat"></div>Matutino</div>
+          <div class="cal-leg"><div class="cal-leg-dot ves"></div>Vespertino</div>
+          <div class="cal-leg"><div class="cal-leg-dot not"></div>Noturno</div>
+          <div class="cal-leg"><div class="cal-leg-dot avul"></div>Sem turma</div>
+        </div>
+        <div class="cal-layout">
+          <div id="calCorpo"></div>
+          <div class="cal-detalhe-wrap"><div id="calDetalhe" class="cal-detalhe"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalSolic" style="display:none">
+  <div class="modal-box" style="max-width:580px">
+    <div class="modal-title">
+      <span>Solicitar Sala: <strong><span id="slNome"></span></strong></span>
+      <button class="modal-close" onclick="modalFechar('modalSolic')" title="Fechar"><i class="ph ph-x"></i></button>
+    </div>
+    <input type="hidden" id="slSalaId">
+    <div class="fg" style="gap:13px">
+
+      
+      <div class="ff">
+        <label>Turma <span style="font-weight:400;font-size:.74rem;color:var(--text3)">(opcional)</span></label>
+        <select id="slTurma" onchange="slOnTurmaChange()">
+          <option value="">— Sem turma vinculada —</option>
+        </select>
+      </div>
+
+      
+      <div class="ff">
+        <label>Como deseja informar a data?</label>
+        <div class="sl-date-mode-grid">
+          <button class="sl-tipo-btn sl-tipo-ativo" id="slBtnUnica" onclick="slModoData('unica')"><i class="ph ph-calendar-check"></i> Data única</button>
+          <button class="sl-tipo-btn" id="slBtnPeriodo" onclick="slModoData('periodo')"><i class="ph ph-calendar-dots"></i> Período</button>
+          <button class="sl-tipo-btn" id="slBtnEsp" onclick="slModoData('especificas')"><i class="ph ph-calendar-plus"></i> Datas avulsas</button>
+        </div>
+      </div>
+
+      
+      <div class="ff sl-date-panel" id="slSecaoUnica">
+        <label>Data *</label>
+        <input type="date" id="slData" onchange="verificarDisponibilidadeSolic()">
+      </div>
+
+      
+      <div id="slSeaoPeriodo" class="ff sl-date-panel" style="display:none">
+        <div class="fg g2 sl-date-row">
+          <div class="ff"><label>Data início *</label><input type="date" id="slDataIni" onchange="verificarDisponibilidadeSolic()"></div>
+          <div class="ff"><label>Data fim *</label><input type="date" id="slDataFim" onchange="verificarDisponibilidadeSolic()"></div>
+        </div>
+      </div>
+
+      
+      <div id="slSecaoEspecificas" class="ff sl-date-panel" style="display:none">
+        <label>Selecione as datas *</label>
+        <div class="sl-date-add-row">
+          <input type="date" id="slDataAvulsa">
+          <button class="btn-refresh" onclick="slAdicionarData()"><i class="ph ph-plus"></i> Adicionar</button>
+        </div>
+        <div id="slListaDatas" class="sl-date-list"></div>
+      </div>
+
+      
+      <div class="ff">
+        <label>Turno * <span style="font-weight:400;font-size:.74rem;color:var(--text3)">(selecione um ou mais)</span></label>
+        <div class="chips" id="slTurnosChips" style="margin-top:4px">
+          <div class="chip" data-v="Matutino"   onclick="slToggleTurno(this)"><i class="ph ph-sun"></i> Matutino</div>
+          <div class="chip" data-v="Vespertino" onclick="slToggleTurno(this)"><i class="ph ph-cloud-sun"></i> Vespertino</div>
+          <div class="chip" data-v="Noturno"    onclick="slToggleTurno(this)"><i class="ph ph-moon"></i> Noturno</div>
+        </div>
+      </div>
+
+      
+      <div class="fg g2" style="gap:10px;margin:0">
+        <div class="ff">
+          <label>Horário início <span style="font-weight:400;font-size:.74rem;color:var(--text3)">(opcional)</span></label>
+          <input type="time" id="slHoraIni">
+        </div>
+        <div class="ff">
+          <label>Horário fim <span style="font-weight:400;font-size:.74rem;color:var(--text3)">(opcional)</span></label>
+          <input type="time" id="slHoraFim">
+        </div>
+      </div>
+
+      
+      <div id="slDisponibilidade" style="display:none;padding:10px 14px;border-radius:8px;font-size:.83rem;line-height:1.5"></div>
+      <div id="slTurnoErro" style="font-size:.82rem;margin-top:2px;display:none"></div>
+
+      
+      <div class="ff">
+        <label>Motivo / Observação</label>
+        <textarea id="slMotivo" placeholder="Descreva o motivo da solicitação..."></textarea>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="modalFechar('modalSolic')">Cancelar</button>
+      <button class="btn btn-primary" onclick="enviarSolic()"><i class="ph ph-paper-plane-tilt"></i> Enviar Solicitação</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/storage.js"></script>
+    <script src="js/calendario_page.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/search.js"></script>
+<script src="js/instrutor_page.js"></script>
+</body>
+</html>

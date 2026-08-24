@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "SENAC Reservas",
+    "slug": "reservasenac",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "reservasenac",
+    "plugins": ["expo-router"],
+    "splash": {
+      "backgroundColor": "#0c3b7a",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "backgroundColor": "#0c3b7a" } },
+    "web": { "bundler": "metro" }
+  }
+}

@@ -1,0 +1,184 @@
+/* ================================================================
+   dashboard.css — Estilos exclusivos do dashboard.html
+   (painel antigo da coordenação: salas / turmas / reservas)
+   ================================================================ */
+
+/* ── Sidebar (namespace do dashboard) ────────────────────── */
+.sidebar-brand {
+  padding: 20px 16px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.sidebar-brand img { max-width: 140px; max-height: 52px; object-fit: contain; margin-bottom: 8px; }
+.logo-text  { font-size: 1.1rem; font-weight: 800; color: var(--primary); }
+.logo-text span { color: var(--accent); }
+.logo-sub   { font-size: .65rem; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+
+.sidebar-nav    { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
+
+.nav-section-label {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text3);
+  padding: 10px 10px 4px;
+  display: block;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--r);
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: .88rem;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: var(--t);
+}
+.nav-item:hover   { background: var(--surface2); color: var(--text); }
+.nav-item.active  { background: var(--primary-l); color: var(--primary); font-weight: 600; }
+.nav-icon {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .68rem; font-weight: 800;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+.nav-sq { border-radius: 7px; }
+.nav-item.active .nav-icon { background: var(--primary-d); color: var(--primary); }
+
+/* ── Topbar (namespace do dashboard) ─────────────────────── */
+.topbar         { padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 50; display: flex; align-items: center; transition: background .25s, border-color .25s; }
+.topbar-title   { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.topbar-subtitle{ font-size: .8rem; color: var(--text2); margin-top: 1px; }
+.topbar-user    { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: .875rem; color: var(--text2); }
+.avatar         { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-l); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .78rem; color: var(--primary); }
+
+/* ── Conteúdo de página ───────────────────────────────────── */
+.page-content { padding: 24px 28px; }
+
+/* ── Cards de seção ───────────────────────────────────────── */
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+.section-card h3 {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+/* ── Formulários (namespace do dashboard) ─────────────────── */
+.form-group  { margin-bottom: 14px; }
+.form-label  { display: block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 5px; }
+.form-control, .form-select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: .9rem;
+  transition: var(--t);
+}
+.form-control:focus, .form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-d);
+}
+.form-control::placeholder { color: var(--text3); }
+.form-select option         { background: var(--surface); }
+.form-msg { margin-top: 8px; padding: 9px 12px; border-radius: var(--r); font-size: .85rem; font-weight: 500; }
+.form-msg.error   { background: var(--red-l);   color: var(--red);   border: 1px solid rgba(220,38,38,.3); }
+.form-msg.warning { background: var(--amber-l); color: var(--amber); border: 1px solid rgba(217,119,6,.3); }
+.form-msg.success { background: var(--green-l); color: var(--green); border: 1px solid rgba(5,150,105,.3); }
+
+/* ── Chips de seleção (turnos / dias) ─────────────────────── */
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.check-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border2);
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: .8rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: var(--t);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.check-chip:hover  { color: var(--text); }
+.check-chip.checked,
+.check-chip.turno-chip.checked {
+  border-color: var(--primary);
+  background: var(--primary-l);
+  color: var(--primary);
+}
+.check-chip input[type="checkbox"] { display: none; }
+.turno-chip { /* alias */ }
+.dia        { /* alias para check-chip dias da semana */ }
+
+/* ── Tabela (namespace do dashboard) ─────────────────────── */
+.table-wrapper { overflow-x: auto; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+.data-table thead tr { border-bottom: 2px solid var(--border); }
+.data-table thead th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.data-table tbody tr { border-bottom: 1px solid var(--border); transition: var(--t); }
+.data-table tbody tr:hover { background: var(--surface2); }
+.data-table tbody td { padding: 11px 12px; vertical-align: middle; }
+.data-table tbody tr:last-child { border-bottom: none; }
+.empty-row td { text-align: center; color: var(--text3); padding: 36px; font-size: .875rem; }
+
+/* ── Badges (namespace do dashboard) ─────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.badge-primary { background: var(--primary-l); color: var(--primary); border: 1px solid var(--primary-d); }
+.badge-success { background: var(--green-l);   color: var(--green);   border: 1px solid rgba(5,150,105,.25); }
+.badge-danger  { background: var(--red-l);     color: var(--red);     border: 1px solid rgba(220,38,38,.25); }
+.badge-warning { background: var(--amber-l);   color: var(--amber);   border: 1px solid rgba(217,119,6,.25); }
+
+/* ── Botões extras (namespace do dashboard) ───────────────── */
+.btn-logout  { width: 100%; padding: 9px; background: transparent; border: 1px solid var(--border2); border-radius: var(--r); color: var(--text2); font-family: 'Outfit', sans-serif; font-size: .84rem; font-weight: 500; cursor: pointer; transition: var(--t); }
+.btn-logout:hover { background: var(--red-l); border-color: var(--red); color: var(--red); }
+.btn-outline { background: transparent; border: 1.5px solid var(--border2); color: var(--text2); border-radius: var(--r); padding: 9px 18px; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: .875rem; cursor: pointer; transition: var(--t); }
+.btn-outline:hover { background: var(--surface2); color: var(--text); }
+
+/* ── Misc ─────────────────────────────────────────────────── */
+.code-text  { font-family: 'DM Mono', monospace; font-size: .82rem; }
+.disp-result{ padding: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); font-size: .9rem; color: var(--text2); }

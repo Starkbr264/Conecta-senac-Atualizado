@@ -1,0 +1,45 @@
+﻿/* ================================================================
+   main.css — Ponto de entrada único do CSS
+   Importa todos os módulos na ordem correta.
+
+   Para alterar qualquer parte visual, edite apenas o arquivo
+   correspondente abaixo — não há duplicação entre eles.
+
+   Ordem:
+     0. icons      → Phosphor icons + status dots
+     1. variables  → tokens de design (cores, tamanhos, sombras)
+     2. reset      → normalização e utilitários globais
+     3. login      → tela de login (login.html)
+     3b.landing    → página sobre o sistema (index.html)
+     4. layout     → sidebar, topbar, estrutura do painel
+     5. components → cards, stats, badges, chips, status
+     6. forms      → inputs, selects, mensagens de feedback
+     7. buttons    → todos os estilos de botão
+     8. table      → tabelas de dados
+     9. modal      → overlays e caixas de diálogo
+    10. toast      → notificações toast (pop-ups breves)
+    11. notifications → itens de notificação e solicitação
+    12. keys       → cards de chaves físicas
+    13. map        → mapa de salas v2 (cards bloco/andar)
+    14. search     → barras de pesquisa e filtros
+    15. dashboard   → estilos exclusivos do dashboard.html (painel antigo)
+   ================================================================ */
+
+@import url('variables.css');
+@import url('icons.css');
+@import url('reset.css');
+@import url('login.css');
+@import url('landing.css');
+@import url('layout.css');
+@import url('components.css');
+@import url('forms.css');
+@import url('buttons.css');
+@import url('table.css');
+@import url('modal.css');
+@import url('toast.css');
+@import url('notifications.css');
+@import url('keys.css');
+@import url('map.css');
+@import url('search.css');
+@import url('dashboard.css');
+@import url('calendario.css');

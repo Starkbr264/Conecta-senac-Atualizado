@@ -1,0 +1,328 @@
+﻿<!DOCTYPE html>
+<!-- coordenador.html — Painel do Coordenador: salas, turmas, reservas, mapa, solicitacoes, calendario -->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/phosphor.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordenador — SENAC Reservas</title>
+
+</head>
+<body>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="logo-wrap" id="logoWrap"><img id="logoImg" src="img/senac-logo-sem-fundo.webp" alt="SENAC"></div>
+      <div class="sb-nome" id="logoTxt">SENAC · GDF</div>
+      <div class="sb-sub" id="sbUnidade"></div>
+      <span class="sb-badge coord">Coordenador</span>
+    </div>
+    <nav class="sb-nav">
+      <span class="sb-section">Painel</span>
+      <button class="sb-btn" id="nav-dashboard"   onclick="ir('dashboard')">  <span class="ic">D</span>Dashboard</button>
+      <span class="sb-section">Cadastros</span>
+      <button class="sb-btn" id="nav-salas"        onclick="ir('salas')">       <span class="ic">S</span>Salas</button>
+      <button class="sb-btn" id="nav-turmas"       onclick="ir('turmas')">      <span class="ic">T</span>Turmas</button>
+      <button class="sb-btn" id="nav-reservas"     onclick="ir('reservas')">    <span class="ic">R</span>Reservas</button>
+      <span class="sb-section">Visualização</span>
+      <button class="sb-btn" id="nav-instrutores"  onclick="ir('instrutores')"> <span class="ic">I</span>Instrutores</button>
+      <button class="sb-btn" id="nav-mapa"         onclick="ir('mapa')">        <span class="ic">M</span>Mapa de Salas</button>
+      <button class="sb-btn" id="nav-calendario" onclick="ir('calendario')"><span class="ic"><i class="ph ph-calendar"></i></span>Calendário</button>
+      <button class="sb-btn" id="nav-solicitacoes" onclick="ir('solicitacoes')"><span class="ic">!</span>Solicitações<span class="sb-notif" id="badgeSolic" style="display:none">0</span></button>
+      <button class="sb-btn" id="nav-notifs"       onclick="ir('notifs')">      <span class="ic">N</span>Notificações<span class="sb-notif" id="badgeNotif" style="display:none">0</span></button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-user"><div class="sb-avatar" id="sbIniciais">CO</div>
+        <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Coordenador</div></div></div>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div><div class="tb-title" id="tbTitle">Dashboard</div><div class="tb-sub" id="tbSub"></div></div>
+      <div class="tb-right"><button class="btn-tema" onclick="toggleTema()"><i class="ph ph-moon"></i></button></div>
+    </header>
+
+    
+    <div class="pg ativa" id="pg-dashboard">
+      <div class="stats s4">
+        <div class="stat s-primary"><div class="stat-lbl">Salas</div>      <div class="stat-val" id="stSalas">0</div></div>
+        <div class="stat s-green"> <div class="stat-lbl">Turmas Ativas</div><div class="stat-val" id="stTurmas">0</div></div>
+        <div class="stat s-amber"> <div class="stat-lbl">Reservas</div>    <div class="stat-val" id="stRes">0</div></div>
+        <div class="stat s-red">   <div class="stat-lbl">Solicitações</div><div class="stat-val" id="stSol">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Turmas Recentes</div>
+          <button class="btn btn-ghost btn-sm" onclick="ir('turmas')">Ver todas</button></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Código</th><th>Curso</th><th>Instrutor</th><th>Status</th><th>Período</th></tr></thead>
+          <tbody id="tbDash"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-salas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Salas da Unidade <span class="count-badge" id="countSalasCoord"></span></div>
+          <button class="btn btn-primary" onclick="abrirSala(0)">+ Nova Sala</button>
+        </div>
+        <div id="searchSalasCoord"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Nome</th><th>Andar</th><th>Bloco</th><th>Capacidade</th><th>Tipo</th><th>Turnos</th><th>Ações</th></tr></thead>
+          <tbody id="tbSalas"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-turmas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Turmas <span class="count-badge" id="countTurmasCoord"></span></div>
+          <button class="btn btn-primary" onclick="abrirTurma(0)">+ Nova Turma</button>
+        </div>
+        <div id="searchTurmasCoord"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Código</th><th>Curso</th><th>Turno</th><th>Instrutor</th><th>Início</th><th>Fim</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="tbTurmas"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-reservas">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Reservas Recorrentes <span class="count-badge" id="countResCoord"></span></div>
+          <button class="btn btn-primary" onclick="abrirReserva()">+ Nova Reserva</button>
+        </div>
+        <div id="searchResCoord"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Sala</th><th>Turma</th><th>Turno</th><th>Dias</th><th>Período</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="tbReservas"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-instrutores">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Instrutores desta Unidade <span class="count-badge" id="countInstCoord"></span></div>
+        </div>
+        <div id="searchInstCoord"></div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Turmas Atribuídas</th><th>Ações</th></tr></thead>
+          <tbody id="tbInst"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-mapa">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Mapa de Salas — Hoje</div>
+            <div id="mapaLegenda" class="mapa-legenda"></div>
+          </div>
+          <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdMapa', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+        </div>
+        
+        <div class="mapa-filtros">
+          <div class="mapa-busca-wrap">
+            <span class="search-icon"><i class="ph ph-magnifying-glass"></i></span>
+            <input type="text" id="mapaBusca" class="search-input" placeholder="Pesquisar sala…" oninput="rdMapa()">
+          </div>
+          <select id="mapaFiltBloco"  class="filter-select" onchange="rdMapa()" style="min-width:140px"><option value="">Todos os blocos</option></select>
+          <select id="mapaFiltAndar"  class="filter-select" onchange="rdMapa()" style="min-width:140px"><option value="">Todos os andares</option></select>
+          <select id="mapaFiltTurno"  class="filter-select" onchange="rdMapa()" style="min-width:130px">
+            <option value="">Todos os turnos</option>
+            <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
+          </select>
+          <select id="mapaFiltStatus" class="filter-select" onchange="rdMapa()" style="min-width:130px">
+            <option value="">Todos os status</option>
+            <option value="livre"><span class="ic-dot ic-livre"></span> Livre</option>
+            <option value="ocupada"><span class="ic-dot ic-ocupada"></span> Ocupada</option>
+            <option value="iminente"><span class="ic-dot ic-iminente"></span> Em breve</option>
+          </select>
+        </div>
+        <div id="mapaSalas" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Próximas Reservas (14 dias)</div>
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Sala</th><th>Turma / Tipo</th><th>Instrutor</th><th>Período</th><th>Dias · Turno</th></tr></thead>
+          <tbody id="tbFuturasCoord"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    
+            
+    <div class="pg" id="pg-solicitacoes">
+      <div class="card"><div class="card-head"><div class="card-title">Solicitações de Sala</div>
+        <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdSolics', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <div id="listaSolics"></div>
+      </div>
+    </div>
+
+    
+    <div class="pg" id="pg-notifs">
+      <div class="card"><div class="card-head"><div class="card-title">Notificações</div>
+        <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdNotifs', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <div id="listaNotifs"></div>
+      </div>
+
+    
+    </div>
+
+    
+    <div class="pg" id="pg-calendario">
+      <div class="card">
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="calAnterior()" title="Anterior"><i class="ph ph-caret-left"></i></button>
+            <span id="calPeriodo" class="cal-periodo">Calendário</span>
+            <button class="cal-nav-btn" onclick="calProximo()" title="Próximo"><i class="ph ph-caret-right"></i></button>
+            <button class="cal-today-btn" onclick="calHoje()">Hoje</button>
+          </div>
+          <div class="cal-view-toggle">
+            <button class="cal-view-btn ativo" data-vista="mes"    onclick="calVista('mes')">Mês</button>
+            <button class="cal-view-btn"        data-vista="semana" onclick="calVista('semana')">Semana</button>
+          </div>
+          <div class="cal-filters">
+            <select id="calFiltSala"  onchange="calFiltrar()"><option value="">Todas as salas</option></select>
+            <select id="calFiltTurno" onchange="calFiltrar()">
+              <option value="">Todos os turnos</option>
+              <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
+            </select>
+            <button type="button" class="btn-refresh" onclick="return atualizarSecao('rdCalendario', this)"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          </div>
+        </div>
+        <div class="cal-legenda">
+          <div class="cal-leg"><div class="cal-leg-dot mat"></div>Matutino</div>
+          <div class="cal-leg"><div class="cal-leg-dot ves"></div>Vespertino</div>
+          <div class="cal-leg"><div class="cal-leg-dot not"></div>Noturno</div>
+          <div class="cal-leg"><div class="cal-leg-dot avul"></div>Sem turma</div>
+        </div>
+        <div class="cal-layout">
+          <div id="calCorpo"></div>
+          <div class="cal-detalhe-wrap"><div id="calDetalhe" class="cal-detalhe"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalSala" style="display:none">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">
+      <span id="mSTit">Nova Sala</span>
+      <button class="modal-close" onclick="modalFechar('modalSala')" title="Fechar"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="fg g2">
+      <div class="ff"><label>Nome / Número *</label><input type="text" id="mSNome" placeholder="Ex.: Lab 03"></div>
+      <div class="ff"><label>Capacidade *</label><input type="number" id="mSCap" min="1" placeholder="30"></div>
+      <div class="ff s2col"><label>Tipo de Sala *</label><input type="text" id="mSTipo" placeholder="Ex.: Laboratório de Informática, Sala comum…"></div>
+      <div class="ff"><label>Andar</label><input type="text" id="mSAndar" placeholder="Ex.: Térreo, 1º Andar, 2º Andar"></div>
+      <div class="ff"><label>Bloco</label><input type="text" id="mSBloco" placeholder="Ex.: Bloco A, Bloco B, Principal"></div>
+      <div class="ff s2col"><label>Turnos disponíveis</label>
+        <div class="chips" id="mSTurnos"></div>
+      </div>
+    </div>
+    <div id="mSMsg" class="fmsg"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="modalFechar('modalSala')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSala()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalTurma" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span id="mTTit">Nova Turma</span>
+      <button class="modal-close" onclick="modalFechar('modalTurma')" title="Fechar"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="fg g2">
+      <div class="ff"><label>Código *</label><input type="text" id="mTCod" placeholder="2025.08.178"></div>
+      <div class="ff"><label>Curso *</label><input type="text" id="mTCurso" placeholder="Nome do curso"></div>
+      <div class="ff"><label>Turno *</label>
+        <select id="mTTurno"><option>Matutino</option><option>Vespertino</option><option>Noturno</option></select></div>
+      <div class="ff"><label>Instrutor</label><select id="mTInst"></select></div>
+      <div class="ff"><label>Data Início *</label><input type="date" id="mTIni"></div>
+      <div class="ff"><label>Data Fim *</label>  <input type="date" id="mTFim"></div>
+    </div>
+    <div id="mTMsg" class="fmsg"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="modalFechar('modalTurma')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarTurma()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalRes" style="display:none">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">
+      <span id="mrTitulo">Nova Reserva</span>
+      <button class="modal-close" onclick="modalFechar('modalRes')" title="Fechar"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="fg" style="gap:10px">
+      <div class="ff"><label>Sala *</label><select id="mRSala"></select></div>
+      <div class="ff"><label>Turma *</label><select id="mRTurma"></select></div>
+      <div class="fg g2" style="gap:10px;margin:0">
+        <div class="ff"><label>Turno *</label>
+          <select id="mRTurno"><option>Matutino</option><option>Vespertino</option><option>Noturno</option></select>
+        </div>
+        <div class="ff"><label>Dias da semana</label><div class="chips" id="mRDias"></div></div>
+      </div>
+      <div class="fg g2" style="gap:10px;margin:0">
+        <div class="ff"><label>Início *</label><input type="date" id="mRIni"></div>
+        <div class="ff"><label>Fim *</label><input type="date" id="mRFim"></div>
+      </div>
+    </div>
+    <div id="mRMsg" class="fmsg"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="_editReservaId=null;modalFechar('modalRes')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarReserva()">Criar Reserva</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="modalAtrib" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span id="mATit">Atribuir Turma ao Instrutor</span>
+      <button class="modal-close" onclick="modalFechar('modalAtrib')" title="Fechar"><i class="ph ph-x"></i></button>
+    </div>
+    <input type="hidden" id="mAInstId">
+    <div class="ff">
+      <label>Turmas</label>
+      <div id="mATurmas" class="chips" style="display:flex;flex-direction:column;align-items:stretch;gap:8px;max-height:280px;overflow:auto"></div>
+      <div id="mAMsg" class="fmsg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="modalFechar('modalAtrib')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarAtrib()">Atribuir</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<script src="js/storage.js"></script>
+    <script src="js/calendario_page.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/search.js"></script>
+<script src="js/coordenador_page.js"></script>
+</body>
+</html>

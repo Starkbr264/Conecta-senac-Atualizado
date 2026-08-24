@@ -1,0 +1,91 @@
+/* ================================================================
+   icons.css — Sistema de ícones (Phosphor Icons) e status dots
+   ================================================================ */
+
+/* ── Phosphor icon base ───────────────────────────────────── */
+.ph {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Tamanhos */
+.ph-sm  { font-size: .85rem; }
+.ph-md  { font-size: 1.1rem; }
+.ph-lg  { font-size: 1.4rem; }
+.ph-xl  { font-size: 1.8rem; }
+
+/* Cores utilitárias para ícones */
+.ph-primary  { color: var(--primary); }
+.ph-muted    { color: var(--text3); }
+.ph-green    { color: var(--green);  }
+.ph-red      { color: var(--red);    }
+.ph-amber    { color: var(--amber);  }
+.ph-blue     { color: var(--blue);   }
+
+/* ── Status dots (substituem 🟢🔴🟡) ──────────────────────── */
+.ic-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.ic-livre    { background: var(--green);  box-shadow: 0 0 0 2px rgba(5,150,105,.18); }
+.ic-ocupada  { background: var(--red);    box-shadow: 0 0 0 2px rgba(220,38,38,.18); }
+.ic-iminente { background: var(--amber);  box-shadow: 0 0 0 2px rgba(217,119,6,.18); }
+
+/* ── Ícone alinhado com texto (em parágrafos, labels) ─────── */
+.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Ícones em botões ─────────────────────────────────────── */
+.btn .ph,
+.btn-sair .ph,
+.btn-nav-login .ph {
+  font-size: .9em;
+}
+
+/* ── Ícones em cards de mapa ──────────────────────────────── */
+.sc-meta-icon .ph,
+.sc-meta-icon  {
+  font-size: .8rem;
+  color: var(--text3);
+}
+
+/* ── Ícones em badges de turno (M/V/N) ───────────────────── */
+.mapa-turno .ph { font-size: .65rem; }
+
+/* ── Fix: ícones em itens de sidebar ─────────────────────── */
+.sb-btn .ph {
+  font-size: .88rem;
+  width: 16px;
+  text-align: center;
+}
+
+/* ── Fix: ícones no topbar (botão tema) ───────────────────── */
+.btn-tema .ph,
+.btn-nav-tema .ph {
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+/* ── Fix: ícones em search bar ────────────────────────────── */
+.search-icon .ph,
+.search-icon {
+  font-size: .95rem;
+  color: var(--text3);
+}
+
+/* ── Legenda do mapa com ic-dot ───────────────────────────── */
+.leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.leg-item .ic-dot { width: 8px; height: 8px; }

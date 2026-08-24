@@ -1,0 +1,60 @@
+/* ================================================================
+   forms.css — Inputs, selects, textareas, mensagens de feedback
+   ================================================================ */
+
+/* ── Grade de formulário ──────────────────────────────────── */
+.fg         { display: grid; gap: 14px; }
+.fg.g2      { grid-template-columns: 1fr 1fr; }
+.fg.g3      { grid-template-columns: 1fr 1fr 1fr; }
+.s2col      { grid-column: 1 / -1; }
+.ff         { display: flex; flex-direction: column; gap: 5px; }
+
+.ff label {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text3);
+}
+
+.ff input,
+.ff select,
+.ff textarea {
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: .9rem;
+  transition: var(--t);
+}
+.ff input:focus,
+.ff select:focus,
+.ff textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-d);
+}
+.ff input::placeholder { color: var(--text3); }
+.ff select option      { background: var(--surface); }
+.ff textarea           { resize: vertical; min-height: 68px; }
+
+/* ── Mensagens de feedback inline ─────────────────────────── */
+.fmsg {
+  margin-top: 10px;
+  padding: 9px 13px;
+  border-radius: var(--r);
+  font-size: .85rem;
+  font-weight: 500;
+  display: none;
+}
+.fmsg.erro  { background: var(--red-l);   border: 1px solid rgba(220,38,38,.3); color: var(--red);   display: block; }
+.fmsg.ok    { background: var(--green-l); border: 1px solid rgba(5,150,105,.3); color: var(--green); display: block; }
+.fmsg.aviso { background: var(--amber-l); border: 1px solid rgba(217,119,6,.3); color: var(--amber); display: block; }
+
+/* Colapsa grid em telas pequenas */
+@media (max-width: 600px) {
+  .fg.g2, .fg.g3 { grid-template-columns: 1fr; }
+  .s2col         { grid-column: auto; }
+}

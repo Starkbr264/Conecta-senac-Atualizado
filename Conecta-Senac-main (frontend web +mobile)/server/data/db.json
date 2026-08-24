@@ -1,0 +1,2784 @@
+{
+  "usuarios": [
+    {
+      "id": 1,
+      "nome": "Administrador SENAC",
+      "email": "Senac_GDF@Hotmail.com",
+      "senha": "Senac.DF2007",
+      "perfil": "admin",
+      "unidadeId": 1001
+    },
+    {
+      "id": 2001,
+      "nome": "Anadiria Passos",
+      "email": "coord.asanorte@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1001
+    },
+    {
+      "id": 2002,
+      "nome": "Joao Paulo Ferreira",
+      "email": "coord.Paulo@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1001
+    },
+    {
+      "id": 2003,
+      "nome": "Bruno Mendes Costa",
+      "email": "coord.asasul@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1002
+    },
+    {
+      "id": 2004,
+      "nome": "Carla Souza Lima",
+      "email": "coord.taguatinga@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1003
+    },
+    {
+      "id": 2005,
+      "nome": "Daniel Rocha Neves",
+      "email": "coord.ceilandia@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1004
+    },
+    {
+      "id": 2006,
+      "nome": "Elaine Cristina Dias",
+      "email": "coord.gama@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1005
+    },
+    {
+      "id": 2007,
+      "nome": "Fábio Alves Santos",
+      "email": "coord.sobradinho@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1006
+    },
+    {
+      "id": 2008,
+      "nome": "Gabriela Moura",
+      "email": "coord.planaltina@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1007
+    },
+    {
+      "id": 2009,
+      "nome": "Henrique Lopes",
+      "email": "coord.samambaia@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1008
+    },
+    {
+      "id": 2010,
+      "nome": "Isabela Ramos",
+      "email": "coord.santamaria@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1009
+    },
+    {
+      "id": 2011,
+      "nome": "João Victor Pinto",
+      "email": "coord.aguasclaras@senacdf.com",
+      "senha": "Coord@123",
+      "perfil": "coordenador",
+      "unidadeId": 1010
+    },
+    {
+      "id": 3001,
+      "nome": "Katia Regina Barros",
+      "email": "katia.barros@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1001
+    },
+    {
+      "id": 3002,
+      "nome": "Aline Moraes",
+      "email": "aline.moraes@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1001
+    },
+    {
+      "id": 3003,
+      "nome": "Leonardo Cruz",
+      "email": "leonardo.cruz@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1002
+    },
+    {
+      "id": 3004,
+      "nome": "Caio Batista",
+      "email": "caio.batista@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1002
+    },
+    {
+      "id": 3005,
+      "nome": "Mariana Oliveira",
+      "email": "mariana.oliveira@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1003
+    },
+    {
+      "id": 3006,
+      "nome": "Diana Castro",
+      "email": "diana.castro@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1003
+    },
+    {
+      "id": 3007,
+      "nome": "Natan Ferreira",
+      "email": "natan.ferreira@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1004
+    },
+    {
+      "id": 3008,
+      "nome": "Erick Almeida",
+      "email": "erick.almeida@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1004
+    },
+    {
+      "id": 3009,
+      "nome": "Olivia Martins",
+      "email": "olivia.martins@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1005
+    },
+    {
+      "id": 3010,
+      "nome": "Fernanda Lima",
+      "email": "fernanda.lima@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1005
+    },
+    {
+      "id": 3011,
+      "nome": "Pedro Henrique Melo",
+      "email": "pedro.melo@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1006
+    },
+    {
+      "id": 3012,
+      "nome": "Gustavo Rocha",
+      "email": "gustavo.rocha@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1006
+    },
+    {
+      "id": 3013,
+      "nome": "Queila Nascimento",
+      "email": "queila.nascimento@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1007
+    },
+    {
+      "id": 3014,
+      "nome": "Helena Duarte",
+      "email": "helena.duarte@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1007
+    },
+    {
+      "id": 3015,
+      "nome": "Rafael Torres",
+      "email": "rafael.torres@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1008
+    },
+    {
+      "id": 3016,
+      "nome": "Igor Martins",
+      "email": "igor.martins@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1008
+    },
+    {
+      "id": 3017,
+      "nome": "Sabrina Almeida",
+      "email": "sabrina.almeida@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1009
+    },
+    {
+      "id": 3018,
+      "nome": "Julia Naves",
+      "email": "julia.naves@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1009
+    },
+    {
+      "id": 3019,
+      "nome": "Thiago Vieira",
+      "email": "thiago.vieira@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1010
+    },
+    {
+      "id": 3020,
+      "nome": "Lucas Teixeira",
+      "email": "lucas.teixeira@senacdf.com",
+      "senha": "Inst@123",
+      "perfil": "instrutor",
+      "unidadeId": 1010
+    },
+    {
+      "id": 4001,
+      "nome": "Úrsula Campos",
+      "email": "recep.asanorte@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1001
+    },
+    {
+      "id": 4002,
+      "nome": "Vinícius Cardoso",
+      "email": "recep.asasul@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1002
+    },
+    {
+      "id": 4003,
+      "nome": "Wanda Silveira",
+      "email": "recep.taguatinga@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1003
+    },
+    {
+      "id": 4004,
+      "nome": "Xênia Prudente",
+      "email": "recep.ceilandia@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1004
+    },
+    {
+      "id": 4005,
+      "nome": "Yara Gonçalves",
+      "email": "recep.gama@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1005
+    },
+    {
+      "id": 4006,
+      "nome": "Zilda Fonseca",
+      "email": "recep.sobradinho@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1006
+    },
+    {
+      "id": 4007,
+      "nome": "Adriana Pereira",
+      "email": "recep.planaltina@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1007
+    },
+    {
+      "id": 4008,
+      "nome": "Bernardo Castro",
+      "email": "recep.samambaia@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1008
+    },
+    {
+      "id": 4009,
+      "nome": "Cecília Duarte",
+      "email": "recep.santamaria@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1009
+    },
+    {
+      "id": 4010,
+      "nome": "Diego Farias",
+      "email": "recep.aguasclaras@senacdf.com",
+      "senha": "Recep@123",
+      "perfil": "recepcao",
+      "unidadeId": 1010
+    }
+  ],
+  "unidades": [
+    {
+      "id": 1001,
+      "nome": "SENAC Asa Norte",
+      "cep": "70750-500",
+      "cidade": "Brasília/DF",
+      "endereco": "SCS Q.3 Bl.A - Asa Norte"
+    },
+    {
+      "id": 1002,
+      "nome": "SENAC Asa Sul",
+      "cep": "70390-045",
+      "cidade": "Brasília/DF",
+      "endereco": "SCS Q.3 Bl.A - Asa Sul"
+    },
+    {
+      "id": 1003,
+      "nome": "SENAC Taguatinga",
+      "cep": "72015-900",
+      "cidade": "Taguatinga/DF",
+      "endereco": "QS 1 Rua 210 Lote 30"
+    },
+    {
+      "id": 1004,
+      "nome": "SENAC Ceilândia",
+      "cep": "72220-270",
+      "cidade": "Ceilândia/DF",
+      "endereco": "Setor O, Qd.602 Conj.A"
+    },
+    {
+      "id": 1005,
+      "nome": "SENAC Gama",
+      "cep": "72405-080",
+      "cidade": "Gama/DF",
+      "endereco": "St. Central Qd.01 Conj.A"
+    },
+    {
+      "id": 1006,
+      "nome": "SENAC Sobradinho",
+      "cep": "73025-500",
+      "cidade": "Sobradinho/DF",
+      "endereco": "Conj.7 Área Esp. S/N"
+    },
+    {
+      "id": 1007,
+      "nome": "SENAC Planaltina",
+      "cep": "73380-100",
+      "cidade": "Planaltina/DF",
+      "endereco": "Setor Comercial Lote 1"
+    },
+    {
+      "id": 1008,
+      "nome": "SENAC Samambaia",
+      "cep": "72301-080",
+      "cidade": "Samambaia/DF",
+      "endereco": "QS 318 Conj.1 Lote 1"
+    },
+    {
+      "id": 1009,
+      "nome": "SENAC Santa Maria",
+      "cep": "72503-503",
+      "cidade": "Santa Maria/DF",
+      "endereco": "Av. Alagados Qd.400"
+    },
+    {
+      "id": 1010,
+      "nome": "SENAC Águas Claras",
+      "cep": "71907-530",
+      "cidade": "Águas Claras/DF",
+      "endereco": "Av. Araras Qd.600 Lote 10"
+    }
+  ],
+  "salas": [
+    {
+      "id": 5001,
+      "nome": "Lab Informática 01",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1001,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5002,
+      "nome": "Sala Comum 01",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1001,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5003,
+      "nome": "Lab Práticas 01",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1001,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5004,
+      "nome": "Auditório 01",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1001,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5005,
+      "nome": "Sala Reunião 01",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1001,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5006,
+      "nome": "Lab Informática 02",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1002,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5007,
+      "nome": "Sala Comum 02",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1002,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5008,
+      "nome": "Lab Práticas 02",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1002,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5009,
+      "nome": "Auditório 02",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1002,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5010,
+      "nome": "Sala Reunião 02",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1002,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5011,
+      "nome": "Lab Informática 03",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1003,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5012,
+      "nome": "Sala Comum 03",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1003,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5013,
+      "nome": "Lab Práticas 03",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1003,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5014,
+      "nome": "Auditório 03",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1003,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5015,
+      "nome": "Sala Reunião 03",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1003,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5016,
+      "nome": "Lab Informática 04",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1004,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5017,
+      "nome": "Sala Comum 04",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1004,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5018,
+      "nome": "Lab Práticas 04",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1004,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5019,
+      "nome": "Auditório 04",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1004,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5020,
+      "nome": "Sala Reunião 04",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1004,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5021,
+      "nome": "Lab Informática 05",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1005,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5022,
+      "nome": "Sala Comum 05",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1005,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5023,
+      "nome": "Lab Práticas 05",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1005,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5024,
+      "nome": "Auditório 05",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1005,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5025,
+      "nome": "Sala Reunião 05",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1005,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5026,
+      "nome": "Lab Informática 06",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1006,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5027,
+      "nome": "Sala Comum 06",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1006,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5028,
+      "nome": "Lab Práticas 06",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1006,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5029,
+      "nome": "Auditório 06",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1006,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5030,
+      "nome": "Sala Reunião 06",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1006,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5031,
+      "nome": "Lab Informática 07",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1007,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5032,
+      "nome": "Sala Comum 07",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1007,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5033,
+      "nome": "Lab Práticas 07",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1007,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5034,
+      "nome": "Auditório 07",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1007,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5035,
+      "nome": "Sala Reunião 07",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1007,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5036,
+      "nome": "Lab Informática 08",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1008,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5037,
+      "nome": "Sala Comum 08",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1008,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5038,
+      "nome": "Lab Práticas 08",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1008,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5039,
+      "nome": "Auditório 08",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1008,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5040,
+      "nome": "Sala Reunião 08",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1008,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5041,
+      "nome": "Lab Informática 09",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1009,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5042,
+      "nome": "Sala Comum 09",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1009,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5043,
+      "nome": "Lab Práticas 09",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1009,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5044,
+      "nome": "Auditório 09",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1009,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5045,
+      "nome": "Sala Reunião 09",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1009,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5046,
+      "nome": "Lab Informática 10",
+      "capacidade": 30,
+      "tipo": "Laboratório de Informática",
+      "andar": "1º Andar",
+      "bloco": "Bloco A",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1010,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5047,
+      "nome": "Sala Comum 10",
+      "capacidade": 40,
+      "tipo": "Sala Comum",
+      "andar": "Térreo",
+      "bloco": "Bloco B",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1010,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5048,
+      "nome": "Lab Práticas 10",
+      "capacidade": 20,
+      "tipo": "Cozinha Didática",
+      "andar": "1º Andar",
+      "bloco": "Bloco C",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1010,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5049,
+      "nome": "Auditório 10",
+      "capacidade": 80,
+      "tipo": "Auditório",
+      "andar": "Térreo",
+      "bloco": "Bloco D",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino",
+        "Noturno"
+      ],
+      "unidadeId": 1010,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    },
+    {
+      "id": 5050,
+      "nome": "Sala Reunião 10",
+      "capacidade": 12,
+      "tipo": "Sala de Reunião",
+      "andar": "2º Andar",
+      "bloco": "Bloco E",
+      "turnosDisponiveis": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "turnos": [
+        "Matutino",
+        "Vespertino"
+      ],
+      "unidadeId": 1010,
+      "statusManual": null,
+      "motivoManual": "",
+      "manualPor": "",
+      "manualCriadaEm": null
+    }
+  ],
+  "turmas": [
+    {
+      "id": 6001,
+      "codigo": "2025.001",
+      "nome": "2025.01.10",
+      "curso": "Técnico em Informática",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3001,
+      "unidadeId": 1001
+    },
+    {
+      "id": 6002,
+      "codigo": "2025.002",
+      "nome": "2025.01.20",
+      "curso": "Gastronomia Básica",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3002,
+      "unidadeId": 1001
+    },
+    {
+      "id": 6003,
+      "codigo": "2025.003",
+      "nome": "2025.01.30",
+      "curso": "Gestão de Pessoas",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3001,
+      "unidadeId": 1001
+    },
+    {
+      "id": 6004,
+      "codigo": "2025.004",
+      "nome": "2025.01.40",
+      "curso": "Técnico em Estética",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3002,
+      "unidadeId": 1001
+    },
+    {
+      "id": 6005,
+      "codigo": "2025.005",
+      "nome": "2025.02.11",
+      "curso": "Gastronomia Básica",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3003,
+      "unidadeId": 1002
+    },
+    {
+      "id": 6006,
+      "codigo": "2025.006",
+      "nome": "2025.02.21",
+      "curso": "Gestão de Pessoas",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3004,
+      "unidadeId": 1002
+    },
+    {
+      "id": 6007,
+      "codigo": "2025.007",
+      "nome": "2025.02.31",
+      "curso": "Técnico em Estética",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3003,
+      "unidadeId": 1002
+    },
+    {
+      "id": 6008,
+      "codigo": "2025.008",
+      "nome": "2025.02.41",
+      "curso": "Redes de Computadores",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3004,
+      "unidadeId": 1002
+    },
+    {
+      "id": 6009,
+      "codigo": "2025.009",
+      "nome": "2025.03.12",
+      "curso": "Gestão de Pessoas",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3005,
+      "unidadeId": 1003
+    },
+    {
+      "id": 6010,
+      "codigo": "2025.010",
+      "nome": "2025.03.22",
+      "curso": "Técnico em Estética",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3006,
+      "unidadeId": 1003
+    },
+    {
+      "id": 6011,
+      "codigo": "2025.011",
+      "nome": "2025.03.32",
+      "curso": "Redes de Computadores",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3005,
+      "unidadeId": 1003
+    },
+    {
+      "id": 6012,
+      "codigo": "2025.012",
+      "nome": "2025.03.42",
+      "curso": "Auxiliar de Enfermagem",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3006,
+      "unidadeId": 1003
+    },
+    {
+      "id": 6013,
+      "codigo": "2025.013",
+      "nome": "2025.04.13",
+      "curso": "Técnico em Estética",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3007,
+      "unidadeId": 1004
+    },
+    {
+      "id": 6014,
+      "codigo": "2025.014",
+      "nome": "2025.04.23",
+      "curso": "Redes de Computadores",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3008,
+      "unidadeId": 1004
+    },
+    {
+      "id": 6015,
+      "codigo": "2025.015",
+      "nome": "2025.04.33",
+      "curso": "Auxiliar de Enfermagem",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3007,
+      "unidadeId": 1004
+    },
+    {
+      "id": 6016,
+      "codigo": "2025.016",
+      "nome": "2025.04.43",
+      "curso": "Design Gráfico",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3008,
+      "unidadeId": 1004
+    },
+    {
+      "id": 6017,
+      "codigo": "2025.017",
+      "nome": "2025.05.14",
+      "curso": "Redes de Computadores",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3009,
+      "unidadeId": 1005
+    },
+    {
+      "id": 6018,
+      "codigo": "2025.018",
+      "nome": "2025.05.24",
+      "curso": "Auxiliar de Enfermagem",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3010,
+      "unidadeId": 1005
+    },
+    {
+      "id": 6019,
+      "codigo": "2025.019",
+      "nome": "2025.05.34",
+      "curso": "Design Gráfico",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3009,
+      "unidadeId": 1005
+    },
+    {
+      "id": 6020,
+      "codigo": "2025.020",
+      "nome": "2025.05.44",
+      "curso": "Logística",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3010,
+      "unidadeId": 1005
+    },
+    {
+      "id": 6021,
+      "codigo": "2025.021",
+      "nome": "2025.06.15",
+      "curso": "Auxiliar de Enfermagem",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3011,
+      "unidadeId": 1006
+    },
+    {
+      "id": 6022,
+      "codigo": "2025.022",
+      "nome": "2025.06.25",
+      "curso": "Design Gráfico",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3012,
+      "unidadeId": 1006
+    },
+    {
+      "id": 6023,
+      "codigo": "2025.023",
+      "nome": "2025.06.35",
+      "curso": "Logística",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3011,
+      "unidadeId": 1006
+    },
+    {
+      "id": 6024,
+      "codigo": "2025.024",
+      "nome": "2025.06.45",
+      "curso": "Atendimento ao Cliente",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3012,
+      "unidadeId": 1006
+    },
+    {
+      "id": 6025,
+      "codigo": "2025.025",
+      "nome": "2025.07.16",
+      "curso": "Design Gráfico",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3013,
+      "unidadeId": 1007
+    },
+    {
+      "id": 6026,
+      "codigo": "2025.026",
+      "nome": "2025.07.26",
+      "curso": "Logística",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3014,
+      "unidadeId": 1007
+    },
+    {
+      "id": 6027,
+      "codigo": "2025.027",
+      "nome": "2025.07.36",
+      "curso": "Atendimento ao Cliente",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3013,
+      "unidadeId": 1007
+    },
+    {
+      "id": 6028,
+      "codigo": "2025.028",
+      "nome": "2025.07.46",
+      "curso": "Empreendedorismo",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3014,
+      "unidadeId": 1007
+    },
+    {
+      "id": 6029,
+      "codigo": "2025.029",
+      "nome": "2025.08.17",
+      "curso": "Logística",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3015,
+      "unidadeId": 1008
+    },
+    {
+      "id": 6030,
+      "codigo": "2025.030",
+      "nome": "2025.08.27",
+      "curso": "Atendimento ao Cliente",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3016,
+      "unidadeId": 1008
+    },
+    {
+      "id": 6031,
+      "codigo": "2025.031",
+      "nome": "2025.08.37",
+      "curso": "Empreendedorismo",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3015,
+      "unidadeId": 1008
+    },
+    {
+      "id": 6032,
+      "codigo": "2025.032",
+      "nome": "2025.08.47",
+      "curso": "Técnico em Informática",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3016,
+      "unidadeId": 1008
+    },
+    {
+      "id": 6033,
+      "codigo": "2025.033",
+      "nome": "2025.09.18",
+      "curso": "Atendimento ao Cliente",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3017,
+      "unidadeId": 1009
+    },
+    {
+      "id": 6034,
+      "codigo": "2025.034",
+      "nome": "2025.09.28",
+      "curso": "Empreendedorismo",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3018,
+      "unidadeId": 1009
+    },
+    {
+      "id": 6035,
+      "codigo": "2025.035",
+      "nome": "2025.09.38",
+      "curso": "Técnico em Informática",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3017,
+      "unidadeId": 1009
+    },
+    {
+      "id": 6036,
+      "codigo": "2025.036",
+      "nome": "2025.09.48",
+      "curso": "Gastronomia Básica",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3018,
+      "unidadeId": 1009
+    },
+    {
+      "id": 6037,
+      "codigo": "2025.037",
+      "nome": "2025.10.19",
+      "curso": "Empreendedorismo",
+      "turno": "Matutino",
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "instrutorId": 3019,
+      "unidadeId": 1010
+    },
+    {
+      "id": 6038,
+      "codigo": "2025.038",
+      "nome": "2025.10.29",
+      "curso": "Técnico em Informática",
+      "turno": "Vespertino",
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "instrutorId": 3020,
+      "unidadeId": 1010
+    },
+    {
+      "id": 6039,
+      "codigo": "2025.039",
+      "nome": "2025.10.39",
+      "curso": "Gastronomia Básica",
+      "turno": "Noturno",
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "instrutorId": 3019,
+      "unidadeId": 1010
+    },
+    {
+      "id": 6040,
+      "codigo": "2025.040",
+      "nome": "2025.10.49",
+      "curso": "Gestão de Pessoas",
+      "turno": "Matutino",
+      "dataInicio": "2026-08-05",
+      "dataFim": "2026-12-28",
+      "instrutorId": 3020,
+      "unidadeId": 1010
+    }
+  ],
+  "reservas": [
+    {
+      "id": 7001,
+      "salaId": 5001,
+      "turmaId": 6001,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1001,
+      "instrutorId": 3001
+    },
+    {
+      "id": 7002,
+      "salaId": 5002,
+      "turmaId": 6002,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1001,
+      "instrutorId": 3002
+    },
+    {
+      "id": 7003,
+      "salaId": 5003,
+      "turmaId": 6003,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1001,
+      "instrutorId": 3001
+    },
+    {
+      "id": 7004,
+      "salaId": 5006,
+      "turmaId": 6005,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1002,
+      "instrutorId": 3003
+    },
+    {
+      "id": 7005,
+      "salaId": 5007,
+      "turmaId": 6006,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1002,
+      "instrutorId": 3004
+    },
+    {
+      "id": 7006,
+      "salaId": 5008,
+      "turmaId": 6007,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1002,
+      "instrutorId": 3003
+    },
+    {
+      "id": 7007,
+      "salaId": 5011,
+      "turmaId": 6009,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1003,
+      "instrutorId": 3005
+    },
+    {
+      "id": 7008,
+      "salaId": 5012,
+      "turmaId": 6010,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1003,
+      "instrutorId": 3006
+    },
+    {
+      "id": 7009,
+      "salaId": 5013,
+      "turmaId": 6011,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1003,
+      "instrutorId": 3005
+    },
+    {
+      "id": 7010,
+      "salaId": 5016,
+      "turmaId": 6013,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1004,
+      "instrutorId": 3007
+    },
+    {
+      "id": 7011,
+      "salaId": 5017,
+      "turmaId": 6014,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1004,
+      "instrutorId": 3008
+    },
+    {
+      "id": 7012,
+      "salaId": 5018,
+      "turmaId": 6015,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1004,
+      "instrutorId": 3007
+    },
+    {
+      "id": 7013,
+      "salaId": 5021,
+      "turmaId": 6017,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1005,
+      "instrutorId": 3009
+    },
+    {
+      "id": 7014,
+      "salaId": 5022,
+      "turmaId": 6018,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1005,
+      "instrutorId": 3010
+    },
+    {
+      "id": 7015,
+      "salaId": 5023,
+      "turmaId": 6019,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1005,
+      "instrutorId": 3009
+    },
+    {
+      "id": 7016,
+      "salaId": 5026,
+      "turmaId": 6021,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1006,
+      "instrutorId": 3011
+    },
+    {
+      "id": 7017,
+      "salaId": 5027,
+      "turmaId": 6022,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1006,
+      "instrutorId": 3012
+    },
+    {
+      "id": 7018,
+      "salaId": 5028,
+      "turmaId": 6023,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1006,
+      "instrutorId": 3011
+    },
+    {
+      "id": 7019,
+      "salaId": 5031,
+      "turmaId": 6025,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1007,
+      "instrutorId": 3013
+    },
+    {
+      "id": 7020,
+      "salaId": 5032,
+      "turmaId": 6026,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1007,
+      "instrutorId": 3014
+    },
+    {
+      "id": 7021,
+      "salaId": 5033,
+      "turmaId": 6027,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1007,
+      "instrutorId": 3013
+    },
+    {
+      "id": 7022,
+      "salaId": 5036,
+      "turmaId": 6029,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1008,
+      "instrutorId": 3015
+    },
+    {
+      "id": 7023,
+      "salaId": 5037,
+      "turmaId": 6030,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1008,
+      "instrutorId": 3016
+    },
+    {
+      "id": 7024,
+      "salaId": 5038,
+      "turmaId": 6031,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1008,
+      "instrutorId": 3015
+    },
+    {
+      "id": 7025,
+      "salaId": 5041,
+      "turmaId": 6033,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1009,
+      "instrutorId": 3017
+    },
+    {
+      "id": 7026,
+      "salaId": 5042,
+      "turmaId": 6034,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1009,
+      "instrutorId": 3018
+    },
+    {
+      "id": 7027,
+      "salaId": 5043,
+      "turmaId": 6035,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1009,
+      "instrutorId": 3017
+    },
+    {
+      "id": 7028,
+      "salaId": 5046,
+      "turmaId": 6037,
+      "turno": "Matutino",
+      "diasSemana": [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex"
+      ],
+      "dataInicio": "2026-07-21",
+      "dataFim": "2026-10-29",
+      "status": "ATIVA",
+      "unidadeId": 1010,
+      "instrutorId": 3019
+    },
+    {
+      "id": 7029,
+      "salaId": 5047,
+      "turmaId": 6038,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "seg",
+        "qua",
+        "sex"
+      ],
+      "dataInicio": "2026-07-26",
+      "dataFim": "2026-11-18",
+      "status": "ATIVA",
+      "unidadeId": 1010,
+      "instrutorId": 3020
+    },
+    {
+      "id": 7030,
+      "salaId": 5048,
+      "turmaId": 6039,
+      "turno": "Noturno",
+      "diasSemana": [
+        "ter",
+        "qui"
+      ],
+      "dataInicio": "2026-07-31",
+      "dataFim": "2026-12-08",
+      "status": "ATIVA",
+      "unidadeId": 1010,
+      "instrutorId": 3019
+    },
+    {
+      "id": 7031,
+      "salaId": 5003,
+      "turmaId": 6001,
+      "turno": "Vespertino",
+      "diasSemana": [
+        "sab"
+      ],
+      "dataInicio": "2026-08-30",
+      "dataFim": "2026-08-30",
+      "status": "CANCELADA",
+      "unidadeId": 1001,
+      "instrutorId": 3001
+    }
+  ],
+  "chaves": [
+    {
+      "id": 8001,
+      "codigo": "CH-011",
+      "salaId": 5001,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1001
+    },
+    {
+      "id": 8002,
+      "codigo": "CH-012",
+      "salaId": 5002,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3001,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1001
+    },
+    {
+      "id": 8003,
+      "codigo": "CH-021",
+      "salaId": 5006,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1002
+    },
+    {
+      "id": 8004,
+      "codigo": "CH-022",
+      "salaId": 5007,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3003,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1002
+    },
+    {
+      "id": 8005,
+      "codigo": "CH-031",
+      "salaId": 5011,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1003
+    },
+    {
+      "id": 8006,
+      "codigo": "CH-032",
+      "salaId": 5012,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3005,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1003
+    },
+    {
+      "id": 8007,
+      "codigo": "CH-041",
+      "salaId": 5016,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1004
+    },
+    {
+      "id": 8008,
+      "codigo": "CH-042",
+      "salaId": 5017,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3007,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1004
+    },
+    {
+      "id": 8009,
+      "codigo": "CH-051",
+      "salaId": 5021,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1005
+    },
+    {
+      "id": 8010,
+      "codigo": "CH-052",
+      "salaId": 5022,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3009,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1005
+    },
+    {
+      "id": 8011,
+      "codigo": "CH-061",
+      "salaId": 5026,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1006
+    },
+    {
+      "id": 8012,
+      "codigo": "CH-062",
+      "salaId": 5027,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3011,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1006
+    },
+    {
+      "id": 8013,
+      "codigo": "CH-071",
+      "salaId": 5031,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1007
+    },
+    {
+      "id": 8014,
+      "codigo": "CH-072",
+      "salaId": 5032,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3013,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1007
+    },
+    {
+      "id": 8015,
+      "codigo": "CH-081",
+      "salaId": 5036,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1008
+    },
+    {
+      "id": 8016,
+      "codigo": "CH-082",
+      "salaId": 5037,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3015,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1008
+    },
+    {
+      "id": 8017,
+      "codigo": "CH-091",
+      "salaId": 5041,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1009
+    },
+    {
+      "id": 8018,
+      "codigo": "CH-092",
+      "salaId": 5042,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3017,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1009
+    },
+    {
+      "id": 8019,
+      "codigo": "CH-101",
+      "salaId": 5046,
+      "andar": "1º Andar",
+      "status": "disponivel",
+      "instrutorId": null,
+      "pegaEm": null,
+      "unidadeId": 1010
+    },
+    {
+      "id": 8020,
+      "codigo": "CH-102",
+      "salaId": 5047,
+      "andar": "Térreo",
+      "status": "pega",
+      "instrutorId": 3019,
+      "pegaEm": "2026-08-10T19:06:30.916Z",
+      "unidadeId": 1010
+    }
+  ],
+  "notificacoes": [
+    {
+      "id": 9001,
+      "tipo": "info",
+      "titulo": "Reserva confirmada",
+      "msg": "Turma vinculada a uma sala com sucesso.",
+      "mensagem": "",
+      "paraPerfil": "coordenador",
+      "paraId": null,
+      "unidadeId": 1001,
+      "lida": false,
+      "criadaEm": "2026-08-10T19:06:30.916Z"
+    },
+    {
+      "id": 9002,
+      "tipo": "aviso",
+      "titulo": "Sala em manutenção",
+      "msg": "Algumas salas podem estar temporariamente indisponíveis.",
+      "mensagem": "",
+      "paraPerfil": "recepcao",
+      "paraId": null,
+      "unidadeId": 1001,
+      "lida": false,
+      "criadaEm": "2026-08-10T18:06:30.916Z"
+    },
+    {
+      "id": 9003,
+      "tipo": "ok",
+      "titulo": "Solicitação aprovada",
+      "msg": "Uso de sala aprovado para atividade prática.",
+      "mensagem": "",
+      "paraPerfil": "instrutor",
+      "paraId": 3007,
+      "unidadeId": 1004,
+      "lida": false,
+      "criadaEm": "2026-08-10T17:06:30.916Z"
+    },
+    {
+      "id": 9004,
+      "tipo": "info",
+      "titulo": "Chave retirada",
+      "msg": "Uma chave foi retirada para aula vespertina.",
+      "mensagem": "",
+      "paraPerfil": "coordenador",
+      "paraId": null,
+      "unidadeId": 1005,
+      "lida": true,
+      "criadaEm": "2026-08-10T16:06:30.916Z"
+    }
+  ],
+  "solicitacoes": [
+    {
+      "id": 10001,
+      "salaId": 5005,
+      "instrutorId": 3005,
+      "unidadeId": 1003,
+      "data": "2026-08-12",
+      "turnos": [
+        "Noturno"
+      ],
+      "motivo": "Aula extra de portfólio fotográfico",
+      "status": "pendente",
+      "criadaEm": "2026-08-10T18:36:30.916Z"
+    },
+    {
+      "id": 10002,
+      "salaId": 5012,
+      "instrutorId": 3007,
+      "unidadeId": 1004,
+      "data": "2026-08-15",
+      "turnos": [
+        "Matutino"
+      ],
+      "turmaId": 6010,
+      "motivo": "Mostra de projetos integradores",
+      "status": "aprovada",
+      "criadaEm": "2026-08-10T17:36:30.916Z",
+      "respondidaEm": "2026-08-10T19:06:30.916Z"
+    },
+    {
+      "id": 10003,
+      "salaId": 5050,
+      "instrutorId": 3019,
+      "unidadeId": 1010,
+      "data": "2026-08-11",
+      "turnos": [
+        "Vespertino"
+      ],
+      "motivo": "Atendimento de mentoria para turma",
+      "status": "pendente",
+      "criadaEm": "2026-08-10T19:36:30.916Z"
+    },
+    {
+      "id": 10004,
+      "salaId": 5047,
+      "instrutorId": 3017,
+      "unidadeId": 1009,
+      "data": "2026-08-13",
+      "turnos": [
+        "Vespertino"
+      ],
+      "motivo": "Reposição de conteúdo prático",
+      "status": "recusada",
+      "criadaEm": "2026-08-10T16:36:30.916Z",
+      "respondidaEm": "2026-08-10T18:06:30.916Z",
+      "resposta": "Sala bloqueada para manutenção."
+    }
+  ],
+  "sessao": null,
+  "ultimaSinc": null
+}

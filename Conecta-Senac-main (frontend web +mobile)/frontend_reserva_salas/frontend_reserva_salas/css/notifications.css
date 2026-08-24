@@ -1,0 +1,38 @@
+/* ================================================================
+   notifications.css — Itens de notificação e solicitação
+   ================================================================ */
+.notif-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid;
+  border-radius: var(--r);
+  padding: 13px 16px;
+  margin-bottom: 8px;
+}
+.notif-item.nao-lida       { background: var(--primary-l); }
+.notif-item.tipo-solicit   { border-left-color: var(--primary); }
+.notif-item.tipo-chave     { border-left-color: var(--green);   }
+.notif-item.tipo-aviso     { border-left-color: var(--amber);   }
+.notif-item.tipo-info      { border-left-color: var(--blue);    }
+
+.ni-title { font-weight: 600; font-size: .9rem;  color: var(--text);  }
+.ni-msg   { font-size: .82rem;                   color: var(--text2); margin-top: 3px; }
+.ni-time  { font-size: .72rem;                   color: var(--text3); margin-top: 5px; }
+
+/* ── Notificações por tipo (ícones e cores) ─────────────── */
+.notif-item.tipo-chave    { border-left-color: #10b981; }
+.notif-item.tipo-solicit  { border-left-color: #1a3a5c; }
+.notif-item.tipo-reserva  { border-left-color: #3b82f6; }
+.notif-item.tipo-aprovada { border-left-color: #059669; background: rgba(5,150,105,.05); }
+.notif-item.tipo-recusada { border-left-color: #dc2626; background: rgba(220,38,38,.05); }
+.notif-item.tipo-aviso    { border-left-color: #d97706; }
+.notif-item.tipo-erro     { border-left-color: #dc2626; }
+.notif-item.nao-lida      { background: var(--primary-light, #e8f0fe); font-weight: 500; }
+.notif-item.nao-lida .ni-title { font-weight: 700; }
+
+/* Botão "Marcar todas como lidas" */
+.notifs-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
