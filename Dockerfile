@@ -1,20 +1,27 @@
-# ---------- ETAPA 1: build ----------
+# ---------- ETAPA 1: BUILD ----------
 FROM gradle:jdk21 AS build
+
 WORKDIR /app
 
-COPY build.gradle settings.gradle* ./
-COPY src ./src
+# Copia os arquivos do backend que estão dentro do repositório
+COPY ["demo-conecta-senac3.1(backend)/demo/build.gradle", "./"]
+COPY ["demo-conecta-senac3.1(backend)/demo/settings.gradle", "./"]
 
+# Copia o código-fonte do backend
+COPY ["demo-conecta-senac3.1(backend)/demo/src", "./src"]
+
+# Gera o JAR executável do Spring Boot
 RUN gradle clean bootJar -x test --no-daemon
 
-# ---------- ETAPA 2: run ----------
+# Remove qualquer JAR "plain" e deixa o executável com nome fixo
+RUN find /app/build/libs -type f -name "*.jar" ! -name "*-plain.jar" -exec cp {} /app/app.jar \;
+
+
+# ---------- ETAPA 2: RUNTIME ----------
 FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
 
-# Pega o JAR gerado pelo plugin do Spring Boot.
-# Se o build gerar dois arquivos (um "-plain.jar" e outro sem
-# esse sufixo), use o SEM "-plain" — é o executável de verdade.
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/app.jar app.jar
 
-EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
