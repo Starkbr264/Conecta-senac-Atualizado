@@ -3,17 +3,11 @@ FROM gradle:jdk21 AS build
 
 WORKDIR /app
 
-# Copia os arquivos do backend que estão dentro do repositório
-COPY ["demo-conecta-senac3.1(backend)/demo/build.gradle", "./"]
-COPY ["demo-conecta-senac3.1(backend)/demo/settings.gradle", "./"]
+COPY demo/build.gradle demo/settings.gradle ./
+COPY demo/src ./src
 
-# Copia o código-fonte do backend
-COPY ["demo-conecta-senac3.1(backend)/demo/src", "./src"]
-
-# Gera o JAR executável do Spring Boot
 RUN gradle clean bootJar -x test --no-daemon
 
-# Remove qualquer JAR "plain" e deixa o executável com nome fixo
 RUN find /app/build/libs -type f -name "*.jar" ! -name "*-plain.jar" -exec cp {} /app/app.jar \;
 
 
