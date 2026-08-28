@@ -1,8 +1,0 @@
-target/
-build/
-.git/
-.idea/
-*.iml
-.env
-.vscode/
-*.log
