@@ -3,8 +3,9 @@ FROM gradle:jdk21 AS build
 
 WORKDIR /app
 
-COPY build.gradle settings.gradle ./
-COPY src ./src
+COPY ["demo-conecta-senac3.1(backend)/demo/build.gradle", "./"]
+COPY ["demo-conecta-senac3.1(backend)/demo/settings.gradle", "./"]
+COPY ["demo-conecta-senac3.1(backend)/demo/src", "./src"]
 
 RUN gradle clean bootJar -x test --no-daemon
 
