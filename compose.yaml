@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: conectasenac-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: REDACTED_POSTGRES_PASSWORD
+      POSTGRES_DB: conectasenac
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:
