@@ -2,6 +2,7 @@ package conecta.demo;
 
 import conecta.demo.controller.SalaController;
 import conecta.demo.exception.AcessoNegadoException;
+import conecta.demo.exception.ApiExceptionHandler;
 import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.model.Sala;
 import conecta.demo.service.SalaService;

@@ -53,8 +53,11 @@ public class SalaService {
      */
     public Sala atualizar(Long id, Long usuarioId, Sala entrada) {
         Sala atual = buscar(id);
-        validar(entrada);
+        // Autorizacao ANTES da validacao do payload: um usuario que nao e
+        // dono da sala deve receber 403 independente de a unidade de destino
+        // existir — e nao 409, que revelaria informacao de outra unidade.
         exigirMesmaUnidade(atual, usuarioId);
+        validar(entrada);
 
         atual.setNome(entrada.getNome());
         atual.setTipo(entrada.getTipo());

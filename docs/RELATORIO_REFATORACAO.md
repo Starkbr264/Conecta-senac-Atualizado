@@ -212,6 +212,12 @@ comparação criptográfica:
   ambiente, então **não há bytecode de backend validado** — apenas a garantia de
   que os arquivos são idênticos aos originais.
 
+> **Atualização (superado):** a limitação acima foi **desfeita**. Existe um
+> Microsoft JDK 21.0.12.1 LTS em `C:\Users\<usuário>\.jdks\ms-21.0.12.1`
+> (instalado pelo IntelliJ). Com `JAVA_HOME` apontando para ele, o backend
+> **compila e a suíte de 50 testes passa** (`BUILD SUCCESSFUL`, 0 falhas).
+> Detalhes em `docs/RELATORIO_FINAL.md`, seção 14.1.1.
+
 O **contrato de dados**, porém, foi validado de ponta a ponta pelo servidor
 Node (§6).
 
@@ -267,6 +273,8 @@ regressão.
 ### 6.4 O que **não** pôde ser testado
 
 * **Backend Spring Boot** — sem JDK 21 na máquina, o Gradle não compila.
+  *(Superado: JDK 21.0.12.1 LTS encontrado em `~\.jdks\ms-21.0.12.1`; a suíte
+  de 50 testes é executada e passa.)*
 * **Mobile em execução** — sem emulador, dispositivo ou navegador móvel; só a
   verificação de tipos.
 * **Deploy de produção** no Render — fora de escopo por definição.

@@ -2,6 +2,7 @@ package conecta.demo;
 
 import conecta.demo.controller.SolicitacaoController;
 import conecta.demo.dto.SolicitacaoRequest;
+import conecta.demo.exception.ApiExceptionHandler;
 import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.model.Solicitacao;
 import conecta.demo.model.StatusSolicitacao;

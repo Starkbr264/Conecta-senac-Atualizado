@@ -146,7 +146,7 @@ class SolicitacaoServiceTest {
     @Test
     @DisplayName("Criar: sala inexistente lanca 404")
     void criarComSalaInexistenteFalha() {
-        when(salas.findById(SALA_ID)).thenReturn(Optional.isEmpty());
+        when(salas.findById(SALA_ID)).thenReturn(Optional.empty());
 
         assertThrows(conecta.demo.exception.RecursoNaoEncontradoException.class,
                 () -> service.criar(request(UNIDADE_OK)));
@@ -198,7 +198,7 @@ class SolicitacaoServiceTest {
         when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(solicitacao(StatusSolicitacao.PENDENTE)));
 
         assertThrows(RegraDeNegocioException.class,
-                () => service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("talvez", null)));
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("talvez", null)));
     }
 
     @Test

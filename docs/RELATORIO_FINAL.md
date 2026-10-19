@@ -923,6 +923,42 @@ O arquivo original listava `web` entre os diretórios ignorados — o que impedi
 
 O `build.gradle` **não foi alterado** — já continha `spring-boot-starter-test`, `spring-boot-starter-webmvc-test`, `junit-platform-launcher` e `useJUnitPlatform()`.
 
+### 14.1.1 Resultado da execução — suíte verde
+
+A suíte foi **executada de verdade** neste host. A limitação que existia ("sem JDK 21, o Gradle não compila") foi superada pela descoberta de um Microsoft JDK 21.0.12.1 LTS em `C:\Users\<usuário>\.jdks\ms-21.0.12.1` (veja a seção 18.1).
+
+```powershell
+$env:JAVA_HOME = 'C:\Users\<usuário>\.jdks\ms-21.0.12.1'
+cd backend\demo
+.\gradlew.bat test --console=plain --no-daemon
+```
+
+| Suíte | Testes | Falhas |
+|---|---|---|
+| `DadosServiceTest` | 4 | 0 |
+| `DemoApplicationTests` (pré-existente, `@SpringBootTest` + H2) | 2 | 0 |
+| `EntidadesTest` | 2 | 0 |
+| `SalaControllerTest` | 5 | 0 |
+| `SalaServiceTest` | 18 | 0 |
+| `SolicitacaoControllerTest` | 6 | 0 |
+| `SolicitacaoServiceTest` | 13 | 0 |
+| **Total** | **50** | **0** — `BUILD SUCCESSFUL in 18s` |
+
+Resultado colhido dos XML em `backend/demo/build/test-results/test`. O `DemoApplicationTests` — que já existia no repositório — continua passando, o que confirma que a configuração de teste com H2 não quebrou o teste de integração original.
+
+**Seis defeitos foram encontrados e corrigidos para chegar a esse estado** (todos introduzidos por esta própria refatoração, nunca pelo código original):
+
+| # | Arquivo | Defeito | Correção |
+|---|---|---|---|
+| 1 | `SolicitacaoServiceTest.java:201` | Sintaxe **JavaScript** (`() =>`) em arquivo **Java** — erro de compilação | `() ->` |
+| 2 | `SolicitacaoServiceTest.java:149` | `Optional.isEmpty()` invocado como método estático | `Optional.empty()` |
+| 3 | `DadosServiceTest.java:100-103` | `List<Object>` inferido quebrava o `thenReturn` de `findAll()` | tipos `List<Usuario>` / `List<Sala>` explícitos |
+| 4 | `SalaControllerTest` / `SolicitacaoControllerTest` | `ApiExceptionHandler` sem `import` → `cannot find symbol` | import adicionado nos 2 arquivos |
+| 5 | `EntidadesTest.java:73-75` | `assertEquals` sobre arrays compara **referência**, não conteúdo | `assertArrayEquals` |
+| 6 | **`SalaService.java` (produção)** | **Ordem das validações invertida** em `atualizar` | `buscar(id)` → **`exigirMesmaUnidade`** → `validar(entrada)` |
+
+O item 6 é a única correção de **lógica de negócio** da lista e merece detalhamento: a implementação original validava o *payload* antes da *autorização*, de modo que um usuário sem permissão sobre a sala recebia **409 "Unidade informada não existe"** em vez de **403**. Isso é um vazamento de informação — o 409 confirma a existência de uma unidade de outra unidade. A ordem correta é verificar **autorização antes de validação de payload**, e é a que está em vigor.
+
 ### 14.2 `src/test/resources/application.properties`
 
 O `@SpringBootTest` existente apontava para o **Supabase** — a suíte tentaria conectar na internet e falhar. Criado um override com H2 em memória:
@@ -1095,7 +1131,9 @@ Nenhuma foi corrigida por decisão consciente de escopo; todas estão registrada
 | 10 | **`SalaCard.tsx` morto no mobile** | `mobile/src/components/SalaCard.tsx` + `calcSalaInfo()` — importados por ninguém | Baixo — mantido porque exporta `Periodo`/`SalaInfo`, tipos usados por `salaStatus.ts` |
 | 11 | **`noUnusedLocals` desligado** | `web/tsconfig.json` | Baixo — varredura de centenas de símbolos remanescentes |
 | 12 | **Comportamento do `POST /api/sinc` divergente entre as duas APIs** | Spring recria a entidade; Node faz merge | **Mitigado** — o `salvar()` passou a repôr todos os campos. A diferença estrutural (recriar × mesclar) permanece |
-| 13 | **Backend Spring não é compilado localmente** | Host com JDK 11; o projeto exige JDK 21 | Limitação do ambiente — a validação Java foi estática |
+| 13 | **Docker indisponível no host de validação** | `Dockerfile` e `compose.yaml` não foram *executados*, só validados por leitura | Baixo — o build da imagem e o `up` do Compose continuam não verificados de ponta a ponta |
+
+> **Nota — pendência nº 13 desativada:** a limitação "o backend não compila localmente por causa do JDK 11" foi **superada**. Descobriu-se um Microsoft JDK 21.0.12.1 LTS em `C:\Users\<usuário>\.jdks\ms-21.0.12.1` (instalado pelo IntelliJ). Com `JAVA_HOME` apontando para lá, o Gradle 9.5.1 compila e executa a suíte completa: **50 testes, 0 falhas**. A seção 14 traz o resultado por suíte.
 
 ---
 
@@ -1110,6 +1148,16 @@ Nenhuma foi corrigida por decisão consciente de escopo; todas estão registrada
 | JDK | **21** (o projeto usa `toolchain { languageVersion = 21 }`) |
 | Docker + Compose | v2 (para o `compose.yaml`) |
 | Expo Go | para o mobile (não executado neste ambiente) |
+
+> **Onde está o JDK 21 neste host:** `C:\Users\<usuário>\.jdks\ms-21.0.12.1` (Microsoft OpenJDK 21.0.12.1+1 LTS, instalado pelo IntelliJ). O `JAVA_HOME` do sistema aponta para o JDK 11 e o Gradle 9.5.1 também sobe no JDK 20 (`C:\Program Files\Java\jdk-20`) — mas a *toolchain* 21 só é resolvida pelo caminho acima. Para compilar e testar localmente:
+>
+> ```powershell
+> $env:JAVA_HOME = 'C:\Users\<usuário>\.jdks\ms-21.0.12.1'
+> cd backend\demo
+> .\gradlew.bat test --console=plain --no-daemon
+> ```
+>
+> O Gradle detecta a toolchain automaticamente (`gradlew -q javaToolchains` lista os JDKs encontrados).
 
 ### 18.2 Fluxo completo com Docker (recomendado)
 

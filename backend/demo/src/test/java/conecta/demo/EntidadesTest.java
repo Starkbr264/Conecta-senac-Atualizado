@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,9 +71,10 @@ class EntidadesTest {
     @Test
     @DisplayName("Enums de dominio existem e tem os valores esperados")
     void enumsTemValoresEsperados() throws Exception {
-        assertEquals(new String[]{"ADMIN", "COORDENADOR", "INSTRUTOR", "RECEPCAO"}, constantesDe("Perfil"));
-        assertEquals(new String[]{"DISPONIVEL", "RETIRADA"}, constantesDe("StatusChave"));
-        assertEquals(new String[]{"PENDENTE", "APROVADA", "RECUSADA"}, constantesDe("StatusSolicitacao"));
+        // assertArrayEquals compara conteudo; assertEquals compararia a referencia do array.
+        assertArrayEquals(new String[]{"ADMIN", "COORDENADOR", "INSTRUTOR", "RECEPCAO"}, constantesDe("Perfil"));
+        assertArrayEquals(new String[]{"DISPONIVEL", "RETIRADA"}, constantesDe("StatusChave"));
+        assertArrayEquals(new String[]{"PENDENTE", "APROVADA", "RECUSADA"}, constantesDe("StatusSolicitacao"));
     }
 
     private static String[] constantesDe(String nome) throws ClassNotFoundException {

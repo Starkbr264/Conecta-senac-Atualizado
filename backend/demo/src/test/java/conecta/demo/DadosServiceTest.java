@@ -1,5 +1,7 @@
 package conecta.demo;
 
+import conecta.demo.model.Sala;
+import conecta.demo.model.Usuario;
 import conecta.demo.repository.ChaveRepository;
 import conecta.demo.repository.NotificacaoRepository;
 import conecta.demo.repository.ReservaRepository;
@@ -97,8 +99,8 @@ class DadosServiceTest {
     @Test
     @DisplayName("As listas devolvidas pelos repositorios sao as mesmas instancias no mapa")
     void listasSaoAsMesmasInstancias() {
-        List<Object> listaDeUsuarios = List.of();
-        List<Object> listaDeSalas = List.of();
+        List<Usuario> listaDeUsuarios = List.of();
+        List<Sala> listaDeSalas = List.of();
         when(usuarios.findAll()).thenReturn(listaDeUsuarios);
         when(salas.findAll()).thenReturn(listaDeSalas);
 
