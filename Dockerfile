@@ -38,8 +38,9 @@ RUN npm ci --no-audit --no-fund
 COPY web/ ./
 
 # Base da API gravada no bundle pelo Vite:
-#   ""  (padrao) -> mesma origem; usar quando o Spring serve a propria SPA
-#   http://...   -> API em outro host (ex.: o servidor Node na porta 3333)
+#   same-origin (padrao) -> a SPA fala com a API na MESMA origem (8081)
+#   http://...            -> API em outro host (ex.: mock Node na porta 3333)
+#   String vazia NAO funciona: o Vite descarta variaveis de ambiente com "".
 ARG VITE_API_BASE="same-origin"
 ENV VITE_API_BASE=${VITE_API_BASE}
 
@@ -54,22 +55,40 @@ RUN npm run build
 FROM ${GRADLE_IMAGE} AS api-build
 WORKDIR /src
 
+# O WRAPPER e usado (nao o `gradle` da imagem): o `gradle:jdk21` traz uma
+# versao "rolling" do Gradle, enquanto o projeto fixa a versao exata em
+# gradle/wrapper/gradle-wrapper.properties. Sem o wrapper, o build do
+# container usaria um Gradle diferente do build local e do CI.
+COPY backend/demo/gradle ./gradle
+COPY backend/demo/gradlew ./gradlew
+RUN chmod +x ./gradlew
+
 # Manifestos primeiro: resolucao de dependencias do Gradle em cache.
 COPY backend/demo/build.gradle backend/demo/settings.gradle ./
 COPY backend/demo/src ./src
-RUN gradle --no-daemon --console=plain clean bootJar -x test \
+RUN ./gradlew --no-daemon --console=plain clean bootJar -x test \
  && cp "$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)" /tmp/app.jar
 
 # Injeta web/dist em BOOT-INF/classes/static/ usando o `jar` do proprio JDK
 # (nao precisa de unzip/zip no Debian do gradle:jdk21).
 COPY --from=web-build /web/dist /tmp/web-dist
-RUN mkdir -p /tmp/root/BOOT-INF/classes \
- && cp -a /tmp/web-dist /tmp/root/BOOT-INF/classes/static \
- && cd /tmp/root \
- && jar uf /tmp/app.jar BOOT-INF/classes/static \
- && rm -rf /tmp/root /tmp/web-dist \
- && jar tf /tmp/app.jar | grep -q '^BOOT-INF/classes/static/index.html$' \
- && echo "frontend injetado no jar com sucesso"
+RUN set -eu; \
+    mkdir -p /tmp/root/BOOT-INF/classes; \
+    cp -a /tmp/web-dist /tmp/root/BOOT-INF/classes/static; \
+    cd /tmp/root; \
+    jar uf /tmp/app.jar BOOT-INF/classes/static; \
+    cd /; rm -rf /tmp/root /tmp/web-dist; \
+    jar tf /tmp/app.jar > /tmp/jar-list.txt; \
+    for f in index login dashboard admin coordenador instrutor recepcao; do \
+      grep -q "^BOOT-INF/classes/static/$$f\.html$$" /tmp/jar-list.txt \
+        || { echo "ERRO: $$f.html nao encontrado dentro do jar"; exit 1; }; \
+    done; \
+    grep -q '^BOOT-INF/classes/static/css/main.css$$' /tmp/jar-list.txt \
+      || { echo "ERRO: css/main.css nao encontrado dentro do jar"; exit 1; }; \
+    grep -q '^BOOT-INF/classes/static/img/senac-logo-sem-fundo.webp$$' /tmp/jar-list.txt \
+      || { echo "ERRO: img/senac-logo-sem-fundo.webp nao encontrado dentro do jar"; exit 1; }; \
+    rm -f /tmp/jar-list.txt; \
+    echo "frontend injetado no jar com sucesso (7 paginas + css + img)"
 
 
 # --------------------------------------------------------------------------
