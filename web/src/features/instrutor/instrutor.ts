@@ -41,6 +41,7 @@ import {
   getUserById,
   initDados,
   marcarTodasLidas,
+  unidadePadrao,
   type NovaSolicitacao,
 } from '../../core/storage';
 import { calcStatus, esc, fmtData, fmtDateTime, hojeISO, htmlStatus } from '../../core/format';
@@ -780,7 +781,7 @@ export function enviarSolic(): void {
     horaInicio: horaIni,
     horaFim: horaFim,
     motivo,
-    unidadeId: uid(),
+    unidadeId: unidadePadrao(),
     modo: modoData,
   } as unknown as NovaSolicitacao;
 
@@ -790,7 +791,7 @@ export function enviarSolic(): void {
   const horario = horaIni && horaFim ? ` das ${horaIni} às ${horaFim}` : '';
   addNotif({
     paraPerfil: 'coordenador',
-    unidadeId: uid(),
+    unidadeId: unidadePadrao(),
     tipo: 'solic',
     titulo: 'Nova Solicitação de Sala',
     msg:

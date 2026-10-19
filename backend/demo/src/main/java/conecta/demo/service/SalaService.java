@@ -83,6 +83,10 @@ public class SalaService {
     }
 
     private void validar(Sala sala) {
+        // Sem este guarda, `unidades.existsById(null)` estoura
+        // InvalidDataAccessApiUsageException (HTTP 500) em vez de 409.
+        if (sala.getUnidadeId() == null)
+            throw new RegraDeNegocioException("Informe a unidade da sala");
         if (!unidades.existsById(sala.getUnidadeId()))
             throw new RegraDeNegocioException("Unidade informada nao existe");
     }

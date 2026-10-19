@@ -57,7 +57,12 @@ export function useAuth() {
         throw new Error('Unidade incorreta para este usuario.');
     }
     // Monta a sessão (mesmo formato do web) e persiste localmente.
-    const nova: Sessao = { ...u, unidadeId: u.unidadeId || unidadeId! };
+    // `unidadeId` nunca fica indefinido: sem ele a sessao nao filtra nada e
+    // todo registro criado cairia em uma unidade orfa.
+    const nova: Sessao = {
+      ...u,
+      unidadeId: u.unidadeId ?? unidadeId ?? db.unidadePadrao(),
+    };
     await db.setSessao(nova);
     setSessaoState(nova);
     router.replace(ROTAS[u.perfil] as never);

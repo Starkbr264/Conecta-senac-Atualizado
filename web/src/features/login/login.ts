@@ -13,7 +13,7 @@
  *   6. Grava a sessao e redireciona para o painel do perfil.
  */
 
-import { getUnidades, initDados, loginUser } from '../../core/storage';
+import { getUnidades, initDados, loginUser, unidadePadrao } from '../../core/storage';
 import { setSessao, initTema } from '../../core/theme';
 import { seJaLogado, initLogo } from '../../core/auth';
 import { byId, tryById } from '../../core/dom';
@@ -98,7 +98,10 @@ async function aoEnviar(ev: SubmitEvent): Promise<void> {
     }
   }
 
-  setSessao({ ...u, unidadeId: u.unidadeId || (uid ?? 0) });
+  // `unidadeId` nunca pode ser 0/"undefined": e a chave de particionamento de
+  // todo registro criado pela sessao. Antes caia em `uid ?? 0` e produzia
+  // registros orfaos invisiveis em qualquer filtro por unidade.
+  setSessao({ ...u, unidadeId: u.unidadeId ?? uid ?? unidadePadrao() });
 
   const msg = tryById('loginMsg');
   if (msg !== null) {

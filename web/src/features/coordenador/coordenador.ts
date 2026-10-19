@@ -39,6 +39,7 @@ import {
   getReservas,
   getSalaById,
   getSalasByUnidade,
+  mesmaUnidade,
   getSolics,
   getTurmaById,
   getTurmas,
@@ -51,6 +52,7 @@ import {
   updSala,
   updSolicAsync,
   updTurma,
+  unidadePadrao,
   type NovoSala,
   type OverrideSala,
 } from '../../core/storage';
@@ -398,7 +400,7 @@ export function salvarSala(): void {
     bloco,
     turnos,
     turnosDisponiveis: turnos,
-    unidadeId: uid() as number,
+    unidadeId: unidadePadrao(),
   };
   if (editSalaId) {
     updSala(editSalaId, dados);
@@ -576,7 +578,7 @@ export function salvarTurma(): void {
     dataInicio: ini,
     dataFim: fim,
     instrutorId: instId,
-    unidadeId: uid() as number,
+    unidadeId: unidadePadrao(),
   };
   if (editTurmaId) {
     updTurma(editTurmaId, dados);
@@ -861,7 +863,7 @@ export function salvarReserva(): void {
       dataInicio: ini,
       dataFim: fim,
       reservadoPorId,
-      unidadeId: uid() as number,
+      unidadeId: unidadePadrao(),
     };
     if (!isAvulsaEdit) updDados.turmaId = turmaId;
     updReserva(editReservaId, updDados);
@@ -875,7 +877,7 @@ export function salvarReserva(): void {
       dataInicio: ini,
       dataFim: fim,
       reservadoPorId,
-      unidadeId: uid() as number,
+      unidadeId: unidadePadrao(),
     });
     toast('Reserva criada!', 'ok');
   }
@@ -1812,7 +1814,7 @@ export async function responderSolic(
             horaFim: s.horaFim || null,
             instrutorId: s.instrutorId,
             reservadoPorId: sess ? sess.id : null,
-            unidadeId: uid() as number,
+            unidadeId: unidadePadrao(),
             avulsa: !s.turmaId,
             solicId: id,
           });
@@ -1855,7 +1857,7 @@ export async function responderSolic(
       msg: msgCorpo,
       para: 'instrutor',
       paraId: s ? s.instrutorId : null,
-      unidadeId: uid(),
+      unidadeId: unidadePadrao(),
     });
 
     toast(`Solicitação ${status}!`, 'ok');

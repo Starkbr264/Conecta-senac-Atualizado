@@ -1,23 +1,30 @@
 /*
  * api.ts
- * Cliente HTTP da API central — conecta o MOBILE ao mesmo servidor do WEB.
+ * Cliente HTTP da API central.
  *
- * O servidor roda em server/index.js (porta 3333) e é a fonte da verdade
- * compartilhada: o que é alterado no mobile aparece no web e vice-versa.
+ * FONTE DA VERDADE UNICA: o backend Spring Boot em `backend/demo/`
+ * (porta 8081, Postgres/Supabase), que tambem serve o frontend web.
+ *
+ * O servidor Node em `server/` (porta 3333, `server/data/db.json`) e um
+ * MOCK LEGADO. Ele existe para desenvolvimento offline e so sobe com o
+ * perfil `mock` do compose — nunca junto com a API, para nao haver duas
+ * bases divergindo. Ver `compose.yaml` e `docs/ARQUITETURA_ATUALIZADA.md`.
  *
  * URL base:
- *   - Em desenvolvimento, derivamos o IP da máquina a partir do hostUri do
- *     Expo (funciona em emulador Android, iOS Simulator e celular físico na
- *     mesma rede Wi-Fi, sem precisar de configuração manual).
- *   - Em produção, troque por um domínio público (ex: https://api.senac.com.br).
+ *   - Em desenvolvimento, derivamos o IP da maquina a partir do hostUri do
+ *     Expo (funciona em emulador Android, iOS Simulator e celular fisico na
+ *     mesma rede Wi-Fi, sem precisar de configuracao manual).
+ *   - Em producao, troque por um dominio publico (ex: https://api.senac.com.br).
  *
- * Padrão usado:
- *   - GET  /api/dados   -> baixa o banco completo (sincronização inicial)
+ * Endpoints usados (paridade total com `web/src/core/api.ts`):
+ *   - GET  /api/dados   -> baixa o banco completo (sincronizacao inicial)
  *   - POST /api/login   -> valida credenciais contra o servidor
- *   - POST /api/sinc    -> envia as alterações locais (merge por id)
+ *   - POST /api/sinc    -> envia as alteracoes locais (merge por id)
  *   - POST /api/reset   -> recarrega os dados de exemplo no servidor
+ *   - GET  /api/sessao  -> le a sessao global do servidor
+ *   - POST /api/logout  -> encerra a sessao no servidor
  *
- * Todas as funções são "best-effort": se o servidor estiver fora do ar, o
+ * Todas as funcoes sao "best-effort": se o servidor estiver fora do ar, o
  * app continua funcionando com o cache local (AsyncStorage) e sincroniza
  * quando o servidor voltar.
  */
@@ -55,7 +62,19 @@ const extra =
   Constants.expoConfig?.extra as Record<string, string> | undefined;
 const apiUrlConfig = extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL;
 
-export const API_URL = apiUrlConfig || `http://${descobrirHost()}:3333`;
+/**
+ * Porta padrao da API.
+ *
+ * 8081 = Spring Boot (`backend/demo`), a FONTE DA VERDADE unica do projeto.
+ * 3333 = servidor Node legado (`server/`, mock em `server/data/db.json`),
+ * usado apenas com o perfil `mock` do compose.
+ */
+export const API_PORTA_PADRAO = 8081;
+
+const apiPortaConfig = process.env.EXPO_PUBLIC_API_PORT;
+
+export const API_URL =
+  apiUrlConfig || `http://${descobrirHost()}:${apiPortaConfig || API_PORTA_PADRAO}`;
 
 /* ========================================================================
  * Modo de operacao: MOCK (server/) ou PRODUCAO (backend/ Spring Boot)
@@ -227,5 +246,32 @@ export async function resetarApi(): Promise<Record<string, unknown[]> | null> {
     return resp.banco ?? null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Le a sessao global mantida pelo servidor.
+ *
+ * Paridade com o web (`web/src/core/api.ts` -> `lerSessaoRemota`): as duas
+ * APIs expõem `GET /api/sessao` com o mesmo corpo. Retorna `null` quando nao
+ * ha sessao ou quando o servidor esta fora do ar.
+ */
+export async function lerSessaoRemota(): Promise<Usuario | null> {
+  try {
+    const resp = await req<{ usuario?: Usuario; sessao?: Usuario } | null>('/api/sessao');
+    if (!resp) return null;
+    return resp.usuario ?? resp.sessao ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Encerra a sessao no servidor. Espelha `logoutRemoto` do web. */
+export async function logoutRemoto(): Promise<boolean> {
+  try {
+    await req<{ ok?: boolean }>('/api/logout', { method: 'POST', body: JSON.stringify({}) });
+    return true;
+  } catch {
+    return false;
   }
 }

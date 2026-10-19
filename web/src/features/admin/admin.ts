@@ -31,6 +31,7 @@ import {
   getUnidadeById,
   getUserById,
   getUsersByPerfil,
+  referenciasDaUnidade,
   getUsuarios,
   initDados,
   updUnidade,
@@ -449,18 +450,41 @@ export function fecharUnid(): void {
   editUnidId = null;
 }
 
-/** Persiste a unidade editada/criada. */
+/**
+ * Persiste a unidade editada/criada.
+ *
+ * O formulario de unidade tem apenas Nome/Endereco/CEP (o layout nao muda).
+ * Por isso `cidade` NAO e enviada: na edicao ela e preservada do registro
+ * original, senao o save apagaria o campo e a unidade ficaria sem cidade no
+ * banco. O backend rejeita nomes duplicados (409), por isso a checagem local
+ * e so uma mensagem amigavel antes do request.
+ */
 export function salvarUnid(): void {
   const nome = byId<HTMLInputElement>('mNNome').value.trim();
   const endereco = byId<HTMLInputElement>('mNEndereco').value.trim();
   const cep = byId<HTMLInputElement>('mNCep').value.trim();
   if (!nome) return fmsg('mNMsg', 'erro', 'Informe o nome da unidade.');
 
+  const duplicada = getUnidades().find(
+    (x) =>
+      x.nome.trim().toLowerCase() === nome.toLowerCase() &&
+      x.id !== editUnidId,
+  );
+  if (duplicada) {
+    return fmsg('mNMsg', 'erro', 'Já existe uma unidade com este nome.');
+  }
+
   if (editUnidId) {
-    updUnidade(editUnidId, { nome, endereco, cep });
+    const atual = getUnidadeById(editUnidId);
+    updUnidade(editUnidId, {
+      nome,
+      endereco,
+      cep,
+      cidade: atual?.cidade ?? '',
+    });
     toast('Unidade atualizada!', 'ok');
   } else {
-    addUnidade({ nome, endereco, cep });
+    addUnidade({ nome, endereco, cep, cidade: '' });
     toast('Unidade criada!', 'ok');
   }
   fecharUnid();
@@ -468,14 +492,20 @@ export function salvarUnid(): void {
   rdDash();
 }
 
-/** Exclui uma unidade, bloqueando quando ha usuarios vinculados. */
+/**
+ * Exclui uma unidade, bloqueando quando ha QUALQUER registro vinculado.
+ *
+ * Antes so checava usuarios, o que deixava salas/turmas/reservas/chaves/
+ * solicitacoes apontando para uma unidade inexistente (registros orfaos,
+ * invisiveis em todo filtro por unidade).
+ */
 export function excluirUnid(id: number): void {
   const u = getUnidadeById(id);
   if (!u) return;
-  const vincul = getUsuarios().filter((x) => x.unidadeId === id).length;
-  if (vincul > 0) {
+  const refs = referenciasDaUnidade(id);
+  if (refs.length > 0) {
     toast(
-      `Não é possível excluir: ${vincul} usuário(s) vinculado(s).`,
+      `Não é possível excluir: ${refs.join(', ')} vinculado(s) a esta unidade.`,
       'erro',
     );
     return;

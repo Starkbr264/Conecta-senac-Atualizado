@@ -1,5 +1,23 @@
 /**
- * Cliente HTTP do frontend web — contrato com `server/index.js`.
+ * Cliente HTTP do frontend web.
+ *
+ * FONTE DA VERDADE UNICA: o backend Spring Boot em `backend/demo/`
+ * (porta 8081, Postgres/Supabase), que tambem serve esta SPA — quando o
+ * build usa `VITE_API_BASE=same-origin`, a API fica na MESMA origem da
+ * pagina e nao ha CORS nem porta extra.
+ *
+ * O servidor Node em `server/` (porta 3333, `server/data/db.json`) e um
+ * MOCK LEGADO, usado so em desenvolvimento offline. As duas APIs expõem o
+ * MESMO contrato HTTP; o mock nunca deve rodar junto da API real sobre o
+ * mesmo cliente. Ver `compose.yaml` e `docs/ARQUITETURA_ATUALIZADA.md`.
+ *
+ * Endpoints usados (paridade total com `mobile/src/services/api.ts`):
+ *   - GET  /api/dados   -> baixa o banco completo
+ *   - POST /api/login   -> valida credenciais
+ *   - POST /api/sinc    -> envia as alteracoes locais
+ *   - POST /api/reset   -> recarrega os dados de exemplo
+ *   - GET  /api/sessao  -> le a sessao global
+ *   - POST /api/logout  -> encerra a sessao
  *
  * Nenhum endpoint, metodo ou formato de payload foi alterado. Esta camada
  * apenas isola o `fetch` e adiciona tipagem sobre os tipos reais.
@@ -25,7 +43,7 @@ import type {
 const SENTINELA_MESMA_ORIGEM = 'same-origin';
 
 /**
- * Base da API do servidor Node.
+ * Base da API.
  *
  * ATENCAO: o host de producao abaixo faz parte do contrato existente e NAO
  * foi alterado. Ordem de resolucao:

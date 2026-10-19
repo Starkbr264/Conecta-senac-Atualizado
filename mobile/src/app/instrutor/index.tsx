@@ -45,7 +45,7 @@ export default function InstrutorPanel() {
 
   if (!pronto) return <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
-  const uid = sessao!.unidadeId;
+  const uid = sessao?.unidadeId ?? db.unidadePadrao();
   const naoLidas = db.countNaoLidas('instrutor', uid, sessao!.id);
   const tabs = TABS.map(t => ({ ...t, badge: t.key === 'notifs' ? naoLidas : undefined }));
 

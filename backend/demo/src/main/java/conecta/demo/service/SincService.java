@@ -229,13 +229,28 @@ public class SincService {
     /**
      * Materializa um registro recebido do cliente na entidade JPA correspondente.
      *
-     * <p>Comportamento copiado integralmente do {@code SincController} original.
-     * <b>Atencao:</b> ver {@code docs/ARQUITETURA_ATUALIZADA.md} &rarr;
-     * "Defeito conhecido: perda de campos no POST /api/sinc". Os casos
-     * {@code salas} e {@code reservas} nao repõem todos os campos da entidade,
-     * o que apaga dados silenciosamente a cada sincronizacao.
+     * <p>Correcoes aplicadas nesta refatoracao (o comportamento original do
+     * {@code SincController} quebravava a sincronizacao inteira):
+     * <ul>
+     *   <li>Referencias nulas ({@code unidadeId}, {@code salaId},
+     *       {@code instrutorId}, {@code turmaId}) nao lancam mais
+     *       {@code NullPointerException} — viram {@code null}.</li>
+     *   <li>Registro sem {@code id} e ignorado em vez de derrubar a colecao.</li>
+     *   <li>{@code salas} volta a repor {@code turnos}, {@code turnosDisponiveis},
+     *       {@code statusManual}, {@code motivoManual}, {@code manualPor},
+     *       {@code manualCriadaEm} e {@code ativa}.</li>
+     *   <li>{@code reservas} volta a repor {@code horaInicio}, {@code horaFim}
+     *       e {@code avulsa}.</li>
+     * </ul>
+     *
+     * <p>A pendencia "perda de campos no POST /api/sinc" da
+     * {@code docs/ARQUITETURA_ATUALIZADA.md} esta resolvida.
      */
     private void salvar(String colecao, Map<String, Object> item) {
+        // Registro sem "id" nao pode ser materializado (o id e a chave primaria
+        // e e gerado manualmente, sem @GeneratedValue). Ignorar em vez de
+        // estourar NullPointerException e derrubar as demais colecoes.
+        if (longOuNull(item.get("id")) == null) return;
         switch (colecao) {
             case "usuarios":
                 Usuario u = new Usuario();
@@ -244,7 +259,7 @@ public class SincService {
                 u.setEmail(str(item.get("email")));
                 u.setSenha(str(item.get("senha")));
                 u.setPerfil(item.get("perfil") == null ? null : Perfil.from(item.get("perfil").toString()));
-                u.setUnidadeId(Long.valueOf(item.get("unidadeId").toString()));
+                u.setUnidadeId(longOuNull(item.get("unidadeId")));
                 usuarios.save(u);
                 break;
             case "unidades":
@@ -264,7 +279,16 @@ public class SincService {
                 s.setCapacidade(item.get("capacidade") == null ? null : Integer.valueOf(item.get("capacidade").toString()));
                 s.setAndar(str(item.get("andar")));
                 s.setBloco(str(item.get("bloco")));
-                s.setUnidadeId(Long.valueOf(item.get("unidadeId").toString()));
+                s.setUnidadeId(longOuNull(item.get("unidadeId")));
+                // Campos que antes eram zerados a cada sincronizacao (pendencia
+                // "perda de dados no POST /api/sinc" do relatorio de arquitetura).
+                s.setTurnosDisponiveis(listaDeStrings(item.get("turnosDisponiveis")));
+                s.setTurnos(listaDeStrings(item.get("turnos")));
+                s.setStatusManual(str(item.get("statusManual")));
+                s.setMotivoManual(str(item.get("motivoManual")));
+                s.setManualPor(str(item.get("manualPor")));
+                if (item.get("manualCriadaEm") != null) s.setManualCriadaEm(Instant.parse(item.get("manualCriadaEm").toString()));
+                s.setAtiva(item.get("ativa") == null || Boolean.parseBoolean(item.get("ativa").toString()));
                 salas.save(s);
                 break;
             case "turmas":
@@ -275,7 +299,7 @@ public class SincService {
                 t.setCurso(str(item.get("curso")));
                 t.setTurno(str(item.get("turno")));
                 t.setInstrutorId(item.get("instrutorId") == null ? null : Long.valueOf(item.get("instrutorId").toString()));
-                t.setUnidadeId(Long.valueOf(item.get("unidadeId").toString()));
+                t.setUnidadeId(longOuNull(item.get("unidadeId")));
                 if (item.get("dataInicio") != null) t.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
                 if (item.get("dataFim") != null) t.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
                 turmas.save(t);
@@ -283,31 +307,30 @@ public class SincService {
             case "reservas":
                 Reserva r = new Reserva();
                 r.setId(Long.valueOf(item.get("id").toString()));
-                r.setSalaId(Long.valueOf(item.get("salaId").toString()));
-                r.setTurmaId(item.get("turmaId") == null ? null : Long.valueOf(item.get("turmaId").toString()));
+                r.setSalaId(longOuNull(item.get("salaId")));
+                r.setTurmaId(longOuNull(item.get("turmaId")));
                 r.setTurno(str(item.get("turno")));
-                r.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
-                r.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
-                r.setInstrutorId(item.get("instrutorId") == null ? null : Long.valueOf(item.get("instrutorId").toString()));
-                r.setUnidadeId(Long.valueOf(item.get("unidadeId").toString()));
+                if (item.get("dataInicio") != null) r.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
+                if (item.get("dataFim") != null) r.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
+                r.setHoraInicio(str(item.get("horaInicio")));
+                r.setHoraFim(str(item.get("horaFim")));
+                r.setInstrutorId(longOuNull(item.get("instrutorId")));
+                r.setUnidadeId(longOuNull(item.get("unidadeId")));
                 r.setStatus(item.get("status") == null ? "ATIVA" : item.get("status").toString());
-                if (item.get("diasSemana") instanceof List<?>) {
-                    @SuppressWarnings("unchecked")
-                    List<Object> dias = (List<Object>) item.get("diasSemana");
-                    r.setDiasSemana(new java.util.LinkedHashSet<>(dias.stream().map(Object::toString).toList()));
-                }
+                r.setAvulsa(item.get("avulsa") != null && Boolean.parseBoolean(item.get("avulsa").toString()));
+                r.setDiasSemana(conjuntoDeStrings(item.get("diasSemana")));
                 reservas.save(r);
                 break;
             case "chaves":
                 Chave c = new Chave();
                 c.setId(Long.valueOf(item.get("id").toString()));
                 c.setCodigo(str(item.get("codigo")));
-                c.setSalaId(Long.valueOf(item.get("salaId").toString()));
+                c.setSalaId(longOuNull(item.get("salaId")));
                 c.setAndar(str(item.get("andar")));
                 c.setStatus(item.get("status") == null ? StatusChave.DISPONIVEL : StatusChave.from(item.get("status").toString()));
                 c.setInstrutorId(item.get("instrutorId") == null ? null : Long.valueOf(item.get("instrutorId").toString()));
                 if (item.get("pegaEm") != null) c.setPegaEm(Instant.parse(item.get("pegaEm").toString()));
-                c.setUnidadeId(Long.valueOf(item.get("unidadeId").toString()));
+                c.setUnidadeId(longOuNull(item.get("unidadeId")));
                 chaves.save(c);
                 break;
             case "notificacoes":
@@ -326,10 +349,10 @@ public class SincService {
             case "solicitacoes":
                 Solicitacao sol = new Solicitacao();
                 sol.setId(Long.valueOf(item.get("id").toString()));
-                sol.setSalaId(Long.valueOf(item.get("salaId").toString()));
-                sol.setInstrutorId(Long.valueOf(item.get("instrutorId").toString()));
-                sol.setTurmaId(item.get("turmaId") == null ? null : Long.valueOf(item.get("turmaId").toString()));
-                sol.setUnidadeId(Long.valueOf(item.get("unidadeId").toString()));
+                sol.setSalaId(longOuNull(item.get("salaId")));
+                sol.setInstrutorId(longOuNull(item.get("instrutorId")));
+                sol.setTurmaId(longOuNull(item.get("turmaId")));
+                sol.setUnidadeId(longOuNull(item.get("unidadeId")));
                 if (item.get("data") != null) sol.setData(java.time.LocalDate.parse(item.get("data").toString()));
                 if (item.get("dataInicio") != null) sol.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
                 if (item.get("dataFim") != null) sol.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
@@ -380,5 +403,39 @@ public class SincService {
 
     private String str(Object o) {
         return o == null ? null : o.toString();
+    }
+
+    /**
+     * Converte um valor JSON em {@code Long} sem estourar {@code NullPointerException}.
+     *
+     * <p>Antes desta correcao, toda coluna {@code unidadeId} (e as referencias
+     * {@code salaId}/{@code instrutorId}) era lida com
+     * {@code Long.valueOf(item.get("...").toString())}. Um registro sem
+     * {@code unidadeId} derrubava a sincronizacao inteira com
+     * {@code NullPointerException} (HTTP 500) e abortava as demais colecoes.
+     *
+     * @return o valor numerico, ou {@code null} quando ausente/vazio/invalido
+     */
+    private Long longOuNull(Object o) {
+        if (o == null) return null;
+        String s = o.toString().trim();
+        if (s.isEmpty() || "null".equals(s)) return null;
+        try {
+            return Long.valueOf(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Extrai uma lista de textos de um campo JSON, tolerando ausencia. */
+    private List<String> listaDeStrings(Object o) {
+        if (!(o instanceof List<?>)) return List.of();
+        List<?> bruto = (List<?>) o;
+        return bruto.stream().filter(java.util.Objects::nonNull).map(Object::toString).toList();
+    }
+
+    /** Extrai um conjunto de textos de um campo JSON, tolerando ausencia. */
+    private java.util.LinkedHashSet<String> conjuntoDeStrings(Object o) {
+        return new java.util.LinkedHashSet<>(listaDeStrings(o));
     }
 }

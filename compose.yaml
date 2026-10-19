@@ -1,9 +1,23 @@
 # Conecta-Senac - stack de desenvolvimento.
 #
+# FONTE DA VERDADE UNICA: o backend Spring Boot em `backend/demo/`
+# (Postgres/Supabase). O frontend web (embalado na mesma imagem) e o mobile
+# falam com ele.
+#
 # Uso:
 #   1. cp .env.example .env     (preencha as senhas)
 #   2. docker compose up -d --build
 #   3. abra http://localhost:${API_PORT:-8081}
+#
+# Para subir o MOCK legado (servidor Node em server/, porta 3333, que grava
+# em server/data/db.json) em vez da API real:
+#
+#   docker compose --profile mock up -d server
+#
+# IMPORTANTE: mock e API nao devem rodar ao mesmo tempo sobre o mesmo
+# dispositivo/aplicativo. Eles mantem bases separadas (JSON x Postgres) e
+# uma sincronizacao entre as duas corrompe os dados. O perfil `mock` existe
+# para desenvolvimento offline, sem Docker e sem JDK.
 #
 # A senha do Postgres NAO fica escrita neste arquivo: vem do .env
 # (veja .env.example). `docker compose config` mostra o valor resolvido -
@@ -38,9 +52,11 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Vazio = mesma origem (o proprio Spring serve a SPA em /).
-        # Use http://host:3333 para falar com o servidor Node.
-        VITE_API_BASE: ${VITE_API_BASE:-}
+        # "same-origin" = o proprio Spring serve a SPA em / e a API em /api.
+        # (O valor vazio NAO funciona: o Vite descarta variaveis de ambiente
+        # com "" e o import.meta.env gerado viraria {}.)
+        # Use http://host:3333 para falar com o mock legado.
+        VITE_API_BASE: ${VITE_API_BASE:-same-origin}
     image: conectasenac:latest
     container_name: conectasenac-api
     depends_on:
@@ -59,11 +75,15 @@ services:
       - '${API_PORT:-8081}:8081'
     restart: unless-stopped
 
-  # Servidor Node de dados (fonte da verdade do web e do mobile).
-  # Sobe separado porque nao ha imagem: roda direto do fonte, sem build.
+  # MOCK LEGADO - servidor Node de dados (server/data/db.json).
+  # NAO e a fonte da verdade: existe para desenvolvimento offline.
+  # Sobe apenas com o perfil "mock":
+  #   docker compose --profile mock up -d server
+  # Nao ha imagem: roda direto do fonte, sem build.
   server:
     image: node:20-alpine
     container_name: conectasenac-server
+    profiles: ['mock']
     working_dir: /srv
     command: ['node', 'server/index.js']
     environment:

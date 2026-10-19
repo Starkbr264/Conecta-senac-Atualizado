@@ -748,8 +748,26 @@ export async function loginUser(email: string, senha: string): Promise<Usuario |
 
 // ==== Leituras ====
 export const getUnidades   = (): Unidade[] => [...CACHE.unidades];
-export const getUnidadeById = (id: number | null | undefined): Unidade | null =>
-  id ? (CACHE.unidades.find(u => u.id === id) ?? null) : null;
+export const getUnidadeById = (id: number | string | null | undefined): Unidade | null =>
+  id === null || id === undefined || id === ''
+    ? null
+    : (CACHE.unidades.find(u => String(u.id) === String(id)) ?? null);
+
+/**
+ * Unidade padrao (fallback) para registros criados pela sessao.
+ *
+ * Espelha a regra do web (`web/src/core/storage.ts`):
+ *   1. a unidade da sessao logada — as telas prefere-la via
+ *      `uid ?? db.unidadePadrao()`, onde `uid` vem da sessao;
+ *   2. a primeira unidade cadastrada;
+ *   3. 0 (nenhuma unidade existe no banco).
+ *
+ * Nunca devolve `undefined`: um `unidadeId` ausente deixa o registro orfao,
+ * invisivel em todo filtro por unidade. Antes as telas usavam `uid ?? 0`,
+ * que gravava o id 0 (inexistente) e sumia com o registro.
+ */
+export const unidadePadrao = (): number =>
+  CACHE.unidades.length > 0 ? CACHE.unidades[0].id : 0;
 export const getUsuarios   = (): Usuario[] => [...CACHE.usuarios];
 export const getUserById   = (id: number | null | undefined): Usuario | null =>
   id ? (CACHE.usuarios.find(u => u.id === id) ?? null) : null;
@@ -758,8 +776,28 @@ export const getUsersByPerfil = (p: string): Usuario[] =>
 export const getSalas         = (): Sala[] => [...CACHE.salas];
 export const getSalaById      = (id: number | null): Sala | null =>
   id ? (CACHE.salas.find(s => s.id === id) ?? null) : null;
-export const getSalasByUnidade = (uid: number | null): Sala[] =>
-  uid ? CACHE.salas.filter(s => s.unidadeId === uid) : [];
+/**
+ * Compara dois identificadores de unidade tolerando a diferenca entre
+ * numero e texto.
+ *
+ * A API pode devolver `"1001"` (string) enquanto a sessao guarda `1001`
+ * (numero). A comparacao estrita (`===`) faria a lista inteira sumir.
+ * O mesmo helper existe em `web/src/core/storage.ts` para que as duas
+ * plataformas apliquem exatamente a mesma regra de filtragem.
+ */
+export const mesmaUnidade = (
+  a: number | string | null | undefined,
+  b: number | string | null | undefined,
+): boolean => {
+  if (a === null || a === undefined || a === '') return false;
+  if (b === null || b === undefined || b === '') return false;
+  return String(a) === String(b);
+};
+
+export const getSalasByUnidade = (uid: number | string | null | undefined): Sala[] =>
+  uid === null || uid === undefined || uid === ''
+    ? []
+    : CACHE.salas.filter(s => mesmaUnidade(s.unidadeId, uid));
 export const getTurmas    = (): Turma[] => [...CACHE.turmas];
 export const getTurmaById = (id: number | null | undefined): Turma | null =>
   id ? (CACHE.turmas.find(t => t.id === id) ?? null) : null;
@@ -772,15 +810,15 @@ export const getChaveById = (id: number): Chave | null =>
 export const getSolics    = (): Solicitacao[] => [...CACHE.solicitacoes];
 export const getNotifs    = (): Notificacao[] => [...CACHE.notificacoes];
 
-export function getNotifsPara(perfil: string, unidadeId: number | null, userId?: number): Notificacao[] {
+export function getNotifsPara(perfil: string, unidadeId: number | string | null, userId?: number): Notificacao[] {
   return CACHE.notificacoes.filter(n => {
     if (userId && n.paraId && n.paraId === userId) return true;
     if (n.paraPerfil === perfil)
-      return !n.unidadeId || !unidadeId || n.unidadeId === unidadeId;
+      return !n.unidadeId || !unidadeId || mesmaUnidade(n.unidadeId, unidadeId);
     return false;
   });
 }
-export function countNaoLidas(perfil: string, unidadeId: number | null, userId?: number): number {
+export function countNaoLidas(perfil: string, unidadeId: number | string | null, userId?: number): number {
   return getNotifsPara(perfil, unidadeId, userId).filter(n => !n.lida).length;
 }
 

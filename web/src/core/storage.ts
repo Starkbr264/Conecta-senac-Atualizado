@@ -275,6 +275,51 @@ export function getUnidadeById(id: number | string | null | undefined): Unidade 
   return CACHE.unidades.find((u) => String(u.id) === String(id)) ?? null;
 }
 
+/**
+ * Unidade que deve ser gravada em um registro quando a tela nao tem uma.
+ *
+ * <p>Este e o ponto que resolvia o "unidadeId perdido": o legado gravava
+ * `undefined` (o cast `as number` do TypeScript mentia em runtime) e o
+ * registro naso aparecia em nenhum filtro por unidade, virando orfao.
+ *
+ * <p>Ordem de resolucao:
+ * <ol>
+ *   <li>unidade da sessao (o usuario logado);</li>
+ *   <li>primeira unidade cadastrada (evita orfao no modo demonstracao,
+ *       em que nao ha sessao);</li>
+ *   <li>{@code 0} — sentinela explicito, melhor que {@code undefined}
+ *       silencioso, porque o filtro por unidade consegue detecta-lo.</li>
+ * </ol>
+ */
+export function unidadePadrao(): number {
+  const sessao = getSessao();
+  if (sessao && sessao.unidadeId) return Number(sessao.unidadeId);
+  const primeira = CACHE.unidades[0];
+  if (primeira) return Number(primeira.id);
+  return 0;
+}
+
+/**
+ * Registros que ainda apontam para uma unidade.
+ *
+ * <p>Usado pela tela de administracao para impedir a exclusao de uma unidade
+ * que ainda tem salas, turmas, reservas, chaves ou solicitacoes — sem isso
+ * o banco fica com referencias orfas (as colunas nao tem chave estrangeira).
+ */
+export function referenciasDaUnidade(unidadeId: number | string): string[] {
+  const alvo = String(unidadeId);
+  const conta = <T extends { unidadeId?: number | null }>(lista: T[]): number =>
+    lista.filter((r) => String(r.unidadeId) === alvo).length;
+  const pendencias: string[] = [];
+  if (conta(CACHE.usuarios) > 0) pendencias.push('usuarios');
+  if (conta(CACHE.salas) > 0) pendencias.push('salas');
+  if (conta(CACHE.turmas) > 0) pendencias.push('turmas');
+  if (conta(CACHE.reservas) > 0) pendencias.push('reservas');
+  if (conta(CACHE.chaves) > 0) pendencias.push('chaves');
+  if (conta(CACHE.solicitacoes) > 0) pendencias.push('solicitacoes');
+  return pendencias;
+}
+
 // ---------------------------------------------------------------------------
 // Leitura — Salas
 // ---------------------------------------------------------------------------
@@ -288,8 +333,40 @@ export function getSalaById(id: number | string | null | undefined): Sala | null
   return CACHE.salas.find((s) => String(s.id) === String(id)) ?? null;
 }
 
-export function getSalasByUnidade(uid: number | string): Sala[] {
-  return CACHE.salas.filter((s) => String(s.unidadeId) === String(uid));
+/**
+ * Compara dois `unidadeId` de forma tolerante ao tipo.
+ *
+ * <p>Era o ponto de falha da entidade Unidade: as telas comparavam
+ * `registro.unidadeId === uid()` (igualdade estrita). Com `uid()` nulo
+ * (sessao sem unidade) a comparacao dava sempre `false` e a lista saia
+ * VAZIA; e com o id vindo como texto do servidor (`"1001"`) o `===` tambem
+ * falhava. Aqui a comparacao e feita por texto, e dois ids ausentes
+ * (<code>null</code>/<code>undefined</code>) nao sao consideredos iguais —
+ * um registro sem unidade e um registro orfao, nunca pertence a uma unidade.
+ */
+export function mesmaUnidade(
+  a: number | string | null | undefined,
+  b: number | string | null | undefined,
+): boolean {
+  if (a === null || a === undefined || a === '') return false;
+  if (b === null || b === undefined || b === '') return false;
+  return String(a) === String(b);
+}
+
+/**
+ * Unidade da sessao logada, ou `null` quando nao ha sessao/unidade.
+ *
+ * <p>Use `mesmaUnidade(x.unidadeId, unidadeDaSessao())` para filtrar.
+ */
+export function unidadeDaSessao(): number | null {
+  const sess = getSessao();
+  if (!sess || sess.unidadeId === null || sess.unidadeId === undefined) return null;
+  return Number(sess.unidadeId);
+}
+
+export function getSalasByUnidade(uid: number | string | null | undefined): Sala[] {
+  if (uid === null || uid === undefined || uid === '') return [];
+  return CACHE.salas.filter((s) => mesmaUnidade(s.unidadeId, uid));
 }
 
 // ---------------------------------------------------------------------------
@@ -354,7 +431,7 @@ export function getNotifsPara(perfil: Perfil | string, unidadeId?: number | stri
     if (sess && n.paraId && String(n.paraId) === String(sess.id)) return true;
 
     if (n.paraPerfil && lowerPerfil(n.paraPerfil) === pn) {
-      return !n.unidadeId || !unidadeId || String(n.unidadeId) === String(unidadeId);
+      return !n.unidadeId || !unidadeId || mesmaUnidade(n.unidadeId, unidadeId);
     }
 
     return false;
@@ -487,7 +564,9 @@ export function addSala(d: NovaSalaSemUnidade): Sala {
     id: nextId(CACHE.salas),
     turnosDisponiveis: turnos,
     turnos,
-    unidadeId: d.unidadeId as number,
+    // Antes: `d.unidadeId as number` — o cast mascarava `undefined` em
+    // runtime e a sala naso aparecia em nenhum filtro por unidade.
+    unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.salas.push(item);
   persist('salas');
@@ -533,7 +612,8 @@ export function addTurma(d: NovaTurmaSemUnidade): Turma {
     id: nextId(CACHE.turmas),
     nome,
     codigo: nome,
-    unidadeId: d.unidadeId as number,
+    // Antes: `d.unidadeId as number` — mesma correcao de `addSala`.
+    unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.turmas.push(item);
   persist('turmas');
@@ -575,7 +655,12 @@ export function deleteTurma(id: number | string): void {
 // ---------------------------------------------------------------------------
 
 export function addReserva(d: NovaReserva): Reserva {
-  const item: Reserva = { ...d, id: nextId(CACHE.reservas), status: d.status || 'ATIVA' };
+  const item: Reserva = {
+    ...d,
+    id: nextId(CACHE.reservas),
+    status: d.status || 'ATIVA',
+    unidadeId: d.unidadeId ?? unidadePadrao(),
+  };
   CACHE.reservas.push(item);
   persist('reservas');
   return item;
@@ -608,7 +693,12 @@ export function deleteReserva(id: number | string): void {
 // ---------------------------------------------------------------------------
 
 export function addChave(d: NovaChave): Chave {
-  const item: Chave = { ...d, id: nextId(CACHE.chaves), status: d.status || 'disponivel' };
+  const item: Chave = {
+    ...d,
+    id: nextId(CACHE.chaves),
+    status: d.status || 'disponivel',
+    unidadeId: d.unidadeId ?? unidadePadrao(),
+  };
   CACHE.chaves.push(item);
   persist('chaves');
   return item;
@@ -666,7 +756,12 @@ export async function devolverChaveAsync(id: number | string): Promise<Chave | n
 // ---------------------------------------------------------------------------
 
 export function addSolic(d: NovaSolicitacao): Solicitacao {
-  const item: Solicitacao = { ...d, id: nextId(CACHE.solicitacoes), status: d.status || 'pendente' };
+  const item: Solicitacao = {
+    ...d,
+    id: nextId(CACHE.solicitacoes),
+    status: d.status || 'pendente',
+    unidadeId: d.unidadeId ?? unidadePadrao(),
+  };
   CACHE.solicitacoes.push(item);
   persist('solicitacoes');
   return item;

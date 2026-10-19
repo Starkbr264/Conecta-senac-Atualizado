@@ -7,6 +7,7 @@
  */
 
 import { esc } from './format';
+import { mesmaUnidade } from './storage';
 
 /** Campo indexavel de uma linha, ou funcao que extrai o valor a buscar. */
 export type CampoBusca<T> = keyof T | ((item: T) => unknown);
@@ -62,7 +63,13 @@ export function aplicarFiltros<T>(lista: T[], filtros: ValoresFiltro): T[] {
     chaves.every((k) => {
       const v = filtros[k];
       if (!v && v !== '0') return true;
-      return String((item as Record<string, unknown>)[k]) === String(v);
+      const bruto = (item as Record<string, unknown>)[k];
+      // `unidadeId` recebe tratamento especial: a API pode devolver "1001"
+      // (texto) enquanto a sessao guarda 1001 (numero), e um registro sem
+      // unidade precisa continuar fora do filtro (e nao casar com "null").
+      if (k === 'unidadeId') return mesmaUnidade(bruto as number | string | null | undefined, v);
+      if (bruto === null || bruto === undefined) return false;
+      return String(bruto) === String(v);
     }),
   );
 }

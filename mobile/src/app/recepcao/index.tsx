@@ -41,7 +41,7 @@ export default function RecepcaoPanel() {
 
   if (!pronto) return <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
-  const uid = sessao!.unidadeId;
+  const uid = sessao?.unidadeId ?? db.unidadePadrao();
   const naoLidas = db.countNaoLidas('recepcao', uid);
   const tabs = TABS.map(t => ({ ...t, badge: t.key === 'notifs' ? naoLidas : undefined }));
 

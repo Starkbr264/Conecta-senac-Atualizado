@@ -26,6 +26,7 @@ import {
   getReservas,
   getSalaById,
   getSalasByUnidade,
+  mesmaUnidade,
   getTurmaById,
   getUserById,
   getUsersByPerfil,
@@ -33,6 +34,7 @@ import {
   marcarTodasLidas,
   retirarChaveAsync,
   updChave,
+  unidadePadrao,
   type NovaChave,
   type OverrideSala,
 } from '../../core/storage';
@@ -707,7 +709,7 @@ export function salvarChave(): void {
     salaId,
     codigo,
     andar,
-    unidadeId: uid() as number,
+    unidadeId: unidadePadrao(),
   };
   if (id) {
     updChave(id, dados);

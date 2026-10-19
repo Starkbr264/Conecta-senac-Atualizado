@@ -42,6 +42,9 @@ export default function CoordenadorPanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
 
+  // `uid` e a unidade da sessao. Quando ela nao existe (sessao ausente ou
+  // unidade removida), os registros novos usam `db.unidadePadrao()` — nunca 0,
+  // que deixaria o registro orfao e invisivel em qualquer filtro por unidade.
   const uid = sessao?.unidadeId ?? null;
   const recarregar = useCallback(async () => {
     setRefreshing(true);
@@ -231,7 +234,7 @@ function ModalSala({ sala, uid, onClose, onDone }: { sala: Sala | null; uid: num
     }
     const dados = {
       nome: nome.trim(), capacidade: parseInt(capacidade, 10), tipo: tipo.trim(),
-      andar: andar.trim(), bloco: bloco.trim(), turnosDisponiveis: turnos, unidadeId: uid ?? 0,
+      andar: andar.trim(), bloco: bloco.trim(), turnosDisponiveis: turnos, unidadeId: uid ?? db.unidadePadrao(),
     };
     if (sala) await db.updSala(sala.id, dados);
     else await db.addSala(dados);
@@ -354,7 +357,7 @@ function ModalTurma({ turma, uid, onClose, onDone }: { turma: Turma | null; uid:
     }
     const dados = {
       codigo: codigo.trim(), nome: codigo.trim(), curso: curso.trim(), turno,
-      dataInicio: ini, dataFim: fim, instrutorId, unidadeId: uid ?? 0,
+      dataInicio: ini, dataFim: fim, instrutorId, unidadeId: uid ?? db.unidadePadrao(),
     };
     if (turma) await db.updTurma(turma.id, dados);
     else await db.addTurma(dados);
@@ -837,7 +840,7 @@ function ModalReserva({ reserva, uid, onClose, onDone }: {
       dataInicio: ini, dataFim: fim,
       horaInicio: horaIni || null, horaFim: horaFim || null,
       instrutorId: turma?.instrutorId ?? null,
-      unidadeId: uid ?? 0,
+      unidadeId: uid ?? db.unidadePadrao(),
     };
 
     const conflito = db.verificarConflito(
@@ -981,7 +984,7 @@ function Solicitacoes({ uid, sessaoId, onChange }: { uid: number | null; sessaoI
             salaId: s.salaId, turmaId: s.turmaId ?? null, turno,
             diasSemana: dias, dataInicio: dataIni, dataFim,
             horaInicio: s.horaInicio ?? null, horaFim: s.horaFim ?? null,
-            instrutorId: s.instrutorId, unidadeId: uid!, avulsa: !s.turmaId,
+            instrutorId: s.instrutorId, unidadeId: uid ?? db.unidadePadrao(), avulsa: !s.turmaId,
           });
         }
       }
