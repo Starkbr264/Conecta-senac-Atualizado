@@ -1,0 +1,40 @@
+# Normalizacao de fim de linha.
+#
+# Sem isto, o Git converte LF -> CRLF em Windows e quebra qualquer arquivo
+# executado em Linux (Dockerfile, compose.yaml, gradlew, *.sh) com o erro
+# classic do shell: /bin/bash^M: bad interpreter.
+#
+# Regra geral: LF no repositorio, CRLF de volta no working tree do Windows.
+* text=auto eol=lf
+
+# Execeucoes que realmente precisam de CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.keystore binary
+
+# Dockerfiles: LF obrigatorio
+Dockerfile text eol=lf
+*/Dockerfile text eol=lf
+*.dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+compose*.yaml text eol=lf
+
+# Build do front
+*.css text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md text eol=lf

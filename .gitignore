@@ -1,3 +1,54 @@
+# ==========================================================================
+# Conecta-Senac — .gitignore da raiz
+# ==========================================================================
+
+# --- Dependencias ---------------------------------------------------------
+node_modules/
+jspm_packages/
+
+# --- Builds / artefatos ---------------------------------------------------
+dist/
+web-build/
+build/
+out/
+*.tsbuildinfo
+
+# --- Expo / React Native --------------------------------------------------
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# --- Gradle / Java --------------------------------------------------------
+.gradle/
+bin/
+*.class
+*.log
+
+# --- Variáveis de ambiente e segredos ------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Ferramentas / IDEs ---------------------------------------------------
 .idea/
-backup.dump
+.vscode/
+*.iml
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Temporarios ----------------------------------------------------------
 *.zip
+*.tmp
+*~
+cache/
+
+# --- Base local do Postgres (docker compose) ------------------------------
+# ATENCAO: server/data/db.json e dado versionado do Conecta-Senac e NAO deve
+# ser ignorado. Somente volumes/artefatos de build sao descartados.

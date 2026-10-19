@@ -1,17 +1,82 @@
-version: '3.8'
-
+# Conecta-Senac - stack de desenvolvimento.
+#
+# Uso:
+#   1. cp .env.example .env     (preencha as senhas)
+#   2. docker compose up -d --build
+#   3. abra http://localhost:${API_PORT:-8081}
+#
+# A senha do Postgres NAO fica escrita neste arquivo: vem do .env
+# (veja .env.example). `docker compose config` mostra o valor resolvido -
+# nunca comite esse arquivo.
 services:
   postgres:
     image: postgres:16
     container_name: conectasenac-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: REDACTED_POSTGRES_PASSWORD
-      POSTGRES_DB: conectasenac
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-conectasenac}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-conectasenac}
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  # API Spring Boot + frontend web empacotado na mesma imagem.
+  # O build usa o Dockerfile da RAIZ (contexto = "."), que le backend/demo/ e
+  # web/ pelos caminhos curtos.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Vazio = mesma origem (o proprio Spring serve a SPA em /).
+        # Use http://host:3333 para falar com o servidor Node.
+        VITE_API_BASE: ${VITE_API_BASE:-}
+    image: conectasenac:latest
+    container_name: conectasenac-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8081
+      SUPABASE_DB_USER: ${SUPABASE_DB_USER:-postgres}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD:-postgres}
+      # Sobrescreve o host do application.properties para apontar ao Postgres
+      # local desta stack. Em producao, remova esta linha e o .env para que o
+      # backend use o pooler do Supabase configurado no proprio projeto.
+      SPRING_DATASOURCE_URL: >-
+        jdbc:postgresql://postgres:5432/${POSTGRES_DB:-conectasenac}?sslmode=disable
+    ports:
+      - '${API_PORT:-8081}:8081'
+    restart: unless-stopped
+
+  # Servidor Node de dados (fonte da verdade do web e do mobile).
+  # Sobe separado porque nao ha imagem: roda direto do fonte, sem build.
+  server:
+    image: node:20-alpine
+    container_name: conectasenac-server
+    working_dir: /srv
+    command: ['node', 'server/index.js']
+    environment:
+      PORT: '3333'
+    volumes:
+      # Codigo somente leitura...
+      - ./server:/srv/server:ro
+      # ...e data/ reescrevivel, porque o servidor persiste db.json de forma
+      # atomica (escreve tmp + rename). A montagem seguinte sobrepoe a anterior.
+      - ./server/data:/srv/server/data
+    ports:
+      - '${SERVER_PORT:-3333}:3333'
+    restart: unless-stopped
 
 volumes:
   pg_data:

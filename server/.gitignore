@@ -1,0 +1,13 @@
+# Arquivo temporario da escrita atomica do banco (tmp + rename).
+# ATENCAO: data/db.json E dado versionado do Conecta-Senac e NAO deve ser
+# ignorado. Somente o arquivo temporario e descartado.
+data/*.tmp
+data/*.json.tmp
+
+# Configuracoes de IDE
+.vscode/
+.idea/
+*.iml
+*.log
+.DS_Store
+Thumbs.db

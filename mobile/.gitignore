@@ -1,0 +1,39 @@
+# Dependencias
+node_modules/
+jspm_packages/
+
+# Builds / artefatos
+dist/
+web-build/
+build/
+*.tsbuildinfo
+*.log
+
+# Expo / React Native
+.expo/
+.expo-shared/
+*.orig.*
+web-build/
+
+# Android / iOS gerados
+android/app/build/
+ios/Pods/
+ios/build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Ferramentas / IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+Thumbs.db

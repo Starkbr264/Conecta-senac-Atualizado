@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Builds / artefatos
+dist/
+*.tsbuildinfo
+*.log
+
+# Cache do TypeScript/Vite
+.vite/
+.tsbuildinfo
+
+# Configuracoes de IDE (nao versionar prefs locais)
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db

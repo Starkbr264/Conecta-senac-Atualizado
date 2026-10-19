@@ -1,0 +1,43 @@
+# ==========================================================================
+#  Conecta-Senac - contexto de build da RAIZ do repositorio.
+#
+#  O Dockerfile precisa de duas arvores: backend/demo/ (Gradle) e web/ (Vite).
+#  Tudo o mais e descartado para nao inflar o contexto nem vazar para a imagem.
+# ==========================================================================
+
+# --- Git e metadados ------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.github
+
+# --- Dependencias e artefatos de build -----------------------------------
+**/node_modules
+**/dist
+**/build
+**/.gradle
+**/.expo
+**/*.tsbuildinfo
+**/*.log
+**/*.tmp
+
+# --- IDE ------------------------------------------------------------------
+.idea
+.vscode
+**/.idea
+**/.vscode
+**/*.iml
+**/*.iws
+
+# --- Partes que nao entram na imagem --------------------------------------
+# mobile/  -> app Expo, publicado fora do container
+# server/  -> servidor Node, roda direto do fonte (ver compose.yaml)
+# docs/    -> documentacao
+mobile
+server
+docs
+
+# --- Segredos -------------------------------------------------------------
+**/.env
+**/.env.*
+!**/.env.example

@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend Spring Boot — testes JUnit 5 + build do jar
+  # ---------------------------------------------------------------------------
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/demo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Garante execucao do wrapper
+        run: chmod +x ./gradlew
+
+      - name: Testes (JUnit 5)
+        run: ./gradlew test --no-daemon --console=plain
+
+      - name: Build do jar
+        run: ./gradlew bootJar -x test --no-daemon --console=plain
+
+      - name: Publica o jar
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: conecta-api
+          path: backend/demo/build/libs/*.jar
+
+  # ---------------------------------------------------------------------------
+  # Frontend web (Vite + TypeScript)
+  # ---------------------------------------------------------------------------
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instala dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck + build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Mobile (Expo + TypeScript)
+  # ---------------------------------------------------------------------------
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instala dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
