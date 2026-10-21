@@ -72,6 +72,13 @@ RUN ./gradlew --no-daemon --console=plain clean bootJar -x test \
 # Injeta web/dist em BOOT-INF/classes/static/ usando o `jar` do proprio JDK
 # (nao precisa de unzip/zip no Debian do gradle:jdk21).
 COPY --from=web-build /web/dist /tmp/web-dist
+#
+# A verificacao abaixo NAO usa variavel de shell de proposito.
+# O builder do Docker so substitui variaveis em ADD/COPY/ENV/EXPOSE/FROM/
+# LABEL/USER/VOLUME/WORKDIR; em `RUN` a substituicao fica a cargo do shell.
+# Logo `$$f` chegaria cru ao shell, onde `$$` e o PID (viraria "1f.html").
+# Cada `grep -qFx` exige a linha INTEIRA e literal, e o encadeamento com `&&`
+# so chega ao `||` se todas as 9 verificacoes passarem.
 RUN set -eu; \
     mkdir -p /tmp/root/BOOT-INF/classes; \
     cp -a /tmp/web-dist /tmp/root/BOOT-INF/classes/static; \
@@ -79,14 +86,19 @@ RUN set -eu; \
     jar uf /tmp/app.jar BOOT-INF/classes/static; \
     cd /; rm -rf /tmp/root /tmp/web-dist; \
     jar tf /tmp/app.jar > /tmp/jar-list.txt; \
-    for f in index login dashboard admin coordenador instrutor recepcao; do \
-      grep -q "^BOOT-INF/classes/static/$$f\.html$$" /tmp/jar-list.txt \
-        || { echo "ERRO: $$f.html nao encontrado dentro do jar"; exit 1; }; \
-    done; \
-    grep -q '^BOOT-INF/classes/static/css/main.css$$' /tmp/jar-list.txt \
-      || { echo "ERRO: css/main.css nao encontrado dentro do jar"; exit 1; }; \
-    grep -q '^BOOT-INF/classes/static/img/senac-logo-sem-fundo.webp$$' /tmp/jar-list.txt \
-      || { echo "ERRO: img/senac-logo-sem-fundo.webp nao encontrado dentro do jar"; exit 1; }; \
+    grep -qFx 'BOOT-INF/classes/static/index.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/login.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/dashboard.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/admin.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/coordenador.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/instrutor.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/recepcao.html' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/css/main.css' /tmp/jar-list.txt && \
+    grep -qFx 'BOOT-INF/classes/static/img/senac-logo-sem-fundo.webp' /tmp/jar-list.txt \
+      || { echo "ERRO: o frontend nao foi injetado corretamente no jar."; \
+           echo "Conteudo estatico encontrado:"; \
+           grep -E 'BOOT-INF/classes/static' /tmp/jar-list.txt | head -20; \
+           exit 1; }; \
     rm -f /tmp/jar-list.txt; \
     echo "frontend injetado no jar com sucesso (7 paginas + css + img)"
 
