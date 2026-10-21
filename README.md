@@ -9,35 +9,36 @@ O repositório reúne **quatro componentes independentes**:
 | --- | --- | --- | --- |
 | Frontend Web | `web/` | TypeScript + Vite 5 | telas para Admin, Coordenador, Instrutor e Recepção |
 | Aplicativo Mobile | `mobile/` | Expo 51 / React Native 0.74 / expo-router | app Android/iOS do instrutor e da recepção |
-| Servidor de dados | `server/` | Node.js puro (CommonJS, sem dependências) | API + persistência em `server/data/db.json` |
-| API Java | `backend/demo/` | Spring Boot 4 + JPA + PostgreSQL | backend alternativo (não é consumido por nenhum dos frontends) |
+| API Java | `backend/demo/` | Spring Boot 4 + JPA + PostgreSQL | **fonte da verdade dos dados** (Postgres/Supabase) |
+| Servidor de dados (mock legado) | `server/` | Node.js puro (CommonJS, sem dependências) | persistência em `server/data/db.json` — **apenas desenvolvimento offline** |
 
 ---
 
 ## Fonte da verdade dos dados
 
-Os dois frontends conversam **apenas com o servidor Node da porta 3333**
-(`GET /api/dados`, `POST /api/sinc`, `POST /api/login`, …). O banco em memória é
-`server/data/db.json`; quando ele não existe ou está corrompido, o servidor o
-reconstrói a partir de `server/seed.js` (10 unidades, 42 usuários, 50 salas,
-40 turmas, 31 reservas, 20 chaves, 4 notificações e 4 solicitações).
+**A API Spring Boot (`backend/demo/`, porta 8081) é a fonte única de verdade.**
+Ela roda contra o PostgreSQL do Supabase e serve também o frontend web na mesma
+origem.
 
-O backend Spring Boot é uma implementação **paralela** do mesmo domínio, com os
-mesmos nomes de tabela, e roda contra o PostgreSQL do Supabase. Ele existe no
-repositório, mas **nenhum código do web ou do mobile chama as rotas dele**.
+O servidor Node (`server/`, porta 3333) é o **mock legado**: mantém o mesmo
+contrato HTTP, mas persiste em `server/data/db.json` e serve para
+desenvolvimento offline, sem Docker e sem JDK. As duas camadas **não devem
+rodar ao mesmo tempo sobre o mesmo cliente** — bases separadas (JSON ×
+Postgres) e qualquer sincronização entre elas corrompe os dados.
+
+Endpoints usados pelos dois frontends (idênticos nas duas camadas):
+
+```
+GET  /api/dados      POST /api/sinc      POST /api/login
+GET  /api/sessao     POST /api/sessao    POST /api/logout
+POST /api/reset
+```
 
 ---
 
 ## Como executar
 
-### 1. Servidor de dados (obrigatório para web e mobile)
-
-```bash
-node server/index.js
-# Porta 3333 (configurável com a variável PORT)
-```
-
-### 2. Frontend Web
+### 1. Frontend Web (desenvolvimento)
 
 ```bash
 cd web
@@ -53,7 +54,7 @@ npm run build        # typecheck + vite build  -> web/dist
 npm run preview      # serve o web/dist recém-gerado
 ```
 
-O bundle gerado por `npm run build` é o que o servidor Node publica em
+O bundle gerado por `npm run build` é o que o servidor publica em
 `http://localhost:3333` (raiz `web/dist`). **Sem rodar o build, o servidor
 responde apenas na API** — para a interface nesse caso, use `npm run dev`.
 
@@ -61,7 +62,7 @@ responde apenas na API** — para a interface nesse caso, use `npm run dev`.
 `https://conecta-senac.onrender.com`. Para desenvolvimento local:
 
 ```bash
-VITE_API_BASE=http://127.0.0.1:3333 npm run build     # servidor Node
+VITE_API_BASE=http://127.0.0.1:3333 npm run build     # mock legado
 VITE_API_BASE=same-origin       npm run build         # mesma origem da página
 ```
 
@@ -69,10 +70,11 @@ A resolução é, em ordem: `window.__CONECTA_API_BASE__` (injetado em runtime) 
 variável `VITE_API_BASE` do build → host de produção. O token **`same-origin`**
 expande para `window.location.origin` (é o padrão do `Dockerfile`). Use esse
 token em vez de string vazia: o Vite descarta variáveis de ambiente com valor
-`""` e o `import.meta.env` gerado viraria `{}`. Se a API não responder em 12 s,
-o web cai para **modo offline** usando o cache local.
+`""` e o `import.meta.env` gerado viraria `{}`. Se a API não responder em 12 s
+(configurável por `VITE_API_TIMEOUT_MS`), o web cai para **modo offline** usando
+o cache local.
 
-### 3. Aplicativo Mobile
+### 2. Aplicativo Mobile
 
 ```bash
 cd mobile
@@ -83,22 +85,34 @@ npm run ios
 npm run typecheck    # tsc --noEmit
 ```
 
-Para apontar o app para o servidor local, edite `app.json` e acrescente:
+Para apontar o app para um backend, use `app.json`:
 
 ```json
-"expo": { "extra": { "apiUrl": "http://192.168.0.10:3333" } }
+"expo": { "extra": { "apiUrl": "http://192.168.0.10:8081", "modoApi": "producao" } }
 ```
 
-O app tenta descobrir o host automaticamente (Expo Go usa o host do
-debugger). Sem servidor, ele opera em **modo offline** com o cache do
-`AsyncStorage`.
+ou variáveis de ambiente do Expo (precedência: `app.json` → env → descoberta
+automática do host pelo Metro):
 
-### 4. Backend Java + Web (Docker, o caminho recomendado)
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.0.10:8081
+EXPO_PUBLIC_API_PORT=8081
+EXPO_PUBLIC_MODO_API=producao
+```
+
+A porta padrão do mobile é **8081** (Spring Boot). Para o mock legado, use
+`EXPO_PUBLIC_API_PORT=3333`. Sem servidor, o app opera em **modo offline** com
+o cache do `AsyncStorage`.
+
+### 3. Backend Java + Web (Docker, o caminho recomendado)
 
 O `Dockerfile` da raiz é **multi-stage** e produz **uma única imagem** que
 sobe a API Spring Boot *e* serve o frontend na mesma origem. Como o backend não
 registra nenhum handler de recursos estáticos, o bundle do Vite é injetado em
-`BOOT-INF/classes/static/` dentro do jar — nenhuma linha do backend é alterada.
+`BOOT-INF/classes/static/` dentro do jar — **nenhuma linha do backend é
+alterada**.
+
+#### 3.1. Imagem única
 
 ```bash
 cp .env.example .env        # preencha as credenciais
@@ -108,34 +122,139 @@ docker run --rm -p 8081:8081 --env-file .env conectasenac
 # Web  -> http://localhost:8081/
 ```
 
-Stack completa com Docker Compose (Postgres + API com o SPA embutido +
-servidor Node com o banco compartilhado):
-
-```bash
-cp .env.example .env
-docker compose up -d --build
-# postgres -> 5432   api (Spring + web) -> 8081   server (Node) -> 3333
-```
-
-O `compose.yaml` sobrescreve a URL do datasource por variável de ambiente
-(`SPRING_DATASOURCE_URL`), então o serviço `api` conversa com o Postgres local
-sem precisar editar `application.properties`.
-
 Para gerar a imagem apontando o frontend para outro host:
 
 ```bash
 docker build --build-arg VITE_API_BASE=https://api.exemplo.com -t conectasenac .
 ```
 
-### 5. Backend Java sem Docker
+#### 3.2. Stack completa com Docker Compose
 
-Requer **JDK 21**.
+```bash
+cp .env.example .env
+docker compose up -d --build
+# postgres -> 5432   api (Spring Boot + web) -> 8081
+```
+
+O `compose.yaml` sobrescreve a URL do datasource por variável de ambiente
+(`SPRING_DATASOURCE_URL`), então o serviço `api` conversa com o Postgres local
+sem precisar editar `application.properties`.
+
+Para subir o **mock legado** (servidor Node) em vez da API real:
+
+```bash
+docker compose --profile mock up -d server           # -> http://localhost:3333
+```
+
+O serviço `server` fica atrás do perfil `mock` justamente para que as duas
+camadas não subam juntas por acidente.
+
+#### 3.3. O que o Dockerfile faz (3 estágios)
+
+| Estágio | Imagem | O que faz |
+| --- | --- | --- |
+| 1/3 `web-build` | `node:20-alpine` | `npm ci` → `npm run build` (roda o `typecheck` antes) → `web/dist` |
+| 2/3 `api-build` | `gradle:jdk21` | `./gradlew bootJar` → injeta `web/dist` em `BOOT-INF/classes/static/` |
+| 3/3 runtime | `eclipse-temurin:21-jre-alpine` | executa o jar na porta 8081 |
+
+Três decisões importantes desse arquivo:
+
+**a) O build usa o *wrapper* do Gradle, não o `gradle` da imagem.**
+A imagem `gradle:jdk21` traz uma versão "rolling" do Gradle, enquanto o
+projeto fixa a versão exata em `gradle/wrapper/gradle-wrapper.properties`
+(atualmente **9.5.1**). Sem o wrapper, o build do container usaria um Gradle
+diferente do build local e do CI — e uma diferença de versão pode ser a
+diferença entre um build que passa e um que falha.
+
+```dockerfile
+COPY backend/demo/gradle ./gradle
+COPY backend/demo/gradlew ./gradlew
+RUN chmod +x ./gradlew          # sem isso: "Permission denied"
+```
+
+**b) O frontend injetado no jar é verificado — 7 páginas + CSS + imagem.**
+O passo de verificação é o **fail-fast** do build: se o `web/dist` não for
+copiado inteiro para dentro do jar, o build quebra **ali**, com a lista do que
+faltou — e não em produção, com um 404 na tela.
+
+```dockerfile
+jar tf /tmp/app.jar > /tmp/jar-list.txt
+grep -qFx 'BOOT-INF/classes/static/index.html' /tmp/jar-list.txt \
+&& grep -qFx 'BOOT-INF/classes/static/login.html' /tmp/jar-list.txt \
+&& ... (7 páginas) ...
+&& grep -qFx 'BOOT-INF/classes/static/css/main.css' /tmp/jar-list.txt \
+&& grep -qFx 'BOOT-INF/classes/static/img/senac-logo-sem-fundo.webp' /tmp/jar-list.txt \
+|| { echo "ERRO: frontend incompleto dentro do jar"; \
+     grep -E 'BOOT-INF/classes/static' /tmp/jar-list.txt | head -20; exit 1; }
+```
+
+> **Por que não se usa variável de shell aqui?** O builder do Docker só
+> substitui `${VAR}` em `ADD`, `COPY`, `ENV`, `EXPOSE`, `FROM`, `LABEL`,
+> `USER`, `VOLUME` e `WORKDIR`. Em `RUN`, a substituição é do shell — e no
+> `ash` do Alpine, `$$` é o **PID**. Um `for f in ...; do grep "$$f.html" ...`
+> acaba testando `1f.html` (PID 1) e falha com um erro que não tem relação
+> com o problema real. Daí a verificação ser escrita com **9 caminhos
+> literais** e `grep -qFx` (literal + linha inteira).
+
+**c) O `.dockerignore` não pode ignorar `web/` nem `backend/`.**
+A pasta `web/` precisa estar no contexto de build para o `COPY web/ ./` funcionar.
+
+#### 3.4. Verificar a imagem depois do build
+
+```bash
+docker run --rm conectasenac:latest sh -c "ls BOOT-INF 2>/dev/null; true"
+docker run --rm -p 8081:8081 --env-file .env conectasenac
+# em outro terminal:
+curl -s http://localhost:8081/api/dados | head -c 200
+curl -sI http://localhost:8081/ | head -1
+curl -sI http://localhost:8081/css/main.css | head -1
+```
+
+#### 3.5. Problemas conhecidos ao construir
+
+| Sintoma | Causa | Solução |
+| --- | --- | --- |
+| `Unable to delete directory '...\build\resources\test'` | **lock do OneDrive** sobre a pasta de artefatos do Gradle | `Remove-Item -Recurse -Force backend\demo\build` antes de construir |
+| `ERRO: 1f.html nao encontrado dentro do jar` | `$$` expandido como PID dentro do `RUN` | usar caminhos literais (ver 3.3.b) |
+| `Permission denied` no `./gradlew` | bit de execução ausente | `chmod +x ./gradlew` (o índice do Git já está como `100755`) |
+| `docker: cannot copy ... no such file or directory` | build a partir de uma pasta errada | o `docker build` é **sempre** a partir da **raiz** do repositório |
+| `import.meta.env` vazio no bundle | `VITE_API_BASE=""` — o Vite descarta variáveis vazias | use o token `same-origin` |
+
+### 4. Backend Java sem Docker
+
+Requer **JDK 21**. Se o Java 21 não estiver no `PATH`, aponte o `JAVA_HOME`
+para a instalação do IntelliJ:
 
 ```bash
 cp .env.example .env
 docker compose up -d                       # Postgres local (porta 5432)
-cd backend/demo && ./gradlew bootRun       # porta 8081
+cd backend/demo
+./gradlew bootRun                          # porta 8081
 ```
+
+Suíte de testes (JUnit 5, sem need de Docker — usa H2 em memória):
+
+```bash
+cd backend/demo
+./gradlew test                             # 50 testes
+```
+
+#### 4.1. Onde está o JDK 21 neste host
+
+Se `java -version` responder 11 e o build reclamar de toolchain, existe um
+JDK 21 instalado pelo IntelliJ:
+
+```
+C:\Users\<seu-usuario>\.jdks\ms-21.0.12.1
+```
+
+```powershell
+$env:JAVA_HOME='C:\Users\<seu-usuario>\.jdks\ms-21.0.12.1'
+& '.\gradlew.bat' test --console=plain --no-daemon
+```
+
+O Gradle 9.5.1 sobe com JDK 17/20 e resolve a *toolchain* 21 por
+auto-detecção — basta o `JAVA_HOME` apontar para uma JDK21.
 
 ---
 
@@ -152,7 +271,7 @@ Dados do seed de `server/seed.js` (unidade **1001 — SENAC Asa Norte**):
 
 > O login exige **e-mail + senha + unidade**. O campo de senha só é gravado em
 > texto puro porque esse é o comportamento legado do sistema; ver
-> `docs/RELATORIO_REFATORACAO.md` → *Pendências conhecidas*.
+> `docs/RELATORIO_FINAL.md` → *Pendências conhecidas*.
 
 ---
 
@@ -164,39 +283,33 @@ web/
 ├─ admin.html  coordenador.html
 ├─ instrutor.html  recepcao.html
 ├─ public/
-│  ├─ css/      21 folhas de estilo (main.css importa as demais)
+│  ├─ css/      20 folhas de estilo (main.css importa as demais)
 │  └─ img/      logo
 ├─ src/
-│  ├─ core/         camadas transversais (dados, API, DOM, UI, tema, auth)
+│  ├─ core/         camadas transversais (dados, API, DOM, UI, tema, auth,
+│  │                filtros, ações delegadas)
 │  ├─ features/     um módulo por painel
-│  ├─ entry/        bootstrap de cada página (instala os globais do `window`)
-│  ├─ types/        contrato de domínio
+│  ├─ entry/        bootstrap de cada página (registra as ações e a delegação)
+│  ├─ types/        contrato de domínio (compartilhado com o mobile)
 │  └─ vite-env.d.ts
 └─ dist/        bundle de produção — NÃO vem na entrega.
                  Gere com `npm run build` (já está no .gitignore).
 ```
 
-O HTML mantém **145 handlers inline** (`onclick="salvarSala()"`). Para que
-continuem funcionando, cada `src/entry/<página>.ts` republica os módulos em
-`window` na mesma ordem em que os `<script>` clássicos eram carregados antes.
-Não é preciso reescrever os atributos do HTML.
+O HTML **não** usa mais `onclick`/`onchange` inline. Os **145 handlers** foram
+convertidos para atributos declarativos `data-action` / `data-change` /
+`data-input`, e um único listener por tipo de evento, instalado na raiz do
+documento, faz a delegação (`core/actions.ts` + `core/acoes-comuns.ts`).
+Nenhuma função de aplicação fica exposta em `window`.
 
----
-
-## Documentação
-
-- `docs/CASO_DE_USO.md` — 15 casos de uso e regras de negócio (v4, legado)
-- `docs/DOCUMENTACAO_CODIGO.md` — descrição do código original do web
-- `docs/DOCUMENTACAO_CONEXAO_WEB_MOBILE.txt` — protocolo de sincronização
-- `docs/RELATORIO_REFATORACAO.md` — **o que mudou na refatoração, o que foi
-  corrigido, o que continua em JavaScript e o que ficou pendente**
 ---
 
 ## Modo Mock vs Modo Producao
 
 O repositorio tem **duas** camadas de dados com o mesmo contrato HTTP:
-`server/` (Node, porta 3333, `server/data/db.json`) e `backend/`
-(Spring Boot, porta 8081, Postgres/Supabase). O modo passa a ser explicito:
+`backend/` (Spring Boot, porta 8081, Postgres/Supabase — **fonte da verdade**) e
+`server/` (Node, porta 3333, `server/data/db.json` — mock legado). O modo passa
+a ser explicito:
 
 ```bash
 # Web
@@ -207,17 +320,43 @@ VITE_API_BASE=same-origin                                    npm run build
 
 ```jsonc
 // mobile/app.json
-{ "expo": { "extra": { "apiUrl": "http://192.168.0.20:3333", "modoApi": "mock" } } }
+{ "expo": { "extra": { "apiUrl": "http://192.168.0.20:8081", "modoApi": "producao" } } }
 ```
 
 Sem configuracao, o web infere `mock` para loopback e `producao` para host
 publico; o mobile idem. Loopback, `.local` e IP privado RFC 1918 contam como
-mock. Detalhes em `docs/ARQUITETURA_ATUALIZADA.md` secao 5.
+mock. Detalhes em `docs/ARQUITETURA_ATUALIZADA.md`.
 
-## Documentacao
+---
 
-- `docs/ARQUITETURA_ATUALIZADA.md` - arvore de diretorios, fluxo de
-  inicializacao de cada pagina, camadas do backend, modo mock vs producao
-- `docs/RELATORIO_REFATORACAO.md` - o que mudou na refatoracao e por que
-- `docs/CASO_DE_USO.md` - casos de uso e regras de negocio
-- `docs/DOCUMENTACAO_CONEXAO_WEB_MOBILE.txt` - protocolo de sincronizacao
+## Documentação
+
+- `docs/ARQUITETURA_ATUALIZADA.md` — árvore de diretórios, fluxo de
+  inicialização de cada página, camadas do backend, modo mock vs produção
+- `docs/RELATORIO_FINAL.md` — **relatório completo de todas as alterações**
+  (reorganização, migração TS, bugs corrigidos, contratos, infra, segredos)
+- `docs/RELATORIO_REFATORACAO.md` — o que mudou na refatoração e por que
+- `docs/CASO_DE_USO.md` — 15 casos de uso e regras de negócio (v4, legado)
+- `docs/DOCUMENTACAO_CODIGO.md` — descrição do código original do web
+- `docs/DOCUMENTACAO_CONEXAO_WEB_MOBILE.md` — protocolo de sincronização
+
+---
+
+## Variáveis de ambiente
+
+`.env.example` documenta todas. Resumo:
+
+| Variável | Camada | Efeito |
+| --- | --- | --- |
+| `VITE_API_BASE` | build do web | base da API; token `same-origin` = mesma origem |
+| `VITE_MODO_API` | build do web | `mock` \| `producao` |
+| `VITE_API_TIMEOUT_MS` | build do web | tempo limite da API (padrão 12000) |
+| `EXPO_PUBLIC_API_URL` | mobile | URL da API |
+| `EXPO_PUBLIC_API_PORT` | mobile | porta da API (padrão 8081) |
+| `EXPO_PUBLIC_MODO_API` | mobile | `mock` \| `producao` |
+| `API_PORT` | Docker | porta da API Spring Boot (padrão 8081) |
+| `POSTGRES_*` | Docker | credenciais do Postgres local |
+| `SUPABASE_DB_USER` / `SUPABASE_DB_PASSWORD` | API | credenciais do banco |
+
+> O `.gitignore` da raiz bloqueia `.env` e `.env.*` (com exceção de
+> `.env.example`) — nenhum segredo real entra no repositório.
