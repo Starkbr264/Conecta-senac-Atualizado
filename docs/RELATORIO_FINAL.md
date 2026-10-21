@@ -743,7 +743,7 @@ Três decisões técnicas:
 
 1. **`healthcheck` + `depends_on: condition: service_healthy`** — a API só sobe depois que o Postgres aceita conexões. Sem isso, a primeira tentativa de boot falha.
 2. **`SPRING_DATASOURCE_URL` sobrescrevendo o `application.properties`** — o backend aponta, por padrão, para o pooler do Supabase. A sobrescrita por variável de ambiente (relaxed binding do Spring) redireciona para o Postgres local **sem alterar uma linha do backend**.
-3. **A senha saiu do arquivo.** A `compose.yaml` versionada continha `verYs3cret` em texto puro; agora é `${POSTGRES_PASSWORD:-postgres}`.
+3. **A senha saiu do arquivo.** A `compose.yaml` versionada continha `verYs3c…` em texto puro; agora é `${POSTGRES_PASSWORD:-postgres}`.
 
 O `server` está sob `profiles: ['mock']`: só sobe com `docker compose --profile mock up -d server`. O comentário de topo avisa explicitamente que mock e API **não devem** rodar juntos sobre o mesmo cliente.
 
@@ -1055,7 +1055,7 @@ A auditoria do histórico encontrou segredos em **todos** os commits alcançáve
 |---|---|---|
 | `.env` (raiz) | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | commit `f276d19` — *"Finalizando projeto conecta_3.1 com integração segura ao Supabase"* |
 | `js/supabase.js` | Chave hardcoded — o token de 68 caracteres **contém** o de 46 do `.env` | versionado com o frontend |
-| `compose.yaml` | Senha literal do Postgres (`verYs3cret`) | versionada na raiz |
+| `compose.yaml` | Senha literal do Postgres (`verYs3c…`) | versionada na raiz |
 | `node_modules/@supabase/**` | 650 objetos | dependências instaladas commitadas |
 | `conecta_3.1.zip` | **3.163,8 KB — 91% do packfile** | commit `81fe7fb` |
 
@@ -1089,7 +1089,7 @@ O arquivo de redação (`replace-text.txt`), mantido **fora** do repositório:
 
 ```
 regex:sb_publishable_[A-Za-z0-9_-]+==>REDACTED_SUPABASE_PUBLISHABLE_KEY
-regex:verYs3cret==>REDACTED_POSTGRES_PASSWORD
+regex:verYs3c[A-Za-z0-9]+==>REDACTED_POSTGRES_PASSWORD
 ```
 
 ### 15.4 Resultado
@@ -1102,7 +1102,7 @@ regex:verYs3cret==>REDACTED_POSTGRES_PASSWORD
 | `git log --all --diff-filter=A -- '*.env'` | commit `f276d19` | **vazio** |
 | `git log --all --diff-filter=A -- '*.zip'` | commit `81fe7fb` | **vazio** |
 | `git rev-list --objects --all \| grep node_modules/` | 650 objetos | **vazio** |
-| `git grep -l -E 'sb_publishable_\|verYs3cret' $(git rev-list --all)` | 3 arquivos | **vazio** |
+| `git grep -l -E 'sb_publishable_\|verYs3c…' $(git rev-list --all)` | 3 arquivos | **vazio** |
 | Varredura recursiva do working tree | — | **nenhum segredo** |
 | `git ls-files` | 192 | **192 — idêntico ao backup** (`Compare-Object` sem diferenças) |
 | `git fsck --no-progress` | — | **sem erros** |
@@ -1122,7 +1122,7 @@ mobile/.gitignore:29:.env  mobile/.env
 
 ### 15.6 Risco residual — e a ação necessária
 
-> Remover um segredo do histórico **não o invalida**. A chave `sb_publishable_…` e a senha `verYs3cret` ficaram públicas no `origin/main` até agora.
+> Remover um segredo do histórico **não o invalida**. A chave `sb_publishable_…` e a senha `verYs3c…` ficaram públicas no `origin/main` até agora.
 >
 > **Ação obrigatória antes de voltar a usar aquele projeto:** revogar e gerar uma nova chave no painel do Supabase, e trocar a senha do Postgres. Isto está fora do escopo do Git — é uma ação no painel do provedor.
 

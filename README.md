@@ -297,6 +297,31 @@ $env:JAVA_HOME='C:\Users\<seu-usuario>\.jdks\ms-21.0.12.1'
 O Gradle 9.5.1 sobe com JDK 17/20 e resolve a *toolchain* 21 por
 auto-detecção — basta o `JAVA_HOME` apontar para uma JDK21.
 
+### 3.6 Publicar no Supabase, Render e Vercel
+
+O repositório já vem com os manifests prontos:
+
+| Arquivo | Plataforma | O que faz |
+|---|---|---|
+| `render.yaml` | **Render** | Blueprint do serviço Docker `conectasenac-api` (API + SPA na mesma imagem), com as 3 variáveis secretas do Postgres |
+| `vercel.json` | **Vercel** | build do `web/` (`npm ci` + `vite build`), output `web/dist`, cache de `assets/` e `css/` |
+| `docs/DEPLOY.md` | — | passo a passo completo: Supabase (banco) → Render (API) → Vercel (frontend), com checklist e tabela de problemas conhecidos |
+
+Resumo do fluxo:
+
+1. **Supabase** — crie o projeto, copie a *connection string* do pooler
+   (`aws-0-<regiao>.pooler.supabase.com:5432/postgres`) e anote a senha.
+2. **Render** — importe o repositório como *Blueprint*; o `render.yaml` é
+   detectado automaticamente. Preencha `SUPABASE_DB_USER`,
+   `SUPABASE_DB_PASSWORD` e `SPRING_DATASOURCE_URL`.
+3. **Vercel** — importe o repositório com *Root Directory* = `web` e defina
+   `VITE_API_BASE` = URL do Render (nunca `same-origin` aqui: é outra
+   origem, e nunca string vazia — o Vite descarta `""`).
+
+> ⚠️ Antes de publicar: **revogue e rotacione a chave pública do Supabase**
+> que ficou exposta no histórico antigo deste projeto. Ver
+> `docs/RELATORIO_FINAL.md`, seção 15.
+
 ---
 
 ## Logins de teste
@@ -372,6 +397,8 @@ mock. Detalhes em `docs/ARQUITETURA_ATUALIZADA.md`.
 
 ## Documentação
 
+- `docs/DEPLOY.md` — **guia de publicação no Supabase, Render e Vercel**
+  (passo a passo, variáveis de ambiente e checklist)
 - `docs/ARQUITETURA_ATUALIZADA.md` — árvore de diretórios, fluxo de
   inicialização de cada página, camadas do backend, modo mock vs produção
 - `docs/RELATORIO_FINAL.md` — **relatório completo de todas as alterações**

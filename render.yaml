@@ -1,0 +1,52 @@
+# =============================================================================
+#  Render Blueprint - Conecta-Senac
+#
+#  Sobe a API Spring Boot (que tambem serve o frontend) a partir do Dockerfile
+#  multi-stage da raiz do repositorio.
+#
+#  O banco NAO e criado aqui: a fonte da verdade e o Postgres do Supabase
+#  (veja docs/DEPLOY.md, secao 2). As variaveis de datasource sao digitadas
+#  em "sync: false" e preenchidas no painel do Render.
+#
+#  Uso:
+#    1. conecte este repositorio no Render como "Blueprint"
+#    2. o Render detecta este arquivo e lista os servicos
+#    3. preencha as 3 variaveis marcadas como secret
+# =============================================================================
+
+services:
+  - type: web
+    name: conectasenac-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /api/dados
+    envVars:
+      # Porta do Spring Boot. O Render injeta a propria "PORT"; mantemos o
+      # default do projeto (8081) caso a variavel nao seja definida.
+      - key: PORT
+        value: 8081
+
+      # --- Segredos: preencha no painel do Render -------------------------
+      # Usuario do Postgres (Supabase): "postgres".
+      - key: SUPABASE_DB_USER
+        sync: false
+
+      # Senha do Postgres (Supabase).
+      - key: SUPABASE_DB_PASSWORD
+        sync: false
+
+      # URL JDBC do Postgres. No Supabase use o "pooler" (transacional) para
+      # economizar conexoes:
+      #   jdbc:postgresql://<usuario>:<senha>@aws-0-<regiao>.pooler.supabase.com:5432/postgres?sslmode=require
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+
+      # O frontend (injetado no jar) fala com a API na MESMA origem do
+      # container, entao "same-origin" e o valor correto aqui. O token
+      # "same-origin" existe porque o Vite descarta variaveis de ambiente
+      # vazias - nunca use string vazia.
+      - key: VITE_API_BASE
+        value: same-origin
