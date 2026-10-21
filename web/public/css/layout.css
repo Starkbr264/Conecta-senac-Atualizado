@@ -34,7 +34,6 @@
   margin-bottom: 8px;
 }
 .sb-brand .logo-wrap img { max-width: 148px; max-height: 54px; object-fit: contain; }
-.sb-brand .sb-nome   { font-size: .98rem; font-weight: 800; color: var(--primary); }
 .sb-brand .sb-sub    { font-size: .64rem; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
 
 /* Badge de perfil */

@@ -53,7 +53,6 @@
 .login-logo { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
 .login-logo .logo-wrap { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
 .login-logo .logo-wrap img { max-width: 190px; max-height: 70px; object-fit: contain; }
-.login-logo .nome    { font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: -.3px; }
 .login-logo .divisor { width: 32px; height: 2px; background: var(--accent); border-radius: 2px; margin: 9px auto; }
 .login-logo .sub     { font-size: .74rem; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .1em; }
 

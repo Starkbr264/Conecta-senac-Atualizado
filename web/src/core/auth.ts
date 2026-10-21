@@ -62,17 +62,23 @@ export function initSidebar(): void {
   initTema();
 }
 
-/** Exibe a imagem do logo ou o texto de fallback. */
+/**
+ * Exibe a imagem do logo.
+ *
+ * O texto "SENAC · GDF" que existia como fallback foi removido do HTML. Ele
+ * aparecia durante o carregamento e sumia depois (o `initLogo` roda depois do
+ * `await initDados()`, ou seja, depois da sincronizacao com o servidor),
+ * produzindo um "flash" visual. Agora a imagem e o unico elemento do logo.
+ *
+ * Se a imagem nao tiver `src`, escondemos o container inteiro em vez de
+ * exibir um texto alternativo.
+ */
 export function initLogo(): void {
   const img = tryById<HTMLImageElement>('logoImg');
   if (!img) return;
 
-  const txt = tryById('logoTxt');
   const wrap = tryById('logoWrap');
-
-  if (img.getAttribute('src')) {
-    if (txt) txt.style.display = 'none';
-  } else if (wrap) {
+  if (!img.getAttribute('src') && wrap) {
     wrap.style.display = 'none';
   }
 }
