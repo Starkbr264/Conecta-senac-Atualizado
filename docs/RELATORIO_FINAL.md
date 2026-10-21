@@ -809,6 +809,58 @@ O host de produção **não foi alterado** — faz parte do contrato existente.
 
 Cinco seções, uma por camada: servidor Node (mock legado), API Spring Boot (fonte da verdade), Postgres, mobile (precedência de `extra.apiUrl` → `EXPO_PUBLIC_API_URL` → descoberta automática, com `EXPO_PUBLIC_API_PORT=8081`) e web (`VITE_API_BASE`, `VITE_MODO_API`, `VITE_API_TIMEOUT_MS`).
 
+### 12.6 Diagnóstico e correção do stack Docker que não subia
+
+Com o Docker finalmente disponível neste host, a stack foi executada de ponta a ponta — e **não subiu**. O container da API entrou em *crash loop* com o seguinte log do Postgres:
+
+```
+FATAL:  password authentication failed for user "SEU_USUARIO_DE_BANCO"
+DETAIL:  Role "SEU_USUARIO_DE_BANCO" does not exist.
+Connection matched file "/var/lib/postgresql/data/pg_hba.conf" line 128: "host all all all scram-sha-256"
+```
+
+#### 12.6.1 As três causas
+
+| # | Causa | Evidência | Correção |
+|---|---|---|---|
+| 1 | O `.env` foi copiado do `.env.example` **sem preencher**: sobraram os placeholders `SEU_USUARIO_DE_BANCO` / `SUA_SENHA_DE_BANCO` / `SUA_SENHA_LOCAL_DE_POSTGRES` | `docker inspect conectasenac-api` mostrou `SUPABASE_DB_USER=SEU_USUARIO_DE_BANCO`, enquanto o Postgres tinha `POSTGRES_USER=postgres` | `.env.example` passou a ter as senhas **vazias**, e o Compose passou a abortar quando elas faltam |
+| 2 | **Defeito de projeto no `compose.yaml`:** o serviço `api` lia `SUPABASE_DB_USER`/`SUPABASE_DB_PASSWORD`, mas o Postgres da stack local é criado com `POSTGRES_USER`/`POSTGRES_PASSWORD`. São **dois pares de variáveis diferentes** — e nada os ligava | O `DETAIL: Role ... does not exist` prova que a API tentou conectar com um role que o Postgres nunca criou | O `api` passou a receber as **mesmas** variáveis do serviço `postgres`. Agora é **impossible** a credencial divergir: há uma senha só para os dois lados |
+| 3 | **Armadilha operacional:** o `docker-entrypoint.sh` do Postgres aplica `POSTGRES_PASSWORD` **apenas na primeira inicialização** do volume. Trocar a senha no `.env` depois **não muda** a senha real do banco | O volume `conecta-senac-atualizado-test_pg_data` já existia | Documentado no README com o remédio: `docker compose down -v` recria o volume |
+
+#### 12.6.2 Duas guardas para transformar "crash loop" em "mensagem clara"
+
+Um container reiniciando em loop com um stack trace de Hibernate não diz o que aconteceu. A correção transformou o modo de falha em **fail-fast legível**, em duas camadas:
+
+| Camada | Gatilho | Resultado |
+|---|---|---|
+| `compose.yaml` — `${POSTGRES_PASSWORD:?...}` | variável **vazia** | o Compose **aborta na hora de subir**, com "POSTGRES_PASSWORD e obrigatorio" |
+| `Dockerfile` — `ENTRYPOINT` com `case` | senha ainda no **valor de exemplo** (`SEU_*`, `SUA_*`, `CHANGE_*`, `changeme*`, `postgres`) | o container **para** com "a senha do Postgres ainda e o valor de exemplo do .env.example" e a instrução do remedio |
+
+A guarda do `Dockerfile` — e não do `compose.yaml` — foi a escolha deliberada: ela cobre tanto `docker compose up` quanto `docker run` da imagem avulsa, e fica ao lado do `ENTRYPOINT` que já existia, sem duplicar a lógica de inicialização.
+
+> ⚠️ Uma armadilha de escape merece registro: dentro de um `RUN` do **Dockerfile**, `$$` é expandido pelo shell (no `ash` do Alpine, `$$` é o **PID** — foi exatamente isso que produziu o erro `1f.html` do passo 10/10, seção 13). Já dentro do `compose.yaml`, o `$$` é o escape do Compose para um `$` literal. **São contextos diferentes**, com regras diferentes.
+
+#### 12.6.3 Validação executada de ponta a ponta
+
+Com o Docker disponível, a stack foi **realmente construída e rodada** — a pendência nº 13 ("Docker indisponível no host de validação") está encerrada:
+
+| Verificação | Resultado |
+|---|---|
+| `docker compose build` (3 estágios) | **Image conectasenac:latest Built** |
+| `docker compose up -d` | `conectasenac-db` → *healthy*; `conectasenac-api` → *running* |
+| Log da API | `Tomcat started on port 8081` · `Started DemoApplication in 4.212 seconds` |
+| `GET /` | **200** — 10 076 B (a SPA servida pelo próprio Spring, em `BOOT-INF/classes/static/`) |
+| `GET /login.html` | **200** — 2 234 B |
+| `GET /dashboard.html` | **200** — 14 741 B |
+| `GET /css/main.css` | **200** — 1 893 B |
+| `GET /img/senac-logo-sem-fundo.webp` | **200** — 20 242 B |
+| `GET /api/dados` | **200** — 42 716 B (após o seed) |
+| `POST /api/reset` | **200** — semeia 10 unidades, 42 usuários, 50 salas, 40 turmas, 31 reservas, 20 chaves, 4 notificações, 4 solicitações |
+| `POST /api/login` | **200** — `{"usuario":{"id":1,"nome":"Administrador SENAC","email":"Senac_GDF@Hotmail.com","perfil":"admin","unidadeId":1001}}` (sem a senha no JSON) |
+| Guarda com senha de exemplo | o container **para** com a mensagem de erro, em vez de reiniciar em loop |
+
+O ruído `LOG: invalid length of startup packet` que aparecia no log do Postgres **não** é a causa: o Postgres o registra quando um cliente conecta na porta publicada sem falar o protocolo do Postgres. Não afeta a API — e está registrado na tabela de problemas conhecidos do README.
+
 ---
 
 ## 13. Build e infraestrutura de entrega
@@ -1131,9 +1183,11 @@ Nenhuma foi corrigida por decisão consciente de escopo; todas estão registrada
 | 10 | **`SalaCard.tsx` morto no mobile** | `mobile/src/components/SalaCard.tsx` + `calcSalaInfo()` — importados por ninguém | Baixo — mantido porque exporta `Periodo`/`SalaInfo`, tipos usados por `salaStatus.ts` |
 | 11 | **`noUnusedLocals` desligado** | `web/tsconfig.json` | Baixo — varredura de centenas de símbolos remanescentes |
 | 12 | **Comportamento do `POST /api/sinc` divergente entre as duas APIs** | Spring recria a entidade; Node faz merge | **Mitigado** — o `salvar()` passou a repôr todos os campos. A diferença estrutural (recriar × mesclar) permanece |
-| 13 | **Docker indisponível no host de validação** | `Dockerfile` e `compose.yaml` não foram *executados*, só validados por leitura | Baixo — o build da imagem e o `up` do Compose continuam não verificados de ponta a ponta |
+| 13 | **Docker indisponível no host de validação** | — | **RESOLVIDO** — o Docker passou a estar disponível nesta máquina; o build da imagem e o `up` do Compose foram executados de ponta a ponta. Ver a seção 12.6 |
 
 > **Nota — pendência nº 13 desativada:** a limitação "o backend não compila localmente por causa do JDK 11" foi **superada**. Descobriu-se um Microsoft JDK 21.0.12.1 LTS em `C:\Users\<usuário>\.jdks\ms-21.0.12.1` (instalado pelo IntelliJ). Com `JAVA_HOME` apontando para lá, o Gradle 9.5.1 compila e executa a suíte completa: **50 testes, 0 falhas**. A seção 14 traz o resultado por suíte.
+
+> **Nota — pendência nº 13 desativada (segunda parte):** o Docker também passou a estar disponível neste host. O `docker build` da imagem, o `docker compose up -d` da stack completa e o `POST /api/reset` foram executados de ponta a ponta, com todos os endpoints respondendo `200`. Ver a seção 12.6.
 
 ---
 

@@ -116,4 +116,13 @@ ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseSerialGC" \
 
 EXPOSE 8081
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+# Guarda de credencial.
+#
+# Se SUPABASE_DB_PASSWORD ainda for o valor de exemplo do .env.example, o
+# container PARA na hora com uma mensagem legivel, em vez de reiniciar em
+# loop com um stack trace de Hibernate que nao diz o que aconteceu.
+#
+# A comparacao roda no shell (sh do Alpine), por isso "$VAR" simples. Aqui
+# NAO se usa "$$": este arquivo e um Dockerfile, nao um compose.yaml - o
+# "$$" do Compose nao se aplica e produziria o PID do processo.
+ENTRYPOINT ["sh", "-c", "case \"$SUPABASE_DB_PASSWORD\" in ''|SEU_*|SUA_*|CHANGE_*|changeme*|postgres) echo \"ERRO: a senha do Postgres ainda e o valor de exemplo do .env.example.\"; echo \"      Defina SUPABASE_DB_PASSWORD / POSTGRES_PASSWORD no .env e recrie o volume: docker compose down -v && docker compose up -d --build\"; exit 1;; esac; exec java $JAVA_OPTS -jar /app/app.jar"]

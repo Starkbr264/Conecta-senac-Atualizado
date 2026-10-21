@@ -28,7 +28,11 @@ services:
     container_name: conectasenac-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # ":?" = o Compose ABORTA na hora de subir, com esta mensagem, se a
+      # variavel faltar ou estiver vazia. Sem isso o Postgres subia com uma
+      # senha qualquer e a API ficava em crash loop com um stack trace de
+      # Hibernate, sem apontar a causa real.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD e obrigatorio - copie .env.example para .env e defina uma senha forte}
       POSTGRES_DB: ${POSTGRES_DB:-conectasenac}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
@@ -64,13 +68,25 @@ services:
         condition: service_healthy
     environment:
       PORT: 8081
-      SUPABASE_DB_USER: ${SUPABASE_DB_USER:-postgres}
-      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD:-postgres}
+      # A API desta stack fala com o Postgres LOCAL, entao precisa das MESMAS
+      # credenciais do servico "postgres" acima. Por isso o par de variaveis e
+      # POSTGRES_*, e nao SUPABASE_DB_*.
+      #
+      # SUPABASE_DB_USER / SUPABASE_DB_PASSWORD existem para rodar o backend
+      # FORA do Compose, apontando ao Supabase real - e sao as variaveis lidas
+      # por backend/demo/src/main/resources/application.properties. Aqui elas
+      # sao preenchidas com o usuario/senha do Postgres local para que o
+      # application.properties NAO precise ser alterado.
+      SUPABASE_DB_USER: ${POSTGRES_USER:-postgres}
+      SUPABASE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD e obrigatorio - copie .env.example para .env e defina uma senha forte}
       # Sobrescreve o host do application.properties para apontar ao Postgres
       # local desta stack. Em producao, remova esta linha e o .env para que o
       # backend use o pooler do Supabase configurado no proprio projeto.
       SPRING_DATASOURCE_URL: >-
         jdbc:postgresql://postgres:5432/${POSTGRES_DB:-conectasenac}?sslmode=disable
+    # A guarda de credencial (senha ainda com o valor de exemplo do
+    # .env.example) fica no ENTRYPOINT do Dockerfile - assim ela vale tanto
+    # para "docker compose up" quanto para "docker run" da imagem avulsa.
     ports:
       - '${API_PORT:-8081}:8081'
     restart: unless-stopped

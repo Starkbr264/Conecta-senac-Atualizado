@@ -132,6 +132,7 @@ docker build --build-arg VITE_API_BASE=https://api.exemplo.com -t conectasenac .
 
 ```bash
 cp .env.example .env
+# EDITE o .env: POSTGRES_PASSWORD=<senha forte>   (OBRIGATÓRIO, sem valor de exemplo)
 docker compose up -d --build
 # postgres -> 5432   api (Spring Boot + web) -> 8081
 ```
@@ -140,6 +141,33 @@ O `compose.yaml` sobrescreve a URL do datasource por variável de ambiente
 (`SPRING_DATASOURCE_URL`), então o serviço `api` conversa com o Postgres local
 sem precisar editar `application.properties`.
 
+**A API e o Postgres desta stack usam a MESMA senha** (`POSTGRES_PASSWORD`).
+O `compose.yaml` passa esse valor para os dois lados — o serviço `postgres`
+cria o role, e o serviço `api` conecta com ele. Não existe segunda senha para
+trocar, o que elimina a divergência de credenciais que fazia o container da
+API entrar em *crash loop*.
+
+> ⚠️ **A senha do Postgres só é aplicada na PRIMEIRA inicialização do volume.**
+> Se você já subiu a stack e agora troca `POSTGRES_PASSWORD` no `.env`, a senha
+> do banco **não muda** — o `docker-entrypoint.sh` do Postgres só aplica
+> `POSTGRES_PASSWORD` quando o volume `pg_data` está vazio. Recrie o volume:
+>
+> ```bash
+> docker compose down -v        # -v apaga o volume (o banco é recriado do zero)
+> docker compose up -d --build
+> ```
+>
+> Sem `-v`, a stack continua usando a senha antiga e a API volta a falhar com
+> `password authentication failed`.
+
+Depois de subir, semeie os dados de exemplo (o banco começa vazio):
+
+```bash
+curl -X POST http://localhost:8081/api/reset
+# -> 10 unidades, 42 usuários, 50 salas, 40 turmas, 31 reservas, 20 chaves,
+#    4 notificações, 4 solicitações
+```
+
 Para subir o **mock legado** (servidor Node) em vez da API real:
 
 ```bash
@@ -147,7 +175,15 @@ docker compose --profile mock up -d server           # -> http://localhost:3333
 ```
 
 O serviço `server` fica atrás do perfil `mock` justamente para que as duas
-camadas não subam juntas por acidente.
+camadas não subam juntas por accident.
+
+**Falha rápida em vez de crash loop.** Duas guardas impedem que um `.env` mal
+preenchido chegue a um container reiniciando em loop:
+
+| Onde | Quando dispara | O que você vê |
+| --- | --- | --- |
+| `compose.yaml` (`${POSTGRES_PASSWORD:?...}`) | a variável está **vazia** | o Compose **aborta na hora de subir**, com a mensagem "POSTGRES_PASSWORD e obrigatorio" |
+| `Dockerfile` (`ENTRYPOINT`) | a senha ainda é o **valor de exemplo** (`SEU_*`, `SUA_*`, `changeme*`…) | o container **para com a mensagem** "a senha do Postgres ainda e o valor de exemplo do .env.example" |
 
 #### 3.3. O que o Dockerfile faz (3 estágios)
 
@@ -214,11 +250,16 @@ curl -sI http://localhost:8081/css/main.css | head -1
 
 | Sintoma | Causa | Solução |
 | --- | --- | --- |
+| `FATAL: password authentication failed for user "SEU_USUARIO_DE_BANCO"` e o container da API em *crash loop* | o `.env` foi copiado do `.env.example` **sem preencher** — sobrou o valor de exemplo | defina `POSTGRES_PASSWORD=<senha forte>` no `.env` e recrie o volume (`docker compose down -v`) |
+| `FATAL: password authentication failed` **depois** de corrigir o `.env` | a senha do Postgres só é aplicada na **primeira** inicialização do volume | `docker compose down -v && docker compose up -d --build` |
+| `ERROR: POSTGRES_PASSWORD e obrigatorio` ao subir | o `.env` está sem a senha (ou a variável não chegou ao Compose) | preencha o `.env`; o Compose aborta aqui de propósito, em vez de deixar a API reiniciando |
+| `ERRO: a senha do Postgres ainda e o valor de exemplo do .env.example` | a senha no `.env` é literalmente `SEU_*` / `SUA_*` / `changeme*` | troque por uma senha real |
 | `Unable to delete directory '...\build\resources\test'` | **lock do OneDrive** sobre a pasta de artefatos do Gradle | `Remove-Item -Recurse -Force backend\demo\build` antes de construir |
 | `ERRO: 1f.html nao encontrado dentro do jar` | `$$` expandido como PID dentro do `RUN` | usar caminhos literais (ver 3.3.b) |
 | `Permission denied` no `./gradlew` | bit de execução ausente | `chmod +x ./gradlew` (o índice do Git já está como `100755`) |
 | `docker: cannot copy ... no such file or directory` | build a partir de uma pasta errada | o `docker build` é **sempre** a partir da **raiz** do repositório |
 | `import.meta.env` vazio no bundle | `VITE_API_BASE=""` — o Vite descarta variáveis vazias | use o token `same-origin` |
+| `LOG: invalid length of startup packet` no log do Postgres | algum cliente conectou na porta 5432 publicada sem falar o protocolo do Postgres | é ruído: não afeta a API. Se persistir, veja se alguma ferramenta do host está sondando a porta |
 
 ### 4. Backend Java sem Docker
 
