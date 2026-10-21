@@ -52,3 +52,16 @@ cache/
 # --- Base local do Postgres (docker compose) ------------------------------
 # ATENCAO: server/data/db.json e dado versionado do Conecta-Senac e NAO deve
 # ser ignorado. Somente volumes/artefatos de build sao descartados.
+# --------------------------------------------------------------------------
+# EXCECAO DESTE REPOSITORIO (versao de TESTE)
+#
+# Aqui o arquivo .env E versionado de proposito: e a copia de
+# desenvolvimento local (Postgres do docker-compose) e e o que permite
+# subir o stack com 'docker compose up -d --build' sem digitar
+# as credenciais na mao.
+#
+# O repositorio canonico (Conecta-Senac-Atualizado) NAO versiona o .env,
+# e as credenciais de producao (Supabase/Render) sao definidas no
+# painel de cada servico.
+# --------------------------------------------------------------------------
+!.env
