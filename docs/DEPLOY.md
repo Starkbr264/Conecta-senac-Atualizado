@@ -44,11 +44,30 @@ secao 15.
 **Project Settings → Database → Connection string → URI**:
 
 ```
-postgresql://postgres:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres
+postgresql://postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres
 ```
 
-Use a variante **pooler** (transacional, porta 5432). Ela e a que o
-`application.properties` do projeto ja referencia por padrao.
+Use a variante **pooler** (transacional, porta 5432).
+
+> ⚠️ **Essa URI NAO vai direto no Render.** O driver JDBC do PostgreSQL
+> exige o prefixo `jdbc:`. Sem ele o boot falha com:
+>
+> ```
+> Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://...
+> ```
+>
+> A URL JDBC correta e:
+>
+> ```
+> jdbc:postgresql://postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require
+> ```
+>
+> No **pooler**, o usuario e `postgres.<REF-do-projeto>` (com o ponto). Na
+> **conexao direta** seria so `postgres`.
+>
+> Se a senha tiver caracteres especiais (`@` `/` `:` `?` `#` `&`), ela
+> precisa estar URL-encoded dentro da URL (ex.: `Senac@2026` → `Senac%402026`).
+> No campo `SUPABASE_DB_PASSWORD` use sempre a senha **original**.
 
 ### 2.3 Criar o schema
 
@@ -89,13 +108,21 @@ Dockerfile e as 3 variaveis secretas.
 
 | Variavel | Valor |
 |---|---|
-| `SUPABASE_DB_USER` | `postgres` |
-| `SUPABASE_DB_PASSWORD` | a senha do banco no Supabase |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://postgres:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require` |
+| `SUPABASE_DB_USER` | `postgres.<REF>` (no pooler; o `.` faz parte) |
+| `SUPABASE_DB_PASSWORD` | a senha do banco no Supabase, **original** (sem URL-encode) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://postgres.<REF>:<SENHA_URL_ENCODED>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require` |
 
 > Use o **pooler** e `sslmode=require`. A URL direta (porta 5432, sem
 > `pooler`) funciona para migracoes, mas o pooler e o recomendado para a
 > aplicacao.
+
+> ⚠️ **O prefixo `jdbc:` e obrigatorio.** A URI do painel do Supabase vem
+> como `postgresql://...` e o driver **rejeita** esse formato, derrubando o
+> boot do container. Compare:
+>
+> | Errado | Certo |
+> |---|---|
+> | `postgresql://postgres.abc:senha@host:5432/postgres` | `jdbc:postgresql://postgres.abc:senha@host:5432/postgres?sslmode=require` |
 
 `VITE_API_BASE` ja vem como `same-origin`: o frontend esta injetado dentro do
 proprio jar, entao ele fala com a API na mesma origem, sem CORS.
@@ -177,6 +204,8 @@ descoberta automatica do host do Metro.
 |---|---|---|
 | `404` em `/` no Render | o frontend nao foi injetado no jar | o build do Docker sobe se `web/` e `backend/` nao estiverem no `.dockerignore` |
 | `password authentication failed` | `SPRING_DATASOURCE_URL` com usuario/senha divergentes | use exatamente a string do painel do Supabase |
+| `Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://...` | faltou o prefixo `jdbc:` na URL | `SPRING_DATASOURCE_URL` = `jdbc:postgresql://...` (a URI do Supabase vem sem o prefixo) |
+| `No open ports detected` | o app escutou numa porta diferente da que o Render espera | nao defina `PORT` no blueprint; o Render injeta a dele e o app le `${PORT:8081}` |
 | `FATAL: role "postgres" does not exist` | banco recem-criado ainda sem o role pronto | aguarde 30 s e rode `/api/reset` |
 | Vercel build falha com `npm ci` | `package-lock.json` do `web/` fora de sincronia | rode `cd web && npm install` e commite o lock |
 | `ERR_CONNECTION_REFUSED` | API do Render dormiu (free tier) | a primeira requisicao acorda; use plano `starter` para nao dormir |

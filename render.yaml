@@ -24,13 +24,17 @@ services:
     autoDeploy: true
     healthCheckPath: /api/dados
     envVars:
-      # Porta do Spring Boot. O Render injeta a propria "PORT"; mantemos o
-      # default do projeto (8081) caso a variavel nao seja definida.
-      - key: PORT
-        value: 8081
+      # NAO defina "PORT" aqui.
+      #
+      # O Render injeta a propria variavel PORT (o log mostra "Tomcat
+      # initialized with port 10000"), e o application.properties faz
+      # server.port=${PORT:8081}. Fixar 8081 no blueprint cria ambiguidade:
+      # se o valor do blueprint prevalecesse, o Render nao acharia a porta e
+      # o deploy terminaria com "No open ports detected".
 
       # --- Segredos: preencha no painel do Render -------------------------
-      # Usuario do Postgres (Supabase): "postgres".
+      # Usuario do Postgres (Supabase). No pooler transacional (porta 5432)
+      # o usuario tem o formato "postgres.<ref-do-projeto>".
       - key: SUPABASE_DB_USER
         sync: false
 
@@ -41,6 +45,13 @@ services:
       # URL JDBC do Postgres. No Supabase use o "pooler" (transacional) para
       # economizar conexoes:
       #   jdbc:postgresql://<usuario>:<senha>@aws-0-<regiao>.pooler.supabase.com:5432/postgres?sslmode=require
+      #
+      # ATENCAO - o prefixo "jdbc:" e OBRIGATORIO. A URI mostrada no painel
+      # do Supabase vem como "postgresql://..." e o driver do PostgreSQL
+      # REJEITA esse formato, derrubando o boot com:
+      #   "Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://..."
+      # Se a senha tiver caracteres especiais (@ / : ? # &), ela precisa
+      # estar URL-encoded dentro da URL.
       - key: SPRING_DATASOURCE_URL
         sync: false
 
