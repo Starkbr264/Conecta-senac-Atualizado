@@ -451,6 +451,7 @@ export interface RespostaLogin {
   ok?: boolean;
   usuario?: Usuario | null;
   sessao?: Sessao | null;
+  token?: string | null;
   erro?: string;
   [campo: string]: unknown;
 }

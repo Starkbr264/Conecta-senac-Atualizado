@@ -176,12 +176,27 @@ function resolverTimeoutMs(): number {
   return Number.isFinite(n) && n > 0 ? n : 12_000;
 }
 
-/** `fetch` com abort por tempo e motivos de erro preservados. */
+/** Token JWT armazenado apos o login (localStorage). */
+export function obterToken(): string | null {
+  try { return localStorage.getItem('conecta_token'); } catch { return null; }
+}
+
+export function salvarToken(token: string | null): void {
+  try {
+    if (token) localStorage.setItem('conecta_token', token);
+    else localStorage.removeItem('conecta_token');
+  } catch { /* ignore */ }
+}
+
+/** `fetch` com abort por tempo, motivos de erro preservados e token JWT. */
 async function requisitar(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const headers = new Headers(init.headers);
+    const token = obterToken();
+    if (token) headers.set('Authorization', 'Bearer ' + token);
+    return await fetch(url, { ...init, headers, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -224,6 +239,10 @@ export async function apiGet<T>(caminho: string): Promise<T> {
     method: 'GET',
     headers: { Accept: 'application/json' },
   });
+  if (res.status === 401) {
+    salvarToken(null);
+    throw new ErroApi('Sessao expirada. Faca login novamente.', 401);
+  }
   if (!res.ok) {
     const corpo = await lerJson<Partial<RespostaErro>>(res);
     throw new ErroApi(corpo.erro ?? `Falha na requisicao (${res.status})`, res.status);
@@ -238,6 +257,10 @@ export async function apiPost<T>(caminho: string, corpo?: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(corpo ?? {}),
   });
+  if (res.status === 401) {
+    salvarToken(null);
+    throw new ErroApi('Sessao expirada. Faca login novamente.', 401);
+  }
   if (!res.ok) {
     const corpoErro = await lerJson<Partial<RespostaErro>>(res);
     throw new ErroApi(
@@ -270,6 +293,7 @@ export function lerSessaoRemota(): Promise<Sessao | null> {
 
 /** Encerra a sessao no servidor (`POST /api/logout`). */
 export function logoutRemoto(): Promise<unknown> {
+  salvarToken(null);
   return apiPost<unknown>('/api/logout');
 }
 

@@ -3,6 +3,7 @@ package conecta.demo.controller;
 import conecta.demo.model.Sala;
 import conecta.demo.service.SalaService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -27,12 +28,14 @@ public class SalaController {
         return service.buscar(id);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Sala criar(@Valid @RequestBody Sala sala) {
         return service.criar(sala);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     @PutMapping("/{id}")
     public Sala atualizar(@PathVariable Long id,
                            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId,
@@ -40,6 +43,7 @@ public class SalaController {
         return service.atualizar(id, usuarioId, sala);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {

@@ -4,6 +4,7 @@ import conecta.demo.dto.LoginRequest;
 import conecta.demo.dto.UsuarioResponse;
 import conecta.demo.model.Sessao;
 import conecta.demo.repository.SessaoRepository;
+import conecta.demo.security.JwtService;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 
@@ -24,10 +25,12 @@ public class AuthService {
 
     private final UsuarioService usuarios;
     private final SessaoRepository sessoes;
+    private final JwtService jwt;
 
-    public AuthService(UsuarioService usuarios, SessaoRepository sessoes) {
+    public AuthService(UsuarioService usuarios, SessaoRepository sessoes, JwtService jwt) {
         this.usuarios = usuarios;
         this.sessoes = sessoes;
+        this.jwt = jwt;
     }
 
     /**
@@ -36,8 +39,11 @@ public class AuthService {
      * @throws conecta.demo.exception.RegraDeNegocioException quando o par nao
      *         existe; o {@code ApiExceptionHandler} traduz para HTTP 409.
      */
-    public Map<String, UsuarioResponse> login(LoginRequest request) {
-        return Map.of("usuario", usuarios.login(request));
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> login(LoginRequest request) {
+        UsuarioResponse user = usuarios.login(request);
+        String token = jwt.gerar(user.email(), user.perfil());
+        return Map.of("usuario", user, "token", token);
     }
 
     /**

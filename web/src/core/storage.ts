@@ -10,7 +10,7 @@
  *  - fonte da verdade:    `GET /api/dados` em `server/index.js`.
  */
 
-import { buscarDados, login as loginRemoto, sincronizar, extrairUsuarioLogin } from './api';
+import { buscarDados, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken } from './api';
 import { getSessao } from './theme';
 import type {
   Atualizar,
@@ -460,17 +460,33 @@ export async function loginUser(email: string, senha: string): Promise<Usuario |
   try {
     const resposta = await loginRemoto(email, senha);
     const usuario = extrairUsuarioLogin(resposta);
-    if (usuario) return usuario;
-  } catch {
+    if (usuario) {
+      // armazena o token JWT para uso nas proximas requisicoes
+      const token = (resposta as { token?: string }).token;
+      if (token) salvarToken(token);
+      return usuario;
+    }
+  } catch (e) {
+    // 401 = credenciais invalidas ou sessao expirada: nao cai para offline
+    if (e instanceof Error && 'status' in e && (e as { status: number }).status === 401) {
+      salvarToken(null);
+      return null;
+    }
     /* offline: cai para a validacao local */
   }
 
-  const alvo = email.toLowerCase();
-  const u = CACHE.usuarios.find(
-    (x) => (x.email ?? '').toLowerCase() === alvo && x.senha === senha,
-  );
+  // Modo offline: nao validamos senha localmente (seguranca).
+  // Se existir um token JWT armazenado, permite acesso com o usuario em cache.
+  const token = obterToken();
+  if (token) {
+    const alvo = email.toLowerCase();
+    const u = CACHE.usuarios.find(
+      (x) => (x.email ?? '').toLowerCase() === alvo,
+    );
+    if (u) return { ...u };
+  }
 
-  return u ? { ...u } : null;
+  return null;
 }
 
 // ---------------------------------------------------------------------------

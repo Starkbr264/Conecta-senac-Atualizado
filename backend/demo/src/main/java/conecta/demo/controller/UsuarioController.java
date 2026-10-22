@@ -5,6 +5,7 @@ import conecta.demo.service.UsuarioService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -27,17 +28,20 @@ public class UsuarioController {
         return service.buscar(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Usuario criar(@Valid @RequestBody Usuario usuario) {
         return service.criar(usuario);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Usuario atualizar(@PathVariable Long id, @Valid @RequestBody Usuario usuario) {
         return service.atualizar(id, usuario);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {

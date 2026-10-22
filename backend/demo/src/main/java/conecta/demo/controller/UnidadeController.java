@@ -5,6 +5,7 @@ import conecta.demo.service.UnidadeService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -27,17 +28,20 @@ public class UnidadeController {
         return service.buscar(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Unidade criar(@Valid @RequestBody Unidade unidade) {
         return service.criar(unidade);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Unidade atualizar(@PathVariable Long id, @Valid @RequestBody Unidade entrada) {
         return service.atualizar(id, entrada);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {

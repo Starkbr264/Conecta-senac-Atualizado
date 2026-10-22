@@ -1,7 +1,6 @@
 package conecta.demo.controller;
 
 import conecta.demo.dto.LoginRequest;
-import conecta.demo.dto.UsuarioResponse;
 import conecta.demo.service.AuthService;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +27,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, UsuarioResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(auth.login(request));
     }
 }
