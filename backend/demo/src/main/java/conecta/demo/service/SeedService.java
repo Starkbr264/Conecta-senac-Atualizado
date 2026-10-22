@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class SeedService {
     private final ChaveRepository chaves;
     private final NotificacaoRepository notificacoes;
     private final SolicitacaoRepository solicitacoes;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public SeedService(UnidadeRepository unidades, UsuarioRepository usuarios, SalaRepository salas, TurmaRepository turmas,
                        ReservaRepository reservas, ChaveRepository chaves, NotificacaoRepository notificacoes,
@@ -244,7 +246,7 @@ public class SeedService {
         u.setId(id);
         u.setNome(nome);
         u.setEmail(email);
-        u.setSenha(senha);
+        u.setSenha(encoder.encode(senha));
         u.setPerfil(perfil);
         u.setUnidadeId(unidadeId);
         return u;

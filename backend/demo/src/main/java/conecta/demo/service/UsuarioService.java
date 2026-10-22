@@ -8,6 +8,7 @@ import conecta.demo.model.Usuario;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.repository.UsuarioRepository;
 import java.util.List;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,10 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class UsuarioService {
     private final UsuarioRepository usuarios;
     private final UnidadeRepository unidades;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public UsuarioService(UsuarioRepository usuarios, UnidadeRepository unidades) {
         this.usuarios = usuarios;
         this.unidades = unidades;
+    }
+
+    /** Hash BCrypt para senhas em texto puro. */
+    public String hashSenha(String senha) {
+        return encoder.encode(senha);
     }
 
     @Transactional(readOnly = true)
@@ -37,6 +44,7 @@ public class UsuarioService {
         if (usuarios.findByEmailIgnoreCase(usuario.getEmail()).isPresent())
             throw new RegraDeNegocioException("E-mail ja cadastrado");
         usuario.setId(proximoId());
+        usuario.setSenha(hashSenha(usuario.getSenha()));
         return usuarios.save(usuario);
     }
 
@@ -52,7 +60,9 @@ public class UsuarioService {
         });
         atual.setNome(entrada.getNome());
         atual.setEmail(entrada.getEmail());
-        atual.setSenha(entrada.getSenha());
+        if (entrada.getSenha() != null && !entrada.getSenha().isBlank()) {
+            atual.setSenha(hashSenha(entrada.getSenha()));
+        }
         atual.setPerfil(entrada.getPerfil());
         atual.setUnidadeId(entrada.getUnidadeId());
         return usuarios.save(atual);
@@ -64,7 +74,9 @@ public class UsuarioService {
 
     @Transactional(readOnly = true)
     public UsuarioResponse login(LoginRequest request) {
-        Usuario usuario = usuarios.findByEmailIgnoreCase(request.email()).filter(u -> u.getSenha().equals(request.senha())).orElseThrow(() -> new RegraDeNegocioException("E-mail ou senha invalidos"));
+        Usuario usuario = usuarios.findByEmailIgnoreCase(request.email())
+                .filter(u -> encoder.matches(request.senha(), u.getSenha()))
+                .orElseThrow(() -> new RegraDeNegocioException("E-mail ou senha invalidos"));
         return UsuarioResponse.from(usuario);
     }
 

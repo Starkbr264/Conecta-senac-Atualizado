@@ -104,15 +104,18 @@ public class SincService {
      */
     @Transactional
     public Map<String, Object> resetar() {
-        usuarios.deleteAll();
-        unidades.deleteAll();
-        salas.deleteAll();
-        turmas.deleteAll();
-        reservas.deleteAll();
-        chaves.deleteAll();
-        notificacoes.deleteAll();
-        solicitacoes.deleteAll();
-        sessoes.deleteAll();
+        // deleteAll() do Spring Data usa bulk DELETE (sem cascade de
+        // @ElementCollection). Iteramos para que o Hibernate remova as
+        // tabelas-filho (sala_turnos, sala_turnos_legado, etc.) antes.
+        usuarios.findAll().forEach(usuarios::delete);
+        unidades.findAll().forEach(unidades::delete);
+        salas.findAll().forEach(salas::delete);
+        turmas.findAll().forEach(turmas::delete);
+        reservas.findAll().forEach(reservas::delete);
+        chaves.findAll().forEach(chaves::delete);
+        notificacoes.findAll().forEach(notificacoes::delete);
+        solicitacoes.findAll().forEach(solicitacoes::delete);
+        sessoes.findAll().forEach(sessoes::delete);
         seedService.semear();
 
         Map<String, Object> resposta = new LinkedHashMap<>();
