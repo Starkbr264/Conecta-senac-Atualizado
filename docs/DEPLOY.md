@@ -88,7 +88,32 @@ curl -X POST https://<SUA-API>/api/reset
 O `SeedService` roda **apenas** se a tabela `unidades` estiver vazia, entao
 esse comando e seguro para repetir.
 
-### 2.4 Opcional: rodando o Postgres localmente com o mesmo schema
+### 2.4 Travar o acesso direto as tabelas (RLS) — obrigatorio
+
+> ⚠️ **O Advisor do Supabase vai acusar `RLS Disabled in Public` (CRITICAL)
+> em uma tabela por vez** assim que o backend criar o schema. Nao e
+> cosmetico: com o RLS desligado, o role `anon` — que a chave publica do
+> projeto usa — tem `SELECT/INSERT/UPDATE/DELETE` sobre as tabelas de
+> `public`. Qualquer pessoa com a chave publica (que e publica por
+> definicao) le, altera e apaga o banco pela API
+> `https://<REF>.supabase.co/rest/v1/...`, inclusive a tabela `usuarios`,
+> que guarda as senhas.
+
+Rode o script versionado no projeto (SQL Editor do Supabase → cole e execute):
+
+```
+backend/demo/sql/rls-public.sql
+```
+
+Ele habilita RLS nas 15 tabelas e revoga os grants de `anon`/`authenticated`.
+Com RLS ligado e **sem** politicas, o Postgres nega tudo para quem nao e
+owner — e o app **continua funcionando**, porque o backend conecta como
+`postgres` (owner, com `rolbypassrls = t`).
+
+O script e idempotente: pode rodar quantas vezes quiser. Se voce recriar o
+schema do zero, rode de novo.
+
+### 2.5 Opcional: rodando o Postgres localmente com o mesmo schema
 
 ```powershell
 docker run -d --name conectasenac-db `
@@ -203,6 +228,9 @@ descoberta automatica do host do Metro.
 - [ ] Chave publica do Supabase **revogada e rotacionada**
 - [ ] Senha do banco do Supabase trocada (nunca a de exemplo)
 - [ ] Schema criado no Supabase (`/api/reset` depois que a API subir)
+- [ ] **RLS aplicado** (`backend/demo/sql/rls-public.sql`) — sem isso o
+      Advisor acusa 15 avisos CRITICAL e o banco fica aberto para a chave
+      publica
 - [ ] `SUPABASE_DB_USER`, `SUPABASE_DB_PASSWORD` e `SPRING_DATASOURCE_URL`
       preenchidos no Render
 - [ ] `VITE_API_BASE` = URL do Render na Vercel

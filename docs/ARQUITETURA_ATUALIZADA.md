@@ -297,6 +297,32 @@ decisao de produto.
 | 8 | Nada registra **quem** decidiu uma solicitacao | Sem rastreabilidade |
 | 9 | Backend Spring nao e consumido por nenhum frontend | Duas camadas de dados divergentes |
 
+### 7.1 RLS no banco do Supabase — CORRIGIDO
+
+O item 2 era agravado por um furo **no banco**: com RLS desligado, o role
+`anon` (o da chave publica) tinha `SELECT/INSERT/UPDATE/DELETE/TRUNCATE` sobre
+as 15 tabelas de `public`. Bastava a chave publica para ler as senhas, alterar
+e apagar o banco pela API REST do Supabase — sem nem passar pela API Spring.
+
+**Correcao:** `backend/demo/sql/rls-public.sql` habilita RLS nas 15 tabelas e
+revoga os grants de `anon`/`authenticated`. Com RLS ligado e sem politicas o
+Postgres nega tudo para quem nao e owner; o app nao e afetado, porque o
+backend conecta como `postgres` (owner, `rolbypassrls = t`).
+
+Verificado medindo o comportamento antes e depois:
+
+| Operacao como `anon` | Antes | Depois |
+|---|---|---|
+| `SELECT count(*) FROM usuarios` | 42 linhas | `permission denied` |
+| `SELECT email, senha FROM usuarios` | senhas expostas | `permission denied` |
+| `DELETE FROM usuarios` | permitido | `permission denied` |
+| `INSERT INTO unidades` | permitido | `permission denied` |
+
+O item 2 **continua aberto** no escopo da aplicacao: o RLS protege o banco
+contra a chave publica, mas `GET /api/dados` e `GET /api/usuarios` ainda
+devolvem as senhas em texto puro para quem chamar a API Spring (que hoje
+nao exige autenticacao — item 3).
+
 ---
 
 ## 8. Referencias

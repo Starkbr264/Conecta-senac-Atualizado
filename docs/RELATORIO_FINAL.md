@@ -1184,10 +1184,69 @@ Nenhuma foi corrigida por decisão consciente de escopo; todas estão registrada
 | 11 | **`noUnusedLocals` desligado** | `web/tsconfig.json` | Baixo — varredura de centenas de símbolos remanescentes |
 | 12 | **Comportamento do `POST /api/sinc` divergente entre as duas APIs** | Spring recria a entidade; Node faz merge | **Mitigado** — o `salvar()` passou a repôr todos os campos. A diferença estrutural (recriar × mesclar) permanece |
 | 13 | **Docker indisponível no host de validação** | — | **RESOLVIDO** — o Docker passou a estar disponível nesta máquina; o build da imagem e o `up` do Compose foram executados de ponta a ponta. Ver a seção 12.6 |
+| 14 | **RLS desligado nas tabelas do Supabase** | `public.*` (15 tabelas), criado por `ddl-auto=update` | **RESOLVIDO** — `backend/demo/sql/rls-public.sql` habilita RLS e revoga os grants de `anon`/`authenticated`. Ver a seção 18 |
 
 > **Nota — pendência nº 13 desativada:** a limitação "o backend não compila localmente por causa do JDK 11" foi **superada**. Descobriu-se um Microsoft JDK 21.0.12.1 LTS em `C:\Users\<usuário>\.jdks\ms-21.0.12.1` (instalado pelo IntelliJ). Com `JAVA_HOME` apontando para lá, o Gradle 9.5.1 compila e executa a suíte completa: **50 testes, 0 falhas**. A seção 14 traz o resultado por suíte.
 
 > **Nota — pendência nº 13 desativada (segunda parte):** o Docker também passou a estar disponível neste host. O `docker build` da imagem, o `docker compose up -d` da stack completa e o `POST /api/reset` foram executados de ponta a ponta, com todos os endpoints respondendo `200`. Ver a seção 12.6.
+
+---
+
+## 17.1 Correcao do RLS no banco do Supabase (pendencia n 14)
+
+Publicando o projeto no Supabase, o **Advisor** acusou `RLS Disabled in Public`
+(CRITICAL) em **uma tabela por vez** - 15 avisos, que correspondem exatamente
+as 15 tabelas de `public` criadas pelo `ddl-auto=update`.
+
+### O que era o furo
+
+O RLS (Row Level Security) desabilitado nao e cosmetico. No Supabase, o role
+`anon` - o da chave publica, que e publica por definicao - tem por padrao
+`SELECT/INSERT/UPDATE/DELETE/TRUNCATE` sobre as tabelas de `public`. Sem RLS,
+**qualquer pessoa com a chave publica** do projeto le, altera e apaga o banco
+pela API REST (`https://<REF>.supabase.co/rest/v1/...`), sem passar pela API
+Spring e sem nenhuma autenticacao.
+
+Medido no banco real, antes da correcao, com um login de teste que tinha o
+papel `anon`:
+
+```
+[anon] SELECT count(usuarios) = 42           <<< vazamento total
+[anon] Senac_GDF@Hotmail.com / Senac.DF2007  <<< senha em texto puro
+[anon] DELETE usuarios        -> PERMITIU    <<< apaga dados
+```
+
+Ou seja: as senhas do item 1 desta secao, que ja eram um risco, vazavam
+**tambem** pelo lado do Supabase.
+
+### A correcao
+
+`backend/demo/sql/rls-public.sql` - habilita RLS nas 15 tabelas e revoga os
+grants de `anon` e `authenticated`. Com RLS ligado e **sem** politicas, o
+Postgres nega tudo para quem nao e *owner*.
+
+O aplicativo **nao e afetado**: o backend conecta como `postgres`, que e o
+owner das tabelas e tem `rolbypassrls = t` (verificado em `pg_roles`).
+
+### Verificacao
+
+| Operacao como `anon` | Antes | Depois |
+|---|---|---|
+| `SELECT count(*) FROM usuarios` | 42 linhas | `permission denied for table usuarios` |
+| `SELECT email, senha FROM usuarios` | senhas expostas | `permission denied for table usuarios` |
+| `DELETE FROM usuarios` | permitido | `permission denied for table usuarios` |
+| `INSERT INTO unidades` | permitido | `permission denied for table unidades` |
+
+E a API, com o RLS ativo, foi **reiniciada** para provar que uma conexao nova
+continua funcionando: boot em 10 s, `POST /api/login` -> 200,
+`GET /api/dados` -> 200 com as 8 colecoes (`42/10/50/40/31/20/4/4`),
+`GET /api/usuarios`, `/api/salas`, `/api/unidades` -> 200. Nenhum erro de
+permissao no log.
+
+> **O que continua aberto:** o item 1 (senhas em texto puro) e o item 2
+> (autorizacao inexistente) desta secao. O RLS fecha o acesso **direto ao
+> banco**; `GET /api/dados` e `GET /api/usuarios` ainda devolvem as senhas
+> para quem chamar a API Spring, que hoje nao exige autenticacao.
 
 ---
 

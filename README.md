@@ -311,6 +311,8 @@ Resumo do fluxo:
 
 1. **Supabase** — crie o projeto, copie a *connection string* do pooler
    (`aws-0-<regiao>.pooler.supabase.com:5432/postgres`) e anote a senha.
+   Depois rode `backend/demo/sql/rls-public.sql` (SQL Editor) — sem RLS a
+   chave pública do projeto lê, altera e apaga o banco pela API REST.
 2. **Render** — importe o repositório como *Blueprint*; o `render.yaml` é
    detectado automaticamente. Preencha `SUPABASE_DB_USER`,
    `SUPABASE_DB_PASSWORD` e `SPRING_DATASOURCE_URL`.
