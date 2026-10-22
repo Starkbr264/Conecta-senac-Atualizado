@@ -186,7 +186,11 @@ outra origem. Serve para CDN, preview por branch e cache de assets.
 
 1. <https://vercel.com/new> → importe `Starkbr264/Conecta-senac-Test`
 2. **Framework Preset:** `Other`
-3. **Root Directory:** `web`
+3. **Root Directory:** deixe em branco (raiz do repositorio). **Nao** coloque
+   `web` aqui: o `vercel.json` da raiz ja contem os comandos com `cd web`
+   e o `outputDirectory` relativo a raiz. Se Root Directory for `web`, o
+   build roda dentro de `web/` e o `cd web` falha com
+   `No such file or directory` (o erro que apareceu no log).
 4. Deixe **Build Command** e **Output Directory** em branco — o `vercel.json`
    da raiz ja define tudo
 
