@@ -67,3 +67,14 @@ services:
       # vazias - nunca use string vazia.
       - key: VITE_API_BASE
         value: same-origin
+
+      # --- Segredo de autenticacao JWT (OBRIGATORIO) -----------------------
+      # Chave de assinatura dos tokens JWT (HS256). Deve ter pelo menos 32
+      # caracteres. Gere com: openssl rand -base64 32
+      # NUNCA reutilize a mesma chave em ambientes diferentes.
+      - key: JWT_SECRET
+        sync: false
+
+      # Validade do token JWT em milissegundos (padrao: 24 horas).
+      - key: JWT_EXPIRATION_MS
+        value: "86400000"
