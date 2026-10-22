@@ -44,14 +44,20 @@ services:
 
       # URL JDBC do Postgres. No Supabase use o "pooler" (transacional) para
       # economizar conexoes:
-      #   jdbc:postgresql://<usuario>:<senha>@aws-0-<regiao>.pooler.supabase.com:5432/postgres?sslmode=require
+      #   jdbc:postgresql://aws-0-<regiao>.pooler.supabase.com:5432/postgres?sslmode=require
       #
-      # ATENCAO - o prefixo "jdbc:" e OBRIGATORIO. A URI mostrada no painel
+      # ATENCAO 1 - o prefixo "jdbc:" e OBRIGATORIO. A URI mostrada no painel
       # do Supabase vem como "postgresql://..." e o driver do PostgreSQL
       # REJEITA esse formato, derrubando o boot com:
       #   "Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://..."
-      # Se a senha tiver caracteres especiais (@ / : ? # &), ela precisa
-      # estar URL-encoded dentro da URL.
+      #
+      # ATENCAO 2 - NAO coloque "usuario:senha@" antes do host. O pgjdbc nao
+      # faz parse de "userinfo": ele trata o bloco inteiro como parte do
+      # hostname e o boot morre com:
+      #   "java.net.UnknownHostException: postgres.<REF>:<SENHA>@aws-0-<regiao>.pooler.supabase.com"
+      # A credencial vai em SUPABASE_DB_USER / SUPABASE_DB_PASSWORD, que o
+      # Spring Boot entrega ao driver como Properties (formato esperado pelo
+      # pgjdbc). Por isso a senha NAO precisa de URL-encode.
       - key: SPRING_DATASOURCE_URL
         sync: false
 

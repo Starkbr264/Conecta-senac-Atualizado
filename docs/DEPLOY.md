@@ -19,8 +19,8 @@ que voce pediu. O objetivo e ter o mesmo projeto rodando em tres lugares:
 ## 1. Push do repositorio
 
 ```powershell
-git remote add teste https://github.com/Starkbr264/Test.git
-git push -u teste main
+git remote add conecta-teste https://github.com/Starkbr264/Conecta-senac-Test.git
+git push -u conecta-teste main
 ```
 
 O repositorio de destino precisa estar **vazio** (apenas o `README.md` inicial
@@ -50,24 +50,31 @@ postgresql://postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com:5432/post
 Use a variante **pooler** (transacional, porta 5432).
 
 > ⚠️ **Essa URI NAO vai direto no Render.** O driver JDBC do PostgreSQL
-> exige o prefixo `jdbc:`. Sem ele o boot falha com:
+> (`pgjdbc`) **nao aceita** o bloco `usuario:senha@` da frente do host. Ele
+> interpreta tudo aquilo como parte do nome do host e o boot falha com:
 >
 > ```
-> Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://...
+> java.net.UnknownHostException: postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com
 > ```
 >
-> A URL JDBC correta e:
+> (ou, se faltar o prefixo `jdbc:`, com
+> `Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://...`)
+>
+> A URL JDBC correta **nao tem credencial**:
 >
 > ```
-> jdbc:postgresql://postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require
+> jdbc:postgresql://aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require
 > ```
+>
+> O usuario e a senha vao em **variaveis separadas**
+> (`SUPABASE_DB_USER` / `SUPABASE_DB_PASSWORD`), que o Spring Boot passa ao
+> driver como `Properties` — e e assim que o `pgjdbc` espera.
 >
 > No **pooler**, o usuario e `postgres.<REF-do-projeto>` (com o ponto). Na
 > **conexao direta** seria so `postgres`.
 >
-> Se a senha tiver caracteres especiais (`@` `/` `:` `?` `#` `&`), ela
-> precisa estar URL-encoded dentro da URL (ex.: `Senac@2026` → `Senac%402026`).
-> No campo `SUPABASE_DB_PASSWORD` use sempre a senha **original**.
+> A senha **nao precisa** de URL-encode, porque ela nao fica na URL. Em
+> `SUPABASE_DB_PASSWORD` use sempre a senha **original**.
 
 ### 2.3 Criar o schema
 
@@ -101,7 +108,7 @@ Dockerfile e as 3 variaveis secretas.
 ### 3.1 Conectar o repositorio
 
 1. <https://dashboard.render.com> → **New → Blueprint**
-2. Escolha o repositorio `Starkbr264/Test`
+2. Escolha o repositorio `Starkbr264/Conecta-senac-Test`
 3. O Render detecta o `render.yaml` e propoe o servico `conectasenac-api`
 
 ### 3.2 Preencher as variaveis
@@ -110,19 +117,26 @@ Dockerfile e as 3 variaveis secretas.
 |---|---|
 | `SUPABASE_DB_USER` | `postgres.<REF>` (no pooler; o `.` faz parte) |
 | `SUPABASE_DB_PASSWORD` | a senha do banco no Supabase, **original** (sem URL-encode) |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://postgres.<REF>:<SENHA_URL_ENCODED>@aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require` |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require` |
 
 > Use o **pooler** e `sslmode=require`. A URL direta (porta 5432, sem
 > `pooler`) funciona para migracoes, mas o pooler e o recomendado para a
 > aplicacao.
 
-> ⚠️ **O prefixo `jdbc:` e obrigatorio.** A URI do painel do Supabase vem
-> como `postgresql://...` e o driver **rejeita** esse formato, derrubando o
-> boot do container. Compare:
+> ⚠️ **A URL JDBC nao leva `usuario:senha@` na frente do host.** O `pgjdbc`
+> nao faz parse de *userinfo*: ele trata o bloco inteiro como parte do host
+> e o boot morre com
+> `java.net.UnknownHostException: postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com`.
+> Alem disso o prefixo `jdbc:` e obrigatorio. Compare:
 >
 > | Errado | Certo |
 > |---|---|
-> | `postgresql://postgres.abc:senha@host:5432/postgres` | `jdbc:postgresql://postgres.abc:senha@host:5432/postgres?sslmode=require` |
+> | `postgresql://postgres.abc:senha@host:5432/postgres` | `jdbc:postgresql://host:5432/postgres?sslmode=require` |
+> | `jdbc:postgresql://postgres.abc:senha@host:5432/postgres` | `jdbc:postgresql://host:5432/postgres?sslmode=require` |
+>
+> As credenciais vao em `SUPABASE_DB_USER` / `SUPABASE_DB_PASSWORD`, que o
+> Spring Boot entrega ao driver como `Properties` — exatamente o formato que
+> o `pgjdbc` espera.
 
 `VITE_API_BASE` ja vem como `same-origin`: o frontend esta injetado dentro do
 proprio jar, entao ele fala com a API na mesma origem, sem CORS.
@@ -145,7 +159,7 @@ outra origem. Serve para CDN, preview por branch e cache de assets.
 
 ### 4.1 Importar o projeto
 
-1. <https://vercel.com/new> → importe `Starkbr264/Test`
+1. <https://vercel.com/new> → importe `Starkbr264/Conecta-senac-Test`
 2. **Framework Preset:** `Other`
 3. **Root Directory:** `web`
 4. Deixe **Build Command** e **Output Directory** em branco — o `vercel.json`
@@ -203,6 +217,8 @@ descoberta automatica do host do Metro.
 | Sintoma | Causa | Solucao |
 |---|---|---|
 | `404` em `/` no Render | o frontend nao foi injetado no jar | o build do Docker sobe se `web/` e `backend/` nao estiverem no `.dockerignore` |
+| `404` em `/` **e** no log `Unable to determine Dialect without JDBC metadata` + `Exited with status 1` | o container **nao subiu**: o Render marca o servico como `no-server` porque o processo morreu | o erro do Postgres esta **acima**, no log. Se for `UnknownHostException: postgres.<REF>:<SENHA>@host`, a URL JDBC tem credencial embutida — veja a linha seguinte |
+| `java.net.UnknownHostException: postgres.<REF>:<SENHA>@aws-0-<REGIAO>.pooler.supabase.com` | a `SPRING_DATASOURCE_URL` tem `usuario:senha@` antes do host; o `pgjdbc` nao faz parse de *userinfo* | `SPRING_DATASOURCE_URL` = `jdbc:postgresql://aws-0-<REGIAO>.pooler.supabase.com:5432/postgres?sslmode=require` (sem credencial) e a credencial vai em `SUPABASE_DB_USER` / `SUPABASE_DB_PASSWORD` |
 | `password authentication failed` | `SPRING_DATASOURCE_URL` com usuario/senha divergentes | use exatamente a string do painel do Supabase |
 | `Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://...` | faltou o prefixo `jdbc:` na URL | `SPRING_DATASOURCE_URL` = `jdbc:postgresql://...` (a URI do Supabase vem sem o prefixo) |
 | `No open ports detected` | o app escutou numa porta diferente da que o Render espera | nao defina `PORT` no blueprint; o Render injeta a dele e o app le `${PORT:8081}` |

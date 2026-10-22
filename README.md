@@ -314,6 +314,9 @@ Resumo do fluxo:
 2. **Render** — importe o repositório como *Blueprint*; o `render.yaml` é
    detectado automaticamente. Preencha `SUPABASE_DB_USER`,
    `SUPABASE_DB_PASSWORD` e `SPRING_DATASOURCE_URL`.
+   A URL JDBC **não** leva `usuario:senha@` antes do host (o `pgjdbc` não faz
+   parse de *userinfo*): use
+   `jdbc:postgresql://aws-0-<regiao>.pooler.supabase.com:5432/postgres?sslmode=require`.
 3. **Vercel** — importe o repositório com *Root Directory* = `web` e defina
    `VITE_API_BASE` = URL do Render (nunca `same-origin` aqui: é outra
    origem, e nunca string vazia — o Vite descarta `""`).
