@@ -1,5 +1,6 @@
 package conecta.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -55,11 +56,12 @@ public class Usuario {
         this.email = email;
     }
 
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @JsonIgnore
     public String getSenha() {
         return senha;
     }
 
+    @JsonProperty
     public void setSenha(String senha) {
         this.senha = senha;
     }
