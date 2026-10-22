@@ -20,18 +20,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    private static final List<String> ORIGENS_PERMITIDAS = List.of(
-            "https://conecta-senac-test-yw11.vercel.app",
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000"
-    );
-
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        // allowedOriginPatterns permite curinga no meio do host — necessario
+        // porque os deploys de preview do Vercel recebem URLs dinamicas
+        // (conecta-senac-test-yw11-<hash>-stark-0f9a.vercel.app).
         registry.addMapping("/api/**")
-                .allowedOrigins(ORIGENS_PERMITIDAS.toArray(new String[0]))
+                .allowedOriginPatterns(
+                        "https://conecta-senac-test-yw11*.vercel.app",
+                        "http://localhost:*",
+                        "http://127.0.0.1:*"
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false);
