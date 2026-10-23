@@ -32,7 +32,7 @@
  */
 
 import { Sala, Reserva } from '@/types';
-import { SalaInfo, Periodo } from '@/components/SalaCard';
+import { SalaInfo, Periodo } from '@/types/sala';
 import * as db from '@/services/storage';
 
 /**

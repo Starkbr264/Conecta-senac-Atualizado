@@ -32,6 +32,39 @@
 import Constants from 'expo-constants';
 import { Usuario } from '@/types';
 
+// Armazenamento seguro de token: tenta expo-secure-store, cai para AsyncStorage.
+let SecureStore: { getItemAsync: (k: string) => Promise<string | null>; setItemAsync: (k: string, v: string) => Promise<void>; deleteItemAsync: (k: string) => Promise<void> } | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  SecureStore = require('expo-secure-store');
+} catch {
+  SecureStore = null;
+}
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export async function obterToken(): Promise<string | null> {
+  try {
+    if (SecureStore) return await SecureStore.getItemAsync('conecta_token');
+    return await AsyncStorage.getItem('conecta_token');
+  } catch {
+    return null;
+  }
+}
+
+export async function salvarToken(token: string | null): Promise<void> {
+  try {
+    if (SecureStore) {
+      if (token) await SecureStore.setItemAsync('conecta_token', token);
+      else await SecureStore.deleteItemAsync('conecta_token');
+    } else {
+      if (token) await AsyncStorage.setItem('conecta_token', token);
+      else await AsyncStorage.removeItem('conecta_token');
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Descobre o IP da máquina que roda o Metro/Expo.
  * Exemplo de hostUri: "192.168.0.10:8081" -> API em "192.168.0.10:3333".
@@ -157,12 +190,26 @@ async function req<T>(caminho: string, opcoes?: RequestInit): Promise<T> {
   const timer = setTimeout(() => controller.abort(), 8000); // 8s de timeout
 
   try {
+    const token = await obterToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opcoes?.headers as Record<string, string> || {}) };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
     const resp = await fetch(`${API_URL}${caminho}`, {
       ...opcoes,
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', ...(opcoes?.headers || {}) },
+      headers,
     });
     const corpo = await resp.json().catch(() => ({}));
+    if (resp.status === 401) {
+      await salvarToken(null);
+      throw new Error('Sessao expirada. Faca login novamente.');
+    }
+    if (resp.status === 403) {
+      throw new Error('Sem permissao para esta operacao.');
+    }
+    if (resp.status === 429) {
+      throw new Error('Muitas requisicoes. Tente novamente em instantes.');
+    }
     if (!resp.ok) {
       throw new Error((corpo as { erro?: string })?.erro || `Erro ${resp.status}`);
     }
@@ -186,10 +233,11 @@ export async function buscarDados(): Promise<Record<string, unknown[]> | null> {
 /** Valida credenciais no servidor. Retorna o usuário ou null. */
 export async function loginApi(email: string, senha: string): Promise<Usuario | null> {
   try {
-    const resp = await req<{ usuario: Usuario }>('/api/login', {
+    const resp = await req<{ usuario: Usuario; token?: string }>('/api/login', {
       method: 'POST',
       body: JSON.stringify({ email, senha }),
     });
+    if (resp.token) await salvarToken(resp.token);
     return resp.usuario ?? null;
   } catch {
     return null; // servidor indisponível -> o chamador tenta o cache local

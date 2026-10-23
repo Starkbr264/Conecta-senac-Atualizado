@@ -426,7 +426,7 @@ async function seed(): Promise<void> {
     ['João Victor Pinto', 'coord.aguasclaras@senacdf.com', 2011, 1010],
   ];
   const coordenadores: Usuario[] = coordList.map(([nome, email, id, unidadeId]) => ({
-    id, nome, email, senha: 'Coord@123', perfil: 'coordenador', unidadeId,
+    id, nome, email, senha: '', perfil: 'coordenador', unidadeId,
   }));
 
   const instList: Array<[string, string, number, number]> = [
@@ -452,7 +452,7 @@ async function seed(): Promise<void> {
     ['Lucas Teixeira', 'lucas.teixeira@senacdf.com', 3020, 1010],
   ];
   const instrutores: Usuario[] = instList.map(([nome, email, id, unidadeId]) => ({
-    id, nome, email, senha: 'Inst@123', perfil: 'instrutor', unidadeId,
+    id, nome, email, senha: '', perfil: 'instrutor', unidadeId,
   }));
 
   const recepList: Array<[string, string, number, number]> = [
@@ -468,11 +468,11 @@ async function seed(): Promise<void> {
     ['Diego Farias', 'recep.aguasclaras@senacdf.com', 4010, 1010],
   ];
   const recepcoes: Usuario[] = recepList.map(([nome, email, id, unidadeId]) => ({
-    id, nome, email, senha: 'Recep@123', perfil: 'recepcao', unidadeId,
+    id, nome, email, senha: '', perfil: 'recepcao', unidadeId,
   }));
 
   const usuarios: Usuario[] = [
-    { id: 1, nome: 'Administrador SENAC', email: 'Senac_GDF@Hotmail.com', senha: 'Senac.DF2007', perfil: 'admin', unidadeId: 1001 },
+    { id: 1, nome: 'Administrador SENAC', email: 'Senac_GDF@Hotmail.com', senha: '', perfil: 'admin', unidadeId: 1001 },
     ...coordenadores,
     ...instrutores,
     ...recepcoes,
@@ -739,11 +739,18 @@ export async function loginUser(email: string, senha: string): Promise<Usuario |
   const remoto = await loginApi(email, senha);
   if (remoto) return remoto;
 
-  // 2) Offline: valida contra o cache local
-  const u = CACHE.usuarios.find(u =>
-    u.email.toLowerCase() === email.toLowerCase() && u.senha === senha
-  );
-  return u ?? null;
+  // 2) Offline: nao validamos senha localmente (seguranca).
+  // Se existir um token JWT armazenado, permite acesso com o usuario em cache.
+  const { obterToken } = await import('@/services/api');
+  const token = await obterToken();
+  if (token) {
+    const u = CACHE.usuarios.find(u =>
+      u.email.toLowerCase() === email.toLowerCase()
+    );
+    if (u) return { ...u };
+  }
+
+  return null;
 }
 
 // ==== Leituras ====
