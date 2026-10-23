@@ -21,12 +21,12 @@
     </div>
     <nav class="sb-nav">
       <span class="sb-section">Painel</span>
-      <button class="sb-btn" id="nav-dashboard" data-action="ir" data-arg="dashboard"><span class="ic"><i class="ph ph-squares-four"></i></span>Dashboard</button>
+      <button class="sb-btn" id="nav-dashboard" data-action="ir" data-arg="dashboard"><span class="ic"><i class="ph ph-house-line"></i></span>Dashboard</button>
       <span class="sb-section">Gestão</span>
       <button class="sb-btn" id="nav-usuarios"  data-action="ir" data-arg="usuarios"><span class="ic"><i class="ph ph-users"></i></span>Usuários</button>
       <button class="sb-btn" id="nav-unidades"  data-action="ir" data-arg="unidades"><span class="ic"><i class="ph ph-buildings"></i></span>Unidades / CPS</button>
       <span class="sb-section">Visão Global</span>
-      <button class="sb-btn" id="nav-salas"    data-action="ir" data-arg="salas"><span class="ic"><i class="ph ph-door"></i></span>Salas</button>
+      <button class="sb-btn" id="nav-salas"    data-action="ir" data-arg="salas"><span class="ic"><i class="ph ph-buildings"></i></span>Salas</button>
       <button class="sb-btn" id="nav-turmas"   data-action="ir" data-arg="turmas"><span class="ic"><i class="ph ph-graduation-cap"></i></span>Turmas</button>
       <button class="sb-btn" id="nav-reservas" data-action="ir" data-arg="reservas"><span class="ic"><i class="ph ph-calendar-check"></i></span>Reservas</button>
       <button class="sb-btn" id="nav-chaves"   data-action="ir" data-arg="chaves"><span class="ic"><i class="ph ph-key"></i></span>Chaves</button>
@@ -37,7 +37,7 @@
         <div class="sb-avatar" id="sbIniciais">AD</div>
         <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Administrador</div></div>
       </div>
-      <button class="btn-sair" data-action="sair"><i class="ph ph-sign-out"></i> Sair do sistema</button>
+      <button class="btn-sair" data-action="sair"><i class="ph ph-arrow-u-up-left"></i> Sair do sistema</button>
     </div>
   </aside>
 
@@ -81,7 +81,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Usuários do Sistema <span class="count-badge" id="countUsuarios"></span></div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdUsuarios"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdUsuarios"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
           <button class="btn btn-primary" data-action="abrirUser" data-arg="0"><i class="ph ph-plus"></i> + Novo Usuário</button>
         </div>
         <div id="searchUsuarios"></div>
@@ -97,7 +97,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Unidades / CPS do SENAC-DF <span class="count-badge" id="countUnidades"></span></div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdUnidades"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdUnidades"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
           <button class="btn btn-primary" data-action="abrirUnid" data-arg="0"><i class="ph ph-plus"></i> + Nova Unidade</button>
         </div>
         <div id="searchUnidades"></div>
@@ -113,7 +113,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Todas as Salas <span class="count-badge" id="countSalasAdmin"></span></div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasSalas"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasSalas"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         <div id="searchSalasAdmin"></div>
         <div class="tw"><table class="tbl">
@@ -128,7 +128,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Todas as Turmas <span class="count-badge" id="countTurmasAdmin"></span></div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasTurmas"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasTurmas"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         <div id="searchTurmasAdmin"></div>
         <div class="tw"><table class="tbl">
@@ -143,7 +143,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Todas as Reservas <span class="count-badge" id="countResAdmin"></span></div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasReservas"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasReservas"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         <div id="searchResAdmin"></div>
         <div class="tw"><table class="tbl">
@@ -158,7 +158,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Todas as Chaves <span class="count-badge" id="countChavAdmin"></span></div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasChaves"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdTodasChaves"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         <div id="searchChavAdmin"></div>
         <div class="tw"><table class="tbl">
@@ -190,7 +190,7 @@
               <option value="">Todos os turnos</option>
               <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
             </select>
-            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
           </div>
         </div>
         <div class="cal-legenda">

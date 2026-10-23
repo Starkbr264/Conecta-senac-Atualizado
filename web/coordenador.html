@@ -20,9 +20,9 @@
     </div>
     <nav class="sb-nav">
       <span class="sb-section">Painel</span>
-      <button class="sb-btn" id="nav-dashboard"   data-action="ir" data-arg="dashboard">  <span class="ic"><i class="ph ph-squares-four"></i></span>Dashboard</button>
+      <button class="sb-btn" id="nav-dashboard"   data-action="ir" data-arg="dashboard">  <span class="ic"><i class="ph ph-house-line"></i></span>Dashboard</button>
       <span class="sb-section">Cadastros</span>
-      <button class="sb-btn" id="nav-salas"        data-action="ir" data-arg="salas">       <span class="ic"><i class="ph ph-door"></i></span>Salas</button>
+      <button class="sb-btn" id="nav-salas"        data-action="ir" data-arg="salas">       <span class="ic"><i class="ph ph-buildings"></i></span>Salas</button>
       <button class="sb-btn" id="nav-turmas"       data-action="ir" data-arg="turmas">      <span class="ic"><i class="ph ph-graduation-cap"></i></span>Turmas</button>
       <button class="sb-btn" id="nav-reservas"     data-action="ir" data-arg="reservas">    <span class="ic"><i class="ph ph-calendar-check"></i></span>Reservas</button>
       <span class="sb-section">Visualização</span>
@@ -35,7 +35,7 @@
     <div class="sb-foot">
       <div class="sb-user"><div class="sb-avatar" id="sbIniciais">CO</div>
         <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Coordenador</div></div></div>
-      <button class="btn-sair" data-action="sair"><i class="ph ph-sign-out"></i> Sair</button>
+      <button class="btn-sair" data-action="sair"><i class="ph ph-arrow-u-up-left"></i> Sair</button>
     </div>
   </aside>
 
@@ -55,7 +55,7 @@
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">Turmas Recentes</div>
-          <button class="btn btn-ghost btn-sm" data-action="ir" data-arg="turmas"><i class="ph ph-arrow-right"></i> Ver todas</button></div>
+          <button class="btn btn-ghost btn-sm" data-action="ir" data-arg="turmas"><i class="ph ph-caret-right"></i> Ver todas</button></div>
         <div class="tw"><table class="tbl">
           <thead><tr><th>Código</th><th>Curso</th><th>Instrutor</th><th>Status</th><th>Período</th></tr></thead>
           <tbody id="tbDash"></tbody>
@@ -130,7 +130,7 @@
             <div class="card-title">Mapa de Salas — Hoje</div>
             <div id="mapaLegenda" class="mapa-legenda"></div>
           </div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         
         <div class="mapa-filtros">
@@ -166,7 +166,7 @@
             
     <div class="pg" id="pg-solicitacoes">
       <div class="card"><div class="card-head"><div class="card-title">Solicitações de Sala</div>
-        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdSolics"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdSolics"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div id="listaSolics"></div>
       </div>
     </div>
@@ -174,7 +174,7 @@
     
     <div class="pg" id="pg-notifs">
       <div class="card"><div class="card-head"><div class="card-title">Notificações</div>
-        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdNotifs"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdNotifs"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div id="listaNotifs"></div>
       </div>
 
@@ -201,7 +201,7 @@
               <option value="">Todos os turnos</option>
               <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
             </select>
-            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
           </div>
         </div>
         <div class="cal-legenda">
