@@ -205,6 +205,10 @@ function pushColecao(key: Colecao): void {
  * propagada por {@link pushColecao}.
  */
 export async function sincronizarServidor(): Promise<void> {
+  // Sem token JWT nao ha o que sincronizar: /api/dados exige autenticacao e a
+  // chamada retornaria 401 (logado antes como "modo offline"/"sessao expirada",
+  // mensagem enganosa na tela de login, que roda este fluxo antes do login).
+  if (!obterToken()) return;
   try {
     if (CACHE._remocoes && Object.keys(CACHE._remocoes).length) {
       const remocoes: Partial<Record<Colecao, number[]>> = {};

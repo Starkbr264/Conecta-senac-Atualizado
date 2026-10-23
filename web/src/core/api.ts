@@ -166,14 +166,15 @@ function ehLoopback(base: string): boolean {
  * em vez de ficar com a tela congelada.
  *
  * O limite pode ser ajustado com `VITE_API_TIMEOUT_MS` (ver `.env.example`).
- * Valores <= 0 caem no padrao de 12 s.
+ * Valores <= 0 caem no padrao de 25 s (cold start do Render free medido ~11 s;
+ * o antigo padrao de 12 s abortava com AbortError em maquinas mais lentas).
  */
 export const API_TIMEOUT_MS: number = resolverTimeoutMs();
 
 function resolverTimeoutMs(): number {
   const bruto = import.meta.env?.VITE_API_TIMEOUT_MS;
   const n = typeof bruto === 'string' && bruto !== '' ? Number(bruto) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : 12_000;
+  return Number.isFinite(n) && n > 0 ? n : 25_000;
 }
 
 /** Token JWT armazenado apos o login (localStorage). */

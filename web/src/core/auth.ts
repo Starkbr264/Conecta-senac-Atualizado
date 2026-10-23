@@ -9,6 +9,7 @@
 import { tryById } from './dom';
 import { iniciais } from './format';
 import { getUnidadeById } from './storage';
+import { salvarToken } from './api';
 import { clearSessao, getSessao, initTema } from './theme';
 import type { Perfil } from '../types';
 
@@ -39,6 +40,7 @@ export function seJaLogado(): void {
 /** Encerra a sessao local e volta para o login. */
 export function sair(): void {
   clearSessao();
+  salvarToken(null); // remove JWT do localStorage (senao o token antigo gera 401 "Sessao expirada" na proxima visita)
   window.location.replace('login.html');
 }
 

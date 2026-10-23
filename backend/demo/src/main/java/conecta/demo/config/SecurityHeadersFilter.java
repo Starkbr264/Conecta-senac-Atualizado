@@ -29,13 +29,17 @@ public class SecurityHeadersFilter implements Filter {
             http.setHeader("X-Content-Type-Options", "nosniff");
             http.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
             http.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-            // CSP permissiva o suficiente para a SPA (scripts inline do Vite + CSS)
+            // CSP permissiva o suficiente para a SPA (scripts inline do Vite + CSS).
+            // As origens do Google Fonts foram incluidas porque `variables.css`
+            // importa Outfit/DM Mono via @import de fonts.googleapis.com; sem
+            // elas o navegador bloqueava a folha no deploy do Render (mesma
+            // origem do filtro). Nenhum outro host e permitido.
             http.setHeader("Content-Security-Policy",
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline'; " +
-                    "style-src 'self' 'unsafe-inline'; " +
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                     "img-src 'self' data:; " +
-                    "font-src 'self' data:; " +
+                    "font-src 'self' data: https://fonts.gstatic.com; " +
                     "connect-src 'self' https://conecta-senac-test.onrender.com");
         }
         chain.doFilter(request, response);
