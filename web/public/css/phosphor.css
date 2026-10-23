@@ -1,6 +1,6 @@
 .ph {
   display: inline-block;
-  font-family: "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
   font-style: normal;
   font-weight: 400;
   line-height: 1;
@@ -9,48 +9,48 @@
 }
 
 .ph::before { content: "\25A1"; }
-.ph-arrow-u-up-left::before { content: "\21B6"; }
+.ph-arrow-u-up-left::before { content: "\21A9"; }
 .ph-arrows-clockwise::before { content: "\21BB"; }
-.ph-bank::before { content: "\25A3"; }
+.ph-bank::before { content: "\2302"; }
 .ph-bell::before { content: "\1F514"; }
 .ph-books::before { content: "\1F4DA"; }
-.ph-buildings::before { content: "\25A6"; }
+.ph-buildings::before { content: "\2302"; }
 .ph-calendar::before,
 .ph-calendar-dots::before { content: "\1F4C5"; }
 .ph-calendar-check::before { content: "\2611"; }
 .ph-calendar-plus::before { content: "\229E"; }
 .ph-caret-left::before { content: "\2039"; }
 .ph-caret-right::before { content: "\203A"; }
-.ph-chalkboard-teacher::before { content: "\25A4"; }
+.ph-chalkboard-teacher::before { content: "\1F3EB"; }
 .ph-chat-text::before { content: "\1F5E8"; }
 .ph-check::before { content: "\2713"; }
-.ph-check-circle::before,
-.ph-shield-check::before { content: "\2714"; }
+.ph-check-circle::before { content: "\2714"; }
+.ph-shield-check::before { content: "\1F6E1"; }
 .ph-clipboard-text::before { content: "\1F4CB"; }
-.ph-clock::before { content: "\25F7"; }
+.ph-clock::before { content: "\1F552"; }
 .ph-cloud-sun::before { content: "\2601"; }
 .ph-envelope-simple::before { content: "\2709"; }
 .ph-floppy-disk::before { content: "\1F4BE"; }
 .ph-gear::before { content: "\2699"; }
-.ph-graduation-cap::before { content: "\25B1"; }
+.ph-graduation-cap::before { content: "\1F393"; }
 .ph-house-line::before { content: "\2302"; }
 .ph-info::before { content: "\2139"; }
-.ph-key::before { content: "\26BF"; }
+.ph-key::before { content: "\1F511"; }
 .ph-lock::before { content: "\1F512"; }
-.ph-magnifying-glass::before { content: "\2315"; }
-.ph-map-pin::before { content: "\25C9"; }
-.ph-map-trifold::before { content: "\25EB"; }
+.ph-magnifying-glass::before { content: "\1F50D"; }
+.ph-map-pin::before { content: "\1F4CD"; }
+.ph-map-trifold::before { content: "\1F5FA"; }
 .ph-moon::before { content: "\263E"; }
-.ph-paper-plane-tilt::before { content: "\27A4"; }
+.ph-paper-plane-tilt::before { content: "\2708"; }
 .ph-pencil-simple::before { content: "\270E"; }
 .ph-plus::before { content: "\002B"; }
-.ph-sparkle::before { content: "\2726"; }
+.ph-sparkle::before { content: "\2728"; }
 .ph-sun::before { content: "\2600"; }
-.ph-trash::before { content: "\232B"; }
-.ph-user::before { content: "\25CB"; }
+.ph-trash::before { content: "\1F5D1"; }
+.ph-user::before { content: "\263A"; }
 .ph-user-check::before { content: "\2713"; }
 .ph-user-switch::before { content: "\21C4"; }
-.ph-users::before { content: "\25CE"; }
+.ph-users::before { content: "\1F465"; }
 .ph-warning::before,
 .ph-warning-circle::before { content: "\26A0"; }
 .ph-x::before,
