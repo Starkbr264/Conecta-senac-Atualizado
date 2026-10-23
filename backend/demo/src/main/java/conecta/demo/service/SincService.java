@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +53,7 @@ public class SincService {
     private final conecta.demo.repository.SessaoRepository sessoes;
     private final SeedService seedService;
     private final DadosService dados;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public SincService(UsuarioRepository usuarios, UnidadeRepository unidades, SalaRepository salas,
                        TurmaRepository turmas, ReservaRepository reservas, ChaveRepository chaves,
@@ -260,7 +262,30 @@ public class SincService {
                 u.setId(Long.valueOf(item.get("id").toString()));
                 u.setNome(str(item.get("nome")));
                 u.setEmail(str(item.get("email")));
-                u.setSenha(str(item.get("senha")));
+                // A senha NUNCA volta no /api/dados (@JsonIgnore em Usuario.getSenha()),
+                // por isso o cache do cliente nao a possui. Se o payload nao trouxer
+                // senha (caso normal para usuarios ja existentes), preservamos a senha
+                // atual em vez de gravar null (o que violava @NotBlank/nullable=false e
+                // derrubava toda a sincronizacao com HTTP 500). Quando a senha vier
+                // (criacao ou redefinicao), hasheamos com BCrypt para manter coerencia
+                // com o login (encoder.matches), que exige hash BCrypt.
+                String senhaRecebida = str(item.get("senha"));
+                if (senhaRecebida == null || senhaRecebida.isBlank()) {
+                    String senhaAtual = usuarios.findById(u.getId())
+                            .map(Usuario::getSenha).orElse(null);
+                    if (senhaAtual == null) {
+                        // Usuario novo sem senha: ignora em vez de derrubar a colecao
+                        // (mesmo padrao do registro sem "id").
+                        break;
+                    }
+                    u.setSenha(senhaAtual);
+                } else if (senhaRecebida.startsWith("$2a$") || senhaRecebida.startsWith("$2b$")
+                        || senhaRecebida.startsWith("$2y$")) {
+                    // Ja esta hasheada (eco de cache antigo): nao re-hashear.
+                    u.setSenha(senhaRecebida);
+                } else {
+                    u.setSenha(hashSenha(senhaRecebida));
+                }
                 u.setPerfil(item.get("perfil") == null ? null : Perfil.from(item.get("perfil").toString()));
                 u.setUnidadeId(longOuNull(item.get("unidadeId")));
                 usuarios.save(u);
@@ -406,6 +431,11 @@ public class SincService {
 
     private String str(Object o) {
         return o == null ? null : o.toString();
+    }
+
+    /** Hasheia a senha com BCrypt, mantendo coerencia com o login (encoder.matches). */
+    private String hashSenha(String senha) {
+        return passwordEncoder.encode(senha);
     }
 
     /**
