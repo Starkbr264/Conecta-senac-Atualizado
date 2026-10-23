@@ -282,14 +282,14 @@ a ser servido na mesma origem da API **sem alterar uma linha do backend**.
 
 ## 7. Pendencias conhecidas
 
-Nenhuma correcao abaixo foi aplicada: todas mudam comportamento ou exigem
-decisao de produto.
+Algumas correcoes foram aplicadas nesta frente (ver secao 7.1). As pendencias
+restantes mudam comportamento ou exigem decisao de produto.
 
 | # | Achado | Impacto |
 |---|---|---|
 | 1 | `SincService.salvar()` nao repõe, em `salas`: `turnos`, `turnosDisponiveis`, `statusManual`, `motivoManual`, `manualPor`, `manualCriadaEm`, `ativa`; e em `reservas`: `horaInicio`, `horaFim`, `avulsa` | **`POST /api/sinc` perde dados silenciosamente** |
-| 2 | Senhas em texto puro em `usuarios.senha`, comparadas com `String.equals`; trafegam em `GET /api/dados` e `GET /api/usuarios` | Risco critico |
-| 3 | `allowedOrigins("*")` sem Spring Security | Qualquer origem chama a API |
+| 2 | Senhas em texto puro em `usuarios.senha` | **RESOLVIDO parcialmente** — BCrypt implementado (SeedService + UsuarioService), `@JsonIgnore` remove senha do JSON. Pendente: frontend offline cache ainda pode ter senhas em texto puro |
+| 3 | CORS liberado para `*` sem autenticacao | **RESOLVIDO** — `allowedOriginPatterns` restrito a Vercel + localhost. Spring Security adicionado com JWT |
 | 4 | Ids gerados com `max(id)+1` (sem sequence) | Colisao sob concorrencia |
 | 5 | `horaInicio`/`horaFim` existem mas nao entram na deteccao de conflito | Reserva sobreposta no mesmo horario |
 | 6 | `delUnidade` nao verifica salas/turmas/usuarios apontando para a unidade | Registro orfao |
