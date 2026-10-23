@@ -19,16 +19,16 @@
     </div>
     <nav class="sb-nav">
       <span class="sb-section">Painel</span>
-      <button class="sb-btn" id="nav-mapa"   data-action="ir" data-arg="mapa">   <span class="ic">M</span>Mapa de Salas</button>
+      <button class="sb-btn" id="nav-mapa"   data-action="ir" data-arg="mapa">   <span class="ic"><i class="ph ph-map-trifold"></i></span>Mapa de Salas</button>
       <button class="sb-btn" id="nav-calendario" data-action="ir" data-arg="calendario"><span class="ic"><i class="ph ph-calendar"></i></span>Calendário</button>
-      <button class="sb-btn" id="nav-chaves" data-action="ir" data-arg="chaves"> <span class="ic">C</span>Chaves</button>
-      <button class="sb-btn" id="nav-notifs" data-action="ir" data-arg="notifs"> <span class="ic">N</span>Notificações
+      <button class="sb-btn" id="nav-chaves" data-action="ir" data-arg="chaves"> <span class="ic"><i class="ph ph-key"></i></span>Chaves</button>
+      <button class="sb-btn" id="nav-notifs" data-action="ir" data-arg="notifs"> <span class="ic"><i class="ph ph-bell"></i></span>Notificações
         <span class="sb-notif" id="badgeNotif" style="display:none">0</span></button>
     </nav>
     <div class="sb-foot">
       <div class="sb-user"><div class="sb-avatar" id="sbIniciais">RE</div>
         <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Recepção</div></div></div>
-      <button class="btn-sair" data-action="sair">Sair</button>
+      <button class="btn-sair" data-action="sair"><i class="ph ph-sign-out"></i> Sair</button>
     </div>
   </aside>
 
@@ -46,7 +46,7 @@
             <div class="card-title">Ocupação das Salas — Hoje</div>
             <div id="mapaRecLegenda" class="mapa-legenda"></div>
           </div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         
         <div class="mapa-filtros">
@@ -71,7 +71,7 @@
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">Próximas Reservas (próximos 14 dias)</div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div class="tw"><table class="tbl">
           <thead><tr><th>Sala</th><th>Turma</th><th>Instrutor</th><th>Período</th><th>Dias · Turno</th></tr></thead>
           <tbody id="tbFuturas"></tbody>
@@ -85,8 +85,8 @@
         <div class="card-head">
           <div class="card-title">Gestão de Chaves <span class="count-badge" id="countChavRec"></span></div>
           <div style="display:flex;gap:8px;align-items:center">
-            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdChaves"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
-            <button class="btn btn-primary" data-action="abrirChave" data-arg="0">+ Nova Chave</button>
+            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdChaves"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+            <button class="btn btn-primary" data-action="abrirChave" data-arg="0"><i class="ph ph-plus"></i> + Nova Chave</button>
           </div>
         </div>
         <p class="txt2" style="margin-bottom:14px">Crie as chaves, veja com quem está cada uma e atribua a instrutores ou coordenadores.</p>
@@ -103,11 +103,11 @@
             <button class="cal-nav-btn" data-action="calAnterior" title="Anterior"><i class="ph ph-caret-left"></i></button>
             <span id="calPeriodo" class="cal-periodo">Calendário</span>
             <button class="cal-nav-btn" data-action="calProximo" title="Próximo"><i class="ph ph-caret-right"></i></button>
-            <button class="cal-today-btn" data-action="calHoje">Hoje</button>
+            <button class="cal-today-btn" data-action="calHoje"><i class="ph ph-calendar-check"></i> Hoje</button>
           </div>
           <div class="cal-view-toggle">
-            <button class="cal-view-btn ativo" data-vista="mes"    data-action="calVista" data-arg="mes">Mês</button>
-            <button class="cal-view-btn"        data-vista="semana" data-action="calVista" data-arg="semana">Semana</button>
+            <button class="cal-view-btn ativo" data-vista="mes"    data-action="calVista" data-arg="mes"><i class="ph ph-calendar"></i> Mês</button>
+            <button class="cal-view-btn"        data-vista="semana" data-action="calVista" data-arg="semana"><i class="ph ph-calendar"></i> Semana</button>
           </div>
           <div class="cal-filters">
             <select id="calFiltSala"  data-change="calFiltrar"><option value="">Todas as salas</option></select>
@@ -115,7 +115,7 @@
               <option value="">Todos os turnos</option>
               <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
             </select>
-            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
           </div>
         </div>
         <div class="cal-legenda">
@@ -134,7 +134,7 @@
     
     <div class="pg" id="pg-notifs">
       <div class="card"><div class="card-head"><div class="card-title">Notificações</div>
-        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdNotifs"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdNotifs"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div id="listaNotifs"></div>
       </div>
     </div>
@@ -155,8 +155,8 @@
       <div class="ff"><label>Andar</label><input type="text" id="mCAndar" placeholder="Ex.: Térreo, 1º, 2º"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalChave">Cancelar</button>
-      <button class="btn btn-primary" data-action="salvarChave">Salvar</button>
+      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalChave"><i class="ph ph-x"></i> Cancelar</button>
+      <button class="btn btn-primary" data-action="salvarChave"><i class="ph ph-check"></i> Salvar</button>
 
     
     </div>
@@ -182,9 +182,9 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalAtribuir">Cancelar</button>
-      <button class="btn btn-warning btn-sm" id="mABtnDevolver" data-action="devolverChaveRec" style="display:none">Liberar (devolvida à recepção)</button>
-      <button class="btn btn-primary" data-action="confirmarAtribuir">Atribuir</button>
+      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalAtribuir"><i class="ph ph-x"></i> Cancelar</button>
+      <button class="btn btn-warning btn-sm" id="mABtnDevolver" data-action="devolverChaveRec" style="display:none"><i class="ph ph-key"></i> Liberar (devolvida à recepção)</button>
+      <button class="btn btn-primary" data-action="confirmarAtribuir"><i class="ph ph-check"></i> Atribuir</button>
     </div>
   </div>
 </div>

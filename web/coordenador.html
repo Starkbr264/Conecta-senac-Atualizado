@@ -20,22 +20,22 @@
     </div>
     <nav class="sb-nav">
       <span class="sb-section">Painel</span>
-      <button class="sb-btn" id="nav-dashboard"   data-action="ir" data-arg="dashboard">  <span class="ic">D</span>Dashboard</button>
+      <button class="sb-btn" id="nav-dashboard"   data-action="ir" data-arg="dashboard">  <span class="ic"><i class="ph ph-squares-four"></i></span>Dashboard</button>
       <span class="sb-section">Cadastros</span>
-      <button class="sb-btn" id="nav-salas"        data-action="ir" data-arg="salas">       <span class="ic">S</span>Salas</button>
-      <button class="sb-btn" id="nav-turmas"       data-action="ir" data-arg="turmas">      <span class="ic">T</span>Turmas</button>
-      <button class="sb-btn" id="nav-reservas"     data-action="ir" data-arg="reservas">    <span class="ic">R</span>Reservas</button>
+      <button class="sb-btn" id="nav-salas"        data-action="ir" data-arg="salas">       <span class="ic"><i class="ph ph-door"></i></span>Salas</button>
+      <button class="sb-btn" id="nav-turmas"       data-action="ir" data-arg="turmas">      <span class="ic"><i class="ph ph-graduation-cap"></i></span>Turmas</button>
+      <button class="sb-btn" id="nav-reservas"     data-action="ir" data-arg="reservas">    <span class="ic"><i class="ph ph-calendar-check"></i></span>Reservas</button>
       <span class="sb-section">Visualização</span>
-      <button class="sb-btn" id="nav-instrutores"  data-action="ir" data-arg="instrutores"> <span class="ic">I</span>Instrutores</button>
-      <button class="sb-btn" id="nav-mapa"         data-action="ir" data-arg="mapa">        <span class="ic">M</span>Mapa de Salas</button>
+      <button class="sb-btn" id="nav-instrutores"  data-action="ir" data-arg="instrutores"> <span class="ic"><i class="ph ph-chalkboard-teacher"></i></span>Instrutores</button>
+      <button class="sb-btn" id="nav-mapa"         data-action="ir" data-arg="mapa">        <span class="ic"><i class="ph ph-map-trifold"></i></span>Mapa de Salas</button>
       <button class="sb-btn" id="nav-calendario" data-action="ir" data-arg="calendario"><span class="ic"><i class="ph ph-calendar"></i></span>Calendário</button>
-      <button class="sb-btn" id="nav-solicitacoes" data-action="ir" data-arg="solicitacoes"><span class="ic">!</span>Solicitações<span class="sb-notif" id="badgeSolic" style="display:none">0</span></button>
-      <button class="sb-btn" id="nav-notifs"       data-action="ir" data-arg="notifs">      <span class="ic">N</span>Notificações<span class="sb-notif" id="badgeNotif" style="display:none">0</span></button>
+      <button class="sb-btn" id="nav-solicitacoes" data-action="ir" data-arg="solicitacoes"><span class="ic"><i class="ph ph-paper-plane-tilt"></i></span>Solicitações<span class="sb-notif" id="badgeSolic" style="display:none">0</span></button>
+      <button class="sb-btn" id="nav-notifs"       data-action="ir" data-arg="notifs">      <span class="ic"><i class="ph ph-bell"></i></span>Notificações<span class="sb-notif" id="badgeNotif" style="display:none">0</span></button>
     </nav>
     <div class="sb-foot">
       <div class="sb-user"><div class="sb-avatar" id="sbIniciais">CO</div>
         <div><div class="sb-uname" id="sbNome">—</div><div class="sb-urole">Coordenador</div></div></div>
-      <button class="btn-sair" data-action="sair">Sair</button>
+      <button class="btn-sair" data-action="sair"><i class="ph ph-sign-out"></i> Sair</button>
     </div>
   </aside>
 
@@ -55,7 +55,7 @@
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">Turmas Recentes</div>
-          <button class="btn btn-ghost btn-sm" data-action="ir" data-arg="turmas">Ver todas</button></div>
+          <button class="btn btn-ghost btn-sm" data-action="ir" data-arg="turmas"><i class="ph ph-arrow-right"></i> Ver todas</button></div>
         <div class="tw"><table class="tbl">
           <thead><tr><th>Código</th><th>Curso</th><th>Instrutor</th><th>Status</th><th>Período</th></tr></thead>
           <tbody id="tbDash"></tbody>
@@ -68,7 +68,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Salas da Unidade <span class="count-badge" id="countSalasCoord"></span></div>
-          <button class="btn btn-primary" data-action="abrirSala" data-arg="0">+ Nova Sala</button>
+          <button class="btn btn-primary" data-action="abrirSala" data-arg="0"><i class="ph ph-plus"></i> + Nova Sala</button>
         </div>
         <div id="searchSalasCoord"></div>
         <div class="tw"><table class="tbl">
@@ -83,7 +83,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Turmas <span class="count-badge" id="countTurmasCoord"></span></div>
-          <button class="btn btn-primary" data-action="abrirTurma" data-arg="0">+ Nova Turma</button>
+          <button class="btn btn-primary" data-action="abrirTurma" data-arg="0"><i class="ph ph-plus"></i> + Nova Turma</button>
         </div>
         <div id="searchTurmasCoord"></div>
         <div class="tw"><table class="tbl">
@@ -98,7 +98,7 @@
       <div class="card">
         <div class="card-head">
           <div class="card-title">Reservas Recorrentes <span class="count-badge" id="countResCoord"></span></div>
-          <button class="btn btn-primary" data-action="abrirReserva">+ Nova Reserva</button>
+          <button class="btn btn-primary" data-action="abrirReserva"><i class="ph ph-plus"></i> + Nova Reserva</button>
         </div>
         <div id="searchResCoord"></div>
         <div class="tw"><table class="tbl">
@@ -130,7 +130,7 @@
             <div class="card-title">Mapa de Salas — Hoje</div>
             <div id="mapaLegenda" class="mapa-legenda"></div>
           </div>
-          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+          <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
         
         <div class="mapa-filtros">
@@ -166,7 +166,7 @@
             
     <div class="pg" id="pg-solicitacoes">
       <div class="card"><div class="card-head"><div class="card-title">Solicitações de Sala</div>
-        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdSolics"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdSolics"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div id="listaSolics"></div>
       </div>
     </div>
@@ -174,7 +174,7 @@
     
     <div class="pg" id="pg-notifs">
       <div class="card"><div class="card-head"><div class="card-title">Notificações</div>
-        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdNotifs"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
+        <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdNotifs"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div id="listaNotifs"></div>
       </div>
 
@@ -189,11 +189,11 @@
             <button class="cal-nav-btn" data-action="calAnterior" title="Anterior"><i class="ph ph-caret-left"></i></button>
             <span id="calPeriodo" class="cal-periodo">Calendário</span>
             <button class="cal-nav-btn" data-action="calProximo" title="Próximo"><i class="ph ph-caret-right"></i></button>
-            <button class="cal-today-btn" data-action="calHoje">Hoje</button>
+            <button class="cal-today-btn" data-action="calHoje"><i class="ph ph-calendar-check"></i> Hoje</button>
           </div>
           <div class="cal-view-toggle">
-            <button class="cal-view-btn ativo" data-vista="mes"    data-action="calVista" data-arg="mes">Mês</button>
-            <button class="cal-view-btn"        data-vista="semana" data-action="calVista" data-arg="semana">Semana</button>
+            <button class="cal-view-btn ativo" data-vista="mes"    data-action="calVista" data-arg="mes"><i class="ph ph-calendar"></i> Mês</button>
+            <button class="cal-view-btn"        data-vista="semana" data-action="calVista" data-arg="semana"><i class="ph ph-calendar"></i> Semana</button>
           </div>
           <div class="cal-filters">
             <select id="calFiltSala"  data-change="calFiltrar"><option value="">Todas as salas</option></select>
@@ -201,7 +201,7 @@
               <option value="">Todos os turnos</option>
               <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
             </select>
-            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
+            <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdCalendario"><i class="ph ph-arrows-clockwise"></i> <i class="ph ph-arrows-clockwise"></i> Atualizar</button>
           </div>
         </div>
         <div class="cal-legenda">
@@ -238,8 +238,8 @@
     </div>
     <div id="mSMsg" class="fmsg"></div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalSala">Cancelar</button>
-      <button class="btn btn-primary" data-action="salvarSala">Salvar</button>
+      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalSala"><i class="ph ph-x"></i> Cancelar</button>
+      <button class="btn btn-primary" data-action="salvarSala"><i class="ph ph-check"></i> Salvar</button>
     </div>
   </div>
 </div>
@@ -262,8 +262,8 @@
     </div>
     <div id="mTMsg" class="fmsg"></div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalTurma">Cancelar</button>
-      <button class="btn btn-primary" data-action="salvarTurma">Salvar</button>
+      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalTurma"><i class="ph ph-x"></i> Cancelar</button>
+      <button class="btn btn-primary" data-action="salvarTurma"><i class="ph ph-check"></i> Salvar</button>
     </div>
   </div>
 </div>
@@ -291,8 +291,8 @@
     </div>
     <div id="mRMsg" class="fmsg"></div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="cancelarEdicaoReserva">Cancelar</button>
-      <button class="btn btn-primary" data-action="salvarReserva">Criar Reserva</button>
+      <button class="btn btn-ghost" data-action="cancelarEdicaoReserva"><i class="ph ph-x"></i> Cancelar</button>
+      <button class="btn btn-primary" data-action="salvarReserva"><i class="ph ph-plus"></i> Criar Reserva</button>
     </div>
   </div>
 </div>
@@ -311,8 +311,8 @@
       <div id="mAMsg" class="fmsg"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalAtrib">Cancelar</button>
-      <button class="btn btn-primary" data-action="salvarAtrib">Atribuir</button>
+      <button class="btn btn-ghost" data-action="modalFechar" data-arg="modalAtrib"><i class="ph ph-x"></i> Cancelar</button>
+      <button class="btn btn-primary" data-action="salvarAtrib"><i class="ph ph-check"></i> Atribuir</button>
     </div>
   </div>
 </div>

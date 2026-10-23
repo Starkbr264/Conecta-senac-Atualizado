@@ -34,26 +34,26 @@
       <span class="nav-section-label">Cadastros</span>
 
       <button class="nav-item active" id="nav-salas" data-action="mostrarSecao" data-arg="salas">
-        <span class="nav-icon nav-sq">S</span> Salas
+        <span class="nav-icon nav-sq"><i class="ph ph-door"></i></span> Salas
       </button>
 
       <button class="nav-item" id="nav-turmas" data-action="mostrarSecao" data-arg="turmas">
-        <span class="nav-icon nav-sq">T</span> Turmas
+        <span class="nav-icon nav-sq"><i class="ph ph-graduation-cap"></i></span> Turmas
       </button>
 
       <span class="nav-section-label">Agendamento</span>
 
       <button class="nav-item" id="nav-reservas" data-action="mostrarSecao" data-arg="reservas">
-        <span class="nav-icon nav-sq">R</span> Reservas
+        <span class="nav-icon nav-sq"><i class="ph ph-calendar-check"></i></span> Reservas
       </button>
 
       <button class="nav-item" id="nav-disponibilidade" data-action="mostrarSecao" data-arg="disponibilidade">
-        <span class="nav-icon nav-sq">D</span> Disponibilidade
+        <span class="nav-icon nav-sq"><i class="ph ph-chart-bar"></i></span> Disponibilidade
       </button>
     </nav>
 
     <div class="sidebar-footer">
-      <button class="btn btn-logout" data-action="sair">Sair</button>
+      <button class="btn btn-logout" data-action="sair"><i class="ph ph-sign-out"></i> Sair</button>
     </div>
   </aside>
 
@@ -80,7 +80,7 @@
 
         
         <div class="section-card">
-          <h3>Cadastrar Sala</h3>
+          <h3><i class="ph ph-plus"></i> Cadastrar Sala</h3>
 
           <form id="formSala" novalidate>
             <div style="display:grid; grid-template-columns:2fr 1fr 1.5fr; gap:16px; margin-bottom:16px">
@@ -130,8 +130,8 @@
             </div>
 
             <div style="display:flex; gap:10px; margin-top:8px">
-              <button type="submit" id="btnSalvarSala" class="btn btn-success">Cadastrar Sala</button>
-              <button type="button" id="btnCancelarSala" class="btn btn-outline" style="display:none" data-action="cancelarEdicaoSala">Cancelar</button>
+              <button type="submit" id="btnSalvarSala" class="btn btn-success"><i class="ph ph-plus"></i> Cadastrar Sala</button>
+              <button type="button" id="btnCancelarSala" class="btn btn-outline" style="display:none" data-action="cancelarEdicaoSala"><i class="ph ph-x"></i> Cancelar</button>
             </div>
           </form>
 
@@ -163,7 +163,7 @@
       <div id="section-turmas" style="display:none">
 
         <div class="section-card">
-          <h3>Cadastrar Turma</h3>
+          <h3><i class="ph ph-plus"></i> Cadastrar Turma</h3>
 
           <form id="formTurma" novalidate>
             <div style="display:grid; grid-template-columns:1.5fr 2fr 1fr; gap:16px; margin-bottom:16px">
@@ -197,8 +197,8 @@
             </div>
 
             <div style="display:flex; gap:10px; margin-top:16px">
-              <button type="submit" id="btnSalvarTurma" class="btn btn-success">Cadastrar Turma</button>
-              <button type="button" id="btnCancelarTurma" class="btn btn-outline" style="display:none" data-action="cancelarEdicaoTurma">Cancelar</button>
+              <button type="submit" id="btnSalvarTurma" class="btn btn-success"><i class="ph ph-plus"></i> Cadastrar Turma</button>
+              <button type="button" id="btnCancelarTurma" class="btn btn-outline" style="display:none" data-action="cancelarEdicaoTurma"><i class="ph ph-x"></i> Cancelar</button>
             </div>
           </form>
 
@@ -268,7 +268,7 @@
             </div>
 
             <div style="margin-top:16px">
-              <button type="submit" class="btn btn-success">Criar Reserva</button>
+              <button type="submit" class="btn btn-success"><i class="ph ph-plus"></i> Criar Reserva</button>
             </div>
           </form>
 
@@ -319,7 +319,7 @@
               <input type="date" id="dispData" class="form-control">
             </div>
             <div>
-              <button id="btnVerificar" class="btn btn-success" style="white-space:nowrap">Verificar</button>
+              <button id="btnVerificar" class="btn btn-success" style="white-space:nowrap"><i class="ph ph-check-circle"></i> Verificar</button>
             </div>
           </div>
 
