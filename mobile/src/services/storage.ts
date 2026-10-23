@@ -27,7 +27,7 @@ import {
   Usuario, Unidade, Sala, Turma, Reserva, Chave,
   Solicitacao, Notificacao, Sessao, Turno, DiaSemana, StatusTurma
 } from '@/types';
-import { buscarDados, enviarAlteracoes, loginApi, resetarApi } from '@/services/api';
+import { buscarDados, enviarAlteracoes, loginApi, resetarApi, obterToken } from '@/services/api';
 
 // Chaves do AsyncStorage
 const K = {
@@ -741,7 +741,6 @@ export async function loginUser(email: string, senha: string): Promise<Usuario |
 
   // 2) Offline: nao validamos senha localmente (seguranca).
   // Se existir um token JWT armazenado, permite acesso com o usuario em cache.
-  const { obterToken } = await import('@/services/api');
   const token = await obterToken();
   if (token) {
     const u = CACHE.usuarios.find(u =>

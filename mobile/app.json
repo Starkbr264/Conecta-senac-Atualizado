@@ -6,14 +6,38 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "reservasenac",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "splash": {
       "backgroundColor": "#0c3b7a",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "backgroundColor": "#0c3b7a" } },
-    "web": { "bundler": "metro" }
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.senacdf.conectasenac",
+      "adaptiveIcon": {
+        "backgroundColor": "#0c3b7a"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "apiUrl": "https://conecta-senac-test.onrender.com",
+      "modoApi": "producao",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "bfc7cead-87f6-4805-8be3-920479517ded"
+      }
+    },
+    "owner": "stark_dev264"
   }
 }

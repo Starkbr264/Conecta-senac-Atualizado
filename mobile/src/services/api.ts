@@ -32,19 +32,14 @@
 import Constants from 'expo-constants';
 import { Usuario } from '@/types';
 
-// Armazenamento seguro de token: tenta expo-secure-store, cai para AsyncStorage.
-let SecureStore: { getItemAsync: (k: string) => Promise<string | null>; setItemAsync: (k: string, v: string) => Promise<void>; deleteItemAsync: (k: string) => Promise<void> } | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  SecureStore = require('expo-secure-store');
-} catch {
-  SecureStore = null;
-}
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Armazenamento de token: AsyncStorage (compativel com Expo Go).
+// TODO: migrar para expo-secure-store em producao para armazenamento criptografado.
+// O expo-secure-store requer build nativo (EAS Build) e nao funciona no Expo Go.
 
 export async function obterToken(): Promise<string | null> {
   try {
-    if (SecureStore) return await SecureStore.getItemAsync('conecta_token');
     return await AsyncStorage.getItem('conecta_token');
   } catch {
     return null;
@@ -53,13 +48,8 @@ export async function obterToken(): Promise<string | null> {
 
 export async function salvarToken(token: string | null): Promise<void> {
   try {
-    if (SecureStore) {
-      if (token) await SecureStore.setItemAsync('conecta_token', token);
-      else await SecureStore.deleteItemAsync('conecta_token');
-    } else {
-      if (token) await AsyncStorage.setItem('conecta_token', token);
-      else await AsyncStorage.removeItem('conecta_token');
-    }
+    if (token) await AsyncStorage.setItem('conecta_token', token);
+    else await AsyncStorage.removeItem('conecta_token');
   } catch {
     /* ignore */
   }
