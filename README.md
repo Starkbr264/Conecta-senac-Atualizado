@@ -1,7 +1,7 @@
 # Conecta-Senac
 
 Sistema de reserva de salas, turmas e chaves do SENAC GDF.
-Projeto integrador — instrutora **Rayssa Paiva Carvalho**, aluno **Enzo Aragão Lages**.
+Projeto integrador — instrutora **Rayssa Paiva Carvalho**, alunos **Enzo Aragão Lages, Pedro Vinicius, Vitor Roberto, Lucas Fernandes**.
 
 O repositório reúne **quatro componentes independentes**:
 
