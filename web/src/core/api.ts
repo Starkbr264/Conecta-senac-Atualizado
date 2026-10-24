@@ -28,6 +28,7 @@ import type {
   RespostaErro,
   RespostaLogin,
   Sessao,
+  Unidade,
   Usuario,
 } from '../types';
 
@@ -275,6 +276,11 @@ export async function apiPost<T>(caminho: string, corpo?: unknown): Promise<T> {
 /** Baixa o banco completo (`GET /api/dados`). */
 export function buscarDados(): Promise<BancoDados> {
   return apiGet<BancoDados>('/api/dados');
+}
+
+/** Lista as unidades publicas necessarias para a tela de login. */
+export function buscarUnidadesPublicas(): Promise<Unidade[]> {
+  return apiGet<Unidade[]>('/api/unidades');
 }
 
 /** Envia o lote de sincronizacao (`POST /api/sinc`). */

@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * Configuracao de seguranca do Spring Security.
  *
- * <p>Rotas publicas: {@code /api/login}, recursos estaticos e a raiz.
+ * <p>Rotas publicas: {@code /api/login}, {@code GET /api/unidades}, recursos estaticos e a raiz.
  * Todas as demais rotas de {@code /api/**} exigem autenticacao.
  * A autorizacao por perfil e feita via {@code @PreAuthorize} nos controladores.
  */
@@ -46,6 +46,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/unidades").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/", "/index.html", "/login.html", "/dashboard.html",
                         "/admin.html", "/coordenador.html", "/instrutor.html",
