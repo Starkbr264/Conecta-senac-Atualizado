@@ -11,6 +11,7 @@
   gap: 14px;
   margin-bottom: 10px;
   transition: var(--t);
+  min-width: 0;
 }
 .chave-card:hover { border-color: var(--border2); }
 
@@ -29,8 +30,15 @@
 .chave-card.pega       .ch-icon { background: var(--red-l);   }
 
 .ch-info { flex: 1; }
+.ch-info { min-width: 0; }
 .ch-nome { font-weight: 600; color: var(--text);  font-size: .9rem; }
 .ch-det  { font-size: .78rem; color: var(--text2); margin-top: 2px; }
+
+@media (max-width: 480px) {
+  .chave-card { align-items: flex-start; gap: 10px; padding: 13px; }
+  .ch-icon { width: 36px; height: 36px; font-size: 1rem; }
+  .ch-nome, .ch-det { overflow-wrap: anywhere; }
+}
 
 /* â”€â”€ Estado com/sem responsável â”€â”€ */
 .ch-com  { color: var(--warning, #e67e22) !important; font-weight: 500; }

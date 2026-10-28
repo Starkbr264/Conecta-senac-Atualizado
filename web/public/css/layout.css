@@ -2,7 +2,7 @@
    layout.css — Estrutura principal: sidebar, topbar, páginas
    ================================================================ */
 
-.layout { display: flex; min-height: 100vh; }
+.layout { display: flex; min-height: 100vh; min-width: 0; }
 
 
 .sidebar {
@@ -143,7 +143,7 @@
 }
 .btn-sair:hover { background: var(--red-l); border-color: var(--red); color: var(--red); }
 
-.main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+.main { margin-left: var(--sidebar-w); flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .btn-menu-mobile { display: none; }
 .topbar {
   padding: 16px 28px;
@@ -152,10 +152,11 @@
   position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center;
   transition: background .25s, border-color .25s;
+  min-width: 0;
 }
-.tb-title { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+.tb-title { font-size: 1.2rem; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
 .tb-sub   { font-size: .8rem; color: var(--text2); margin-top: 1px; }
-.tb-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.tb-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .btn-tema {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -168,7 +169,7 @@
 }
 .btn-tema:hover { border-color: var(--accent); background: var(--accent-d); }
 
-.pg { display: none; padding: 24px 28px; animation: fadeIn .22s ease; }
+.pg { display: none; padding: 24px 28px; min-width: 0; animation: fadeIn .22s ease; }
 .pg.ativa { display: block; }
 
 @media (max-width: 768px) {
@@ -190,7 +191,23 @@
     background: var(--surface2); color: var(--text); cursor: pointer;
     font-size: 1.1rem;
   }
-  .pg { min-width: 0; overflow: hidden; }
+  .pg { min-width: 0; padding: 16px; overflow: visible; }
+}
+
+@media (max-width: 480px) {
+  .topbar { padding-inline: 12px; }
+  .tb-title { font-size: 1.05rem; }
+  .tb-sub { font-size: .74rem; }
+  .tb-right { gap: 6px; }
+}
+
+@media (max-width: 390px) {
+  .pg { padding: 12px; }
+}
+
+@media (max-width: 360px) {
+  .topbar { padding-inline: 10px; }
+  .btn-menu-mobile { margin-right: 7px; }
 }
 
 [data-theme="dark"] .sb-btn .ic {

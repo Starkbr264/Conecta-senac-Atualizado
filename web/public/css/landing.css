@@ -14,6 +14,7 @@
   margin: 0 auto;
   padding: 64px 32px;
   width: 100%;
+  min-width: 0;
 }
 
 /* ── Topbar/Nav ───────────────────────────────────────────── */
@@ -28,8 +29,10 @@
   top: 0;
   z-index: 100;
   transition: background .25s, border-color .25s;
+  min-width: 0;
 }
 .land-nav-logo { display: flex; align-items: center; gap: 12px; }
+.land-nav-logo { min-width: 0; }
 .land-nav-logo img { max-height: 36px; object-fit: contain; }
 .land-nav-title { font-size: .95rem; font-weight: 800; color: var(--primary); }
 .land-nav-right { display: flex; align-items: center; gap: 10px; }
@@ -283,4 +286,20 @@
   .cta-box { padding: 36px 24px; }
   .hero-stats { gap: 24px; }
   .land-nav { padding: 12px 20px; }
+  .land-nav-logo { gap: 8px; }
+  .land-nav-title { font-size: .82rem; }
+  .btn-nav-login { padding-inline: 12px; }
+  .hero::after { width: 460px; height: 460px; }
+  .feat-grid, .perfil-grid, .steps { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 360px) {
+  .land-nav { padding-inline: 12px; }
+  .land-nav-logo img { max-width: 100px; }
+  .land-nav-title { display: none; }
+  .land-content { padding-inline: 14px; }
+  .hero { padding-inline: 14px; }
+  .hero h1 { font-size: 1.75rem; }
+  .hero p { font-size: .92rem; }
+  .btn-hero { width: 100%; justify-content: center; padding-inline: 18px; }
 }

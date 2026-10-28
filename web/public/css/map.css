@@ -11,6 +11,7 @@
   padding: 14px 0 10px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 18px;
+  min-width: 0;
 }
 .mapa-busca-wrap {
   display: flex;
@@ -24,6 +25,7 @@
   min-width: 180px;
   max-width: 260px;
   transition: border-color .15s;
+  min-width: min(180px, 100%);
 }
 .mapa-busca-wrap:focus-within { border-color: var(--primary); }
 .mapa-busca-wrap .search-input { padding: 9px 0; }
@@ -75,6 +77,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(192px, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 
@@ -89,6 +92,7 @@
   gap: 6px;
   cursor: default;
   position: relative;
+  min-width: 0;
 }
 .sala-card-v2:hover    { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .sala-card-v2.livre    { border-color: var(--green); background: var(--green-l); }
@@ -298,3 +302,10 @@
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 480px) {
+  .mapa-filtros { align-items: stretch; }
+  .mapa-busca-wrap { flex-basis: 100%; max-width: none; }
+  .mapa-andar-grid, .sala-map { grid-template-columns: 1fr; }
+  .sala-card-v2 { padding: 12px 13px; }
+}

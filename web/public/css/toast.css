@@ -11,7 +11,7 @@
   gap: 8px;
 }
 .toast {
-  min-width: 260px;
+  min-width: 0;
   max-width: 360px;
   padding: 12px 16px;
   border-radius: var(--r);
@@ -25,3 +25,8 @@
 .toast.erro  { background: var(--red-l);   border-color: var(--red);   color: var(--red);   }
 .toast.aviso { background: var(--amber-l); border-color: var(--amber); color: var(--amber); }
 .toast.info  { background: var(--blue-l);  border-color: var(--blue);  color: var(--blue);  }
+
+@media (max-width: 480px) {
+  #toasts { left: 12px; right: 12px; bottom: 12px; }
+  .toast { width: 100%; max-width: none; }
+}

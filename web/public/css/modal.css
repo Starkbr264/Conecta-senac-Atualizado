@@ -28,6 +28,7 @@
   animation: fadeUp .25s ease;
   margin: auto;
   position: relative;
+  min-width: 0;
 }
 .modal-box.wide { max-width: 520px; }
 
@@ -40,6 +41,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 .modal-title .modal-close {
   background: none;
@@ -51,8 +53,14 @@
   padding: 2px 6px;
   border-radius: 6px;
   transition: var(--t);
+  flex-shrink: 0;
 }
 .modal-title .modal-close:hover { background: var(--surface2); color: var(--text); }
+
+@media (max-width: 480px) {
+  .modal-overlay { padding: 10px; }
+  .modal-box { padding: 20px 16px; border-radius: var(--r); }
+}
 
 /* Rodapé */
 .modal-foot {

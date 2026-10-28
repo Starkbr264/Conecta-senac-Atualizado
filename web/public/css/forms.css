@@ -3,11 +3,12 @@
    ================================================================ */
 
 /* ── Grade de formulário ──────────────────────────────────── */
-.fg         { display: grid; gap: 14px; }
+.fg         { display: grid; gap: 14px; min-width: 0; }
 .fg.g2      { grid-template-columns: 1fr 1fr; }
 .fg.g3      { grid-template-columns: 1fr 1fr 1fr; }
 .s2col      { grid-column: 1 / -1; }
 .ff         { display: flex; flex-direction: column; gap: 5px; }
+.ff { min-width: 0; }
 
 .ff label {
   font-size: .7rem;
@@ -28,6 +29,8 @@
   font-family: 'Outfit', sans-serif;
   font-size: .9rem;
   transition: var(--t);
+  width: 100%;
+  min-width: 0;
 }
 .ff input:focus,
 .ff select:focus,
@@ -57,4 +60,9 @@
 @media (max-width: 600px) {
   .fg.g2, .fg.g3 { grid-template-columns: 1fr; }
   .s2col         { grid-column: auto; }
+}
+
+@media (max-width: 360px) {
+  .fg { gap: 10px; }
+  .ff input, .ff select, .ff textarea { padding-inline: 10px; font-size: .86rem; }
 }

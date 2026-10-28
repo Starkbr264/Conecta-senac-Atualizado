@@ -62,7 +62,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 160px;
+  min-width: min(160px, 100%);
+  flex: 1 1 160px;
 }
 .filter-label {
   font-size: .75rem;
@@ -82,6 +83,8 @@
   cursor: pointer;
   outline: none;
   transition: border-color .15s;
+  width: 100%;
+  min-width: 0;
 }
 .filter-select:focus { border-color: var(--primary); }
 
@@ -100,3 +103,9 @@
 
 /* ── Highlight de resultado ───────────────────────────────── */
 .hl { background: color-mix(in srgb, var(--primary) 20%, transparent); border-radius: 2px; }
+
+@media (max-width: 480px) {
+  .filters-row { gap: 8px; }
+  .filter-item { flex-basis: 100%; }
+  .count-badge { margin-left: 4px; }
+}

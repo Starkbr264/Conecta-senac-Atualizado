@@ -47,6 +47,7 @@
   z-index: 1;
   box-shadow: var(--shadow-md);
   animation: fadeUp .4s ease;
+  min-width: 0;
 }
 
 /* Logo */
@@ -114,3 +115,16 @@
 }
 .login-msg.erro { background: var(--red-l);   border: 1px solid rgba(220,38,38,.3); color: var(--red);   display: block; }
 .login-msg.ok   { background: var(--green-l); border: 1px solid rgba(5,150,105,.3); color: var(--green); display: block; }
+
+@media (max-width: 480px) {
+  .login-wrap { padding: 12px; }
+  .login-wrap::after { width: 420px; height: 420px; }
+  .login-box { padding: 28px 20px 24px; }
+  .login-logo { margin-bottom: 20px; }
+  .login-logo .logo-wrap img { max-width: min(190px, 80vw); }
+}
+
+@media (max-width: 360px) {
+  .login-box { padding-inline: 16px; }
+  .lf input, .lf select { font-size: .9rem; }
+}

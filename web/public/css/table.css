@@ -1,13 +1,15 @@
 /* ================================================================
    table.css — Tabelas de dados
    ================================================================ */
-.tw { overflow-x: auto; }
+.tw { overflow-x: auto; max-width: 100%; overscroll-behavior-inline: contain; }
 
 .tbl {
   width: 100%;
+  min-width: 620px;
   border-collapse: collapse;
   font-size: .88rem;
 }
+.tw:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
 .tbl thead tr {
   border-bottom: 2px solid var(--border);
 }
@@ -36,3 +38,9 @@
   font-size: .875rem;
 }
 .td-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 600px) {
+  .tw { margin-inline: -2px; padding-bottom: 4px; }
+  .tbl { font-size: .82rem; }
+  .tbl thead th, .tbl tbody td { padding-inline: 9px; }
+}
