@@ -64,6 +64,7 @@ public class UnidadeService {
 
     public Unidade criar(Unidade unidade) {
         exigirNomeUnico(unidade.getNome(), null);
+        unidade.setCep(normalizarCep(unidade.getCep()));
         unidade.setId(proximoId());
         return unidades.save(unidade);
     }
@@ -75,11 +76,21 @@ public class UnidadeService {
     public Unidade atualizar(Long id, Unidade entrada) {
         Unidade atual = buscar(id);
         exigirNomeUnico(entrada.getNome(), id);
+        entrada.setCep(normalizarCep(entrada.getCep()));
         atual.setNome(entrada.getNome());
         atual.setCep(entrada.getCep());
         atual.setCidade(entrada.getCidade());
         atual.setEndereco(entrada.getEndereco());
         return unidades.save(atual);
+    }
+
+    private String normalizarCep(String cep) {
+        if (cep == null || cep.isBlank())
+            throw new RegraDeNegocioException("CEP deve conter 8 digitos");
+        String digitos = cep.replaceAll("\\D", "");
+        if (!cep.matches("^(\\d{8}|\\d{5}-\\d{3})$"))
+            throw new RegraDeNegocioException("CEP deve conter 8 digitos");
+        return digitos.substring(0, 5) + "-" + digitos.substring(5);
     }
 
     /**

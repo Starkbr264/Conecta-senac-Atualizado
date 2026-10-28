@@ -2,6 +2,7 @@ package conecta.demo.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 @Entity
 @Table(name = "unidades")
@@ -17,6 +18,7 @@ public class Unidade {
     @Column(nullable = false)
     private String nome;
 
+    @Pattern(regexp = "^\\d{5}-?\\d{3}$", message = "CEP deve conter 8 digitos")
     private String cep;
 
     private String cidade;

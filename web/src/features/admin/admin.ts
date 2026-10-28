@@ -439,7 +439,7 @@ export function abrirUnid(id: number | null = null): void {
   setTextSafe('mNTitulo', id ? 'Editar Unidade' : 'Nova Unidade');
   byId<HTMLInputElement>('mNNome').value = u ? u.nome : '';
   byId<HTMLInputElement>('mNEndereco').value = u ? (u.endereco ?? '') : '';
-  byId<HTMLInputElement>('mNCep').value = u ? (u.cep ?? '') : '';
+  byId<HTMLInputElement>('mNCep').value = u ? formatarCep(u.cep ?? '') : '';
   fmsgHide('mNMsg');
   modalAbrir('modalUnid');
 }
@@ -462,7 +462,11 @@ export function fecharUnid(): void {
 export function salvarUnid(): void {
   const nome = byId<HTMLInputElement>('mNNome').value.trim();
   const endereco = byId<HTMLInputElement>('mNEndereco').value.trim();
-  const cep = byId<HTMLInputElement>('mNCep').value.trim();
+  const cepDigitado = byId<HTMLInputElement>('mNCep').value.trim();
+  if (!/^\d{8}$|^\d{5}-\d{3}$/.test(cepDigitado)) {
+    return fmsg('mNMsg', 'erro', 'Informe um CEP válido com 8 dígitos.');
+  }
+  const cep = formatarCep(cepDigitado);
   if (!nome) return fmsg('mNMsg', 'erro', 'Informe o nome da unidade.');
 
   const duplicada = getUnidades().find(
@@ -490,6 +494,11 @@ export function salvarUnid(): void {
   fecharUnid();
   rdUnidades();
   rdDash();
+}
+
+function formatarCep(valor: string): string {
+  const digitos = valor.replace(/\D/g, '').slice(0, 8);
+  return digitos.length === 8 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : digitos;
 }
 
 /**

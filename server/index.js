@@ -153,6 +153,12 @@ function json(res, status, corpo) {
   res.end(payload);
 }
 
+function normalizarCep(cep) {
+  if (typeof cep !== 'string' || !/^\d{8}$|^\d{5}-\d{3}$/.test(cep)) return null;
+  const digitos = cep.replace(/\D/g, '');
+  return digitos.length === 8 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : null;
+}
+
 // ---------------------------------------------------------------------------
 // URL base da requisicao
 // ---------------------------------------------------------------------------
@@ -212,6 +218,15 @@ async function rotearApi(req, res, url, metodo) {
     const alterado = corpo?.alteracoes || {};
     const criados = corpo?.criados || {};
     const remocoes = corpo?.remocoes || {};
+
+    for (const item of [
+      ...(Array.isArray(criados.unidades) ? criados.unidades : []),
+      ...(Array.isArray(alterado.unidades) ? alterado.unidades : [])
+    ]) {
+      const cep = normalizarCep(item?.cep);
+      if (!cep) return json(res, 400, { ok: false, erro: 'CEP deve conter 8 digitos' });
+      item.cep = cep;
+    }
 
     const colecoes = [
       'usuarios',

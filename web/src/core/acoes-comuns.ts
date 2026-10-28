@@ -24,10 +24,12 @@ import { asInput } from './dom';
 import { toggleTema } from './theme';
 import {
   calAnterior,
+  calDia,
   calFiltrar,
   calHoje,
   calProximo,
   calVista,
+  rdCalendario,
 } from '../features/calendario/calendario';
 
 /**
@@ -60,7 +62,10 @@ export function registrarAcoesComuns(ctx: ContextoAcoesComuns): void {
   registrarAcao('toggleTema', () => {
     toggleTema();
   });
-  if (ctx.ir) registrarAcao('ir', ({ arg }) => ctx.ir?.(arg ?? 'dashboard'));
+  if (ctx.ir) registrarAcao('ir', ({ arg }) => {
+    ctx.ir?.(arg ?? 'dashboard');
+    document.body.classList.remove('sidebar-aberta');
+  });
 
   // `atualizarSecao('rdSalas', this)`: o `this` legado era o botao, que agora
   // vem no contexto como `botao`.
@@ -73,10 +78,15 @@ export function registrarAcoesComuns(ctx: ContextoAcoesComuns): void {
   });
 
   registrarAcao('calAnterior', () => calAnterior());
+  registrarAcao('calDia', ({ arg }) => { if (arg) calDia(arg); });
   registrarAcao('calProximo', () => calProximo());
   registrarAcao('calHoje', () => calHoje());
   registrarAcao('calVista', ({ arg }) => calVista(arg ?? 'mes'));
   registrarAcao('calFiltrar', () => calFiltrar());
+  registrarAcao('rdCalendario', rdCalendario);
+  registrarAcao('toggleSidebar', () => {
+    document.body.classList.toggle('sidebar-aberta');
+  });
 
   // Gerado em tempo de execucao por `core/filters.ts`.
   registrarAcao('limparFiltros', ({ arg, arg2 }) => limparFiltros(arg ?? '', arg2 ?? undefined));
