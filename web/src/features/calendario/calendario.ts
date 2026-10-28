@@ -163,7 +163,7 @@ function reservasVisiveis(): Reserva[] {
   try {
     const sess = getSessao();
     if (!sess) return [];
-    const todas = getReservas();
+    const todas = getReservas().filter((r) => r.status !== 'CANCELADA');
     let lista: Reserva[];
     if (sess.perfil === 'admin') {
       lista = todas;
@@ -468,7 +468,7 @@ export function calDia(iso: string): void {
     qsa('.cal-day, .cal-sem-cell').forEach((el) => {
       el.classList.remove('selecionado');
     });
-    qsa(`[data-action="calDia" data-arg="${iso}"]`).forEach((el) => {
+    qsa(`[data-action="calDia"][data-arg="${iso}"]`).forEach((el) => {
       el.classList.add('selecionado');
     });
   } catch (e) {

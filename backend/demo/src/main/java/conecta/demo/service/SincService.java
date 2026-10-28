@@ -294,7 +294,7 @@ public class SincService {
                 Unidade un = new Unidade();
                 un.setId(Long.valueOf(item.get("id").toString()));
                 un.setNome(str(item.get("nome")));
-                un.setCep(str(item.get("cep")));
+                un.setCep(normalizarCep(str(item.get("cep"))));
                 un.setCidade(str(item.get("cidade")));
                 un.setEndereco(str(item.get("endereco")));
                 unidades.save(un);
@@ -436,6 +436,15 @@ public class SincService {
     /** Hasheia a senha com BCrypt, mantendo coerencia com o login (encoder.matches). */
     private String hashSenha(String senha) {
         return passwordEncoder.encode(senha);
+    }
+
+    private String normalizarCep(String cep) {
+        if (cep == null || cep.isBlank())
+            throw new conecta.demo.exception.RegraDeNegocioException("CEP deve conter 8 digitos");
+        String digitos = cep.replaceAll("\\D", "");
+        if (!cep.matches("^(\\d{8}|\\d{5}-\\d{3})$"))
+            throw new conecta.demo.exception.RegraDeNegocioException("CEP deve conter 8 digitos");
+        return digitos.substring(0, 5) + "-" + digitos.substring(5);
     }
 
     /**

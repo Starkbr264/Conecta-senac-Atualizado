@@ -279,9 +279,10 @@
 /* ── Painel lateral de detalhes ────────────────────────────── */
 .cal-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
   gap: 16px;
   align-items: start;
+  min-width: 0;
 }
 .cal-detalhe-wrap {
   position: sticky;
