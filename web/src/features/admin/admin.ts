@@ -318,6 +318,8 @@ export function fecharUser(): void {
   editUserId = null;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@.]+$/;
+
 /** Persiste o usuario editado/criado. */
 export function salvarUser(): void {
   const nome = byId<HTMLInputElement>('mUNome').value.trim();
@@ -328,6 +330,7 @@ export function salvarUser(): void {
 
   if (!nome) return fmsg('mUMsg', 'erro', 'Informe o nome.');
   if (!email) return fmsg('mUMsg', 'erro', 'Informe o e-mail.');
+  if (!EMAIL_REGEX.test(email)) return fmsg('mUMsg', 'erro', 'Informe um e-mail válido.');
   if (!perfil) return fmsg('mUMsg', 'erro', 'Selecione o perfil.');
   if (!unidadeId) return fmsg('mUMsg', 'erro', 'Selecione a unidade.');
   if (!editUserId && !senha) return fmsg('mUMsg', 'erro', 'Defina uma senha.');

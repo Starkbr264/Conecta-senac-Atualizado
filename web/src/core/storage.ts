@@ -184,11 +184,22 @@ function pushColecao(key: Colecao): void {
     if (fila && fila.length) remocoes[key] = fila;
 
     sincronizar({ alteracoes: { [key]: itens }, remocoes })
-      .then(() => {
+      .then((res) => {
         delete CACHE._remocoes[key];
+        if (res && typeof res === 'object' && 'banco' in res) {
+          const banco = (res as { banco?: Record<string, unknown> }).banco;
+          if (banco && Array.isArray(banco[key])) {
+            (CACHE[key] as unknown[]) = banco[key] as unknown[];
+            sv(K[key], banco[key]);
+          }
+        }
       })
-      .catch(() => {
-        /* servidor indisponivel: mantem a fila para a proxima sincronizacao */
+      .catch((err: unknown) => {
+        /* Se o servidor rejeitou a sincronizacao com status HTTP (4xx/5xx),
+           recarrega o estado integro do servidor para nao contaminar o cache. */
+        if (err && typeof err === 'object' && 'status' in err) {
+          void sincronizarServidor();
+        }
       });
   } catch {
     /* nunca interrompe a operacao local */

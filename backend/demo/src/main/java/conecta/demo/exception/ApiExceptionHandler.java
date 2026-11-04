@@ -1,6 +1,8 @@
 package conecta.demo.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -27,5 +29,19 @@ public class ApiExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<Map<String, String>> invalid(MethodArgumentNotValidException ex) {
         return ResponseEntity.badRequest().body(Map.of("erro", "Dados invalidos", "campo", ex.getBindingResult().getFieldError().getField()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    ResponseEntity<Map<String, String>> constraintViolation(ConstraintViolationException ex) {
+        String campo = ex.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getPropertyPath().toString())
+                .orElse("desconhecido");
+        return ResponseEntity.badRequest().body(Map.of("erro", "Dados invalidos", "campo", campo));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<Map<String, String>> dataIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Conflito de integridade de dados"));
     }
 }

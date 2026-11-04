@@ -105,4 +105,39 @@ class SincUsuariosTest {
                 .andExpect(status().isConflict());
         org.assertj.core.api.Assertions.assertThat(usuarios.count()).isEqualTo(antes);
     }
+
+    @Test
+    void sincIgnoraEmailInvalidoERealocaColisaoDeIdSemDerrubarCom500() throws Exception {
+        tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
+        String unidadeCriada = mockMvc.perform(post("/api/unidades")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Unidade Colisao Test\",\"cep\":\"70002-000\","
+                                + "\"cidade\":\"Brasilia/DF\",\"endereco\":\"SCS Q.3\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long unidadeId = mapper.readTree(unidadeCriada).get("id").asLong();
+
+        String criado = mockMvc.perform(post("/api/usuarios")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Coord A\",\"email\":\"coord.a@sinc.test\","
+                                + "\"senha\":\"Senha.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long idExistente = mapper.readTree(criado).get("id").asLong();
+
+        // Cliente defasado envia novo coordenador colidindo no mesmo idExistente + registro com e-mail invalido
+        String payload = "{\"alteracoes\":{\"usuarios\":["
+                + "{\"id\":" + idExistente + ",\"nome\":\"Coord B Colisao\",\"email\":\"coord.b@sinc.test\","
+                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "},"
+                + "{\"id\":99099,\"nome\":\"Invalido\",\"email\":\"email.invalido@senac.\","
+                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}"
+                + "]}}";
+
+        mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isOk());
+
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.a@sinc.test")).isPresent();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.b@sinc.test")).isPresent();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("email.invalido@senac.")).isEmpty();
+    }
 }

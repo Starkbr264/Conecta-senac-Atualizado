@@ -7,7 +7,7 @@
  */
 
 import { toast } from './ui';
-import { loadCache } from './storage';
+import { loadCache, sincronizarServidor } from './storage';
 import { contextoSemAlvo, executarAcao, temAcao } from './actions';
 
 /**
@@ -57,6 +57,7 @@ export async function atualizarSecao(fnName: string, botao?: HTMLButtonElement |
   };
 
   try {
+    await sincronizarServidor();
     loadCache();
 
     const resultado = executarAcao(fnName, contextoSemAlvo(fnName));
