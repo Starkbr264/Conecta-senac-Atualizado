@@ -262,6 +262,31 @@ public class SincService {
                 u.setId(Long.valueOf(item.get("id").toString()));
                 u.setNome(str(item.get("nome")));
                 u.setEmail(str(item.get("email")));
+                u.setPerfil(item.get("perfil") == null ? null : Perfil.from(item.get("perfil").toString()));
+                u.setUnidadeId(longOuNull(item.get("unidadeId")));
+                if (u.getNome() == null || u.getNome().isBlank()
+                        || !emailValido(u.getEmail())
+                        || u.getPerfil() == null
+                        || u.getUnidadeId() == null) {
+                    // Registro incompleto ou com e-mail fora do padrao (@Email):
+                    // ignora para nao abortar a sincronizacao do lote com HTTP 500.
+                    break;
+                }
+                // Evita violacao de @UniqueConstraint(columnNames = "email") e colisao
+                // de nextId entre dois clientes sincronizando em paralelo:
+                var existentePorEmail = usuarios.findByEmailIgnoreCase(u.getEmail());
+                String senhaRecebida = str(item.get("senha"));
+                if (existentePorEmail.isPresent()) {
+                    u.setId(existentePorEmail.get().getId());
+                } else if (usuarios.existsById(u.getId())
+                        && senhaRecebida != null && !senhaRecebida.isBlank()
+                        && !senhaRecebida.startsWith("$2a$")
+                        && !senhaRecebida.startsWith("$2b$")
+                        && !senhaRecebida.startsWith("$2y$")) {
+                    // Novo usuario criado com nextId defasado no cliente que colidiu
+                    // com outro ID ja gravado no banco: realoca para o proximo ID livre.
+                    u.setId(proximoId("usuarios"));
+                }
                 // A senha NUNCA volta no /api/dados (@JsonIgnore em Usuario.getSenha()),
                 // por isso o cache do cliente nao a possui. Se o payload nao trouxer
                 // senha (caso normal para usuarios ja existentes), preservamos a senha
@@ -269,7 +294,6 @@ public class SincService {
                 // derrubava toda a sincronizacao com HTTP 500). Quando a senha vier
                 // (criacao ou redefinicao), hasheamos com BCrypt para manter coerencia
                 // com o login (encoder.matches), que exige hash BCrypt.
-                String senhaRecebida = str(item.get("senha"));
                 if (senhaRecebida == null || senhaRecebida.isBlank()) {
                     String senhaAtual = usuarios.findById(u.getId())
                             .map(Usuario::getSenha).orElse(null);
@@ -286,8 +310,6 @@ public class SincService {
                 } else {
                     u.setSenha(hashSenha(senhaRecebida));
                 }
-                u.setPerfil(item.get("perfil") == null ? null : Perfil.from(item.get("perfil").toString()));
-                u.setUnidadeId(longOuNull(item.get("unidadeId")));
                 usuarios.save(u);
                 break;
             case "unidades":
@@ -436,6 +458,12 @@ public class SincService {
     /** Hasheia a senha com BCrypt, mantendo coerencia com o login (encoder.matches). */
     private String hashSenha(String senha) {
         return passwordEncoder.encode(senha);
+    }
+
+    private boolean emailValido(String email) {
+        if (email == null) return false;
+        String limpo = email.trim();
+        return !limpo.isEmpty() && limpo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@.]+$");
     }
 
     private String normalizarCep(String cep) {
