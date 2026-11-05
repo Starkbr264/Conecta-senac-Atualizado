@@ -6,9 +6,11 @@ import conecta.demo.exception.RecursoNaoEncontradoException;
 import conecta.demo.model.Sala;
 import conecta.demo.model.Usuario;
 import conecta.demo.repository.SalaRepository;
+import conecta.demo.repository.ReservaRepository;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.repository.UsuarioRepository;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,11 +21,19 @@ public class SalaService {
     private final SalaRepository salas;
     private final UnidadeRepository unidades;
     private final UsuarioRepository usuarios;
+    private final ReservaRepository reservas;
 
     public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios) {
+        this(salas, unidades, usuarios, null);
+    }
+
+    @Autowired
+    public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios,
+                       ReservaRepository reservas) {
         this.salas = salas;
         this.unidades = unidades;
         this.usuarios = usuarios;
+        this.reservas = reservas;
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +80,10 @@ public class SalaService {
     }
 
     public void excluir(Long id) {
-        salas.delete(buscar(id));
+        Sala sala = buscar(id);
+        if (reservas != null && reservas.existsBySalaId(id))
+            throw new RegraDeNegocioException("Sala possui reservas vinculadas; remova-as primeiro");
+        salas.delete(sala);
     }
 
     /** Impede atualizacao de sala que nao pertence a unidade do usuario. */
@@ -92,6 +105,10 @@ public class SalaService {
             throw new RegraDeNegocioException("Informe a unidade da sala");
         if (!unidades.existsById(sala.getUnidadeId()))
             throw new RegraDeNegocioException("Unidade informada nao existe");
+        boolean temTurnos = (sala.getTurnosDisponiveis() != null && !sala.getTurnosDisponiveis().isEmpty())
+                || (sala.getTurnos() != null && !sala.getTurnos().isEmpty());
+        if (!temTurnos)
+            throw new RegraDeNegocioException("Informe ao menos um turno da sala");
     }
 
     private Long proximoId() {

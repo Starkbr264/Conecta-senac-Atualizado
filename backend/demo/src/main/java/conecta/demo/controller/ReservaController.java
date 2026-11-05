@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/reservas")
@@ -29,17 +30,20 @@ public class ReservaController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     @ResponseStatus(HttpStatus.CREATED)
     public Reserva criar(@Valid @RequestBody ReservaRequest request) {
         return service.criar(request);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     public Reserva atualizar(@PathVariable Long id, @Valid @RequestBody ReservaRequest request) {
         return service.atualizar(id, request);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelar(@PathVariable Long id) {
         service.cancelar(id);

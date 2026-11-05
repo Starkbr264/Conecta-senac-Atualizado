@@ -19,11 +19,13 @@ public class UsuarioController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<Usuario> listar() {
         return service.listar();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Usuario buscar(@PathVariable Long id) {
         return service.buscar(id);
     }

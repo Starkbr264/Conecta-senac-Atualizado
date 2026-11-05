@@ -65,6 +65,7 @@ class SalaServiceTest {
         sala.setCapacidade(25);
         sala.setUnidadeId(unidadeId);
         sala.setAtiva(true);
+        sala.setTurnosDisponiveis(List.of("Matutino"));
         return sala;
     }
 
@@ -262,6 +263,7 @@ class SalaServiceTest {
     void criarSalaNasceAtiva() {
         Sala entrada = new Sala();
         entrada.setUnidadeId(UNIDADE_DA_SALA);
+        entrada.setTurnosDisponiveis(List.of("Matutino"));
         when(unidades.existsById(UNIDADE_DA_SALA)).thenReturn(true);
         when(salas.findAll()).thenReturn(List.of());
         when(salas.save(any(Sala.class))).thenAnswer(inv -> {

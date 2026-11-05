@@ -392,6 +392,10 @@ export function salvarSala(): void {
     fmsg('mSMsg', 'erro', 'Preencha nome, capacidade e tipo.');
     return;
   }
+  if (turnos.length === 0) {
+    fmsg('mSMsg', 'erro', 'Selecione ao menos um turno da sala.');
+    return;
+  }
   const dados: NovoSala = {
     nome,
     capacidade: cap,

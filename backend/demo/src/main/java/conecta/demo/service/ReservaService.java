@@ -5,8 +5,10 @@ import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.exception.RecursoNaoEncontradoException;
 import conecta.demo.model.Reserva;
 import conecta.demo.model.Sala;
+import conecta.demo.model.Turma;
 import conecta.demo.repository.ReservaRepository;
 import conecta.demo.repository.SalaRepository;
+import conecta.demo.repository.TurmaRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservaService {
     private final ReservaRepository reservas;
     private final SalaRepository salas;
+    private final TurmaRepository turmas;
 
-    public ReservaService(ReservaRepository reservas, SalaRepository salas) {
+    public ReservaService(ReservaRepository reservas, SalaRepository salas, TurmaRepository turmas) {
         this.reservas = reservas;
         this.salas = salas;
+        this.turmas = turmas;
     }
 
     @Transactional(readOnly = true)
@@ -74,6 +78,20 @@ public class ReservaService {
             throw new RegraDeNegocioException("Sala indisponivel");
         if (!sala.getUnidadeId().equals(r.unidadeId()))
             throw new RegraDeNegocioException("A sala nao pertence a unidade informada");
+        java.util.List<String> turnos = sala.getTurnosDisponiveis().isEmpty()
+                ? sala.getTurnos() : sala.getTurnosDisponiveis();
+        if (turnos.stream().noneMatch(turno -> turno.equalsIgnoreCase(r.turno())))
+            throw new RegraDeNegocioException("A sala nao esta disponivel para o turno informado");
+        if (r.turmaId() != null) {
+            Turma turma = turmas.findById(r.turmaId())
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Turma", r.turmaId()));
+            if (!turma.getUnidadeId().equals(r.unidadeId()))
+                throw new RegraDeNegocioException("A turma nao pertence a unidade informada");
+            if (turma.getTurno() != null && !turma.getTurno().equalsIgnoreCase(r.turno()))
+                throw new RegraDeNegocioException("O turno da reserva deve ser o turno da turma");
+            if (turma.getDataFim() != null && r.dataFim().isAfter(turma.getDataFim()))
+                throw new RegraDeNegocioException("A reserva nao pode ultrapassar o fim da turma");
+        }
         Reserva x = new Reserva();
         x.setSalaId(r.salaId());
         x.setTurmaId(r.turmaId());

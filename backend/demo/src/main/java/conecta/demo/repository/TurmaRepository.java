@@ -6,4 +6,6 @@ public interface TurmaRepository extends JpaRepository<Turma, Long> {
 
 	List<Turma> findByUnidadeId(Long unidadeId);
 
+	List<Turma> findByCodigo(String codigo);
+
 }

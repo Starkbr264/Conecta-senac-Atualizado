@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/chaves")
@@ -30,17 +31,20 @@ public class ChaveController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPCAO')")
     @ResponseStatus(HttpStatus.CREATED)
     public Chave criar(@Valid @RequestBody Chave chave) {
         return service.criar(chave);
     }
 
     @PostMapping("/{id}/retirada")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPCAO','INSTRUTOR')")
     public Chave retirar(@PathVariable Long id, @RequestBody RetiradaRequest request) {
         return service.retirar(id, request.instrutorId());
     }
 
     @PostMapping("/{id}/devolucao")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPCAO','INSTRUTOR')")
     public Chave devolver(@PathVariable Long id) {
         return service.devolver(id);
     }

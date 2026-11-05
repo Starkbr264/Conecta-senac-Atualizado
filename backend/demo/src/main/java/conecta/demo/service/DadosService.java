@@ -8,6 +8,8 @@ import conecta.demo.repository.SolicitacaoRepository;
 import conecta.demo.repository.TurmaRepository;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.repository.UsuarioRepository;
+import conecta.demo.model.Perfil;
+import conecta.demo.model.Usuario;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,30 @@ public class DadosService {
         b.put("chaves", chaves.findAll());
         b.put("notificacoes", notificacoes.findAll());
         b.put("solicitacoes", solicitacoes.findAll());
+        return b;
+    }
+
+    /** Snapshot com escopo: ADMIN ve tudo; os demais perfis veem sua unidade. */
+    public Map<String, Object> banco(Usuario atual) {
+        if (atual == null || atual.getPerfil() == Perfil.ADMIN) return banco();
+        Long unidadeId = atual.getUnidadeId();
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("usuarios", usuarios.findAll().stream()
+                .filter(u -> unidadeId.equals(u.getUnidadeId())).toList());
+        b.put("unidades", unidades.findAll());
+        b.put("salas", salas.findAll().stream()
+                .filter(s -> unidadeId.equals(s.getUnidadeId())).toList());
+        b.put("turmas", turmas.findAll().stream()
+                .filter(t -> unidadeId.equals(t.getUnidadeId())).toList());
+        b.put("reservas", reservas.findAll().stream()
+                .filter(r -> unidadeId.equals(r.getUnidadeId())).toList());
+        b.put("chaves", chaves.findAll().stream()
+                .filter(c -> unidadeId.equals(c.getUnidadeId())).toList());
+        b.put("notificacoes", notificacoes.findAll().stream()
+                .filter(n -> unidadeId.equals(n.getUnidadeId())
+                        || atual.getId().equals(n.getParaId())).toList());
+        b.put("solicitacoes", solicitacoes.findAll().stream()
+                .filter(s -> unidadeId.equals(s.getUnidadeId())).toList());
         return b;
     }
 }

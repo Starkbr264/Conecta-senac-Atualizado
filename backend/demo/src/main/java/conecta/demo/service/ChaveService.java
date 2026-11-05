@@ -59,8 +59,13 @@ public class ChaveService {
         Chave chave = buscar(id);
         if (chave.getStatus() == StatusChave.RETIRADA)
             throw new RegraDeNegocioException("A chave ja esta retirada");
-        if (!usuarios.existsById(instrutorId))
-            throw new RecursoNaoEncontradoException("Instrutor", instrutorId);
+        var instrutor = usuarios.findById(instrutorId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Instrutor", instrutorId));
+        if (instrutor.getPerfil() != conecta.demo.model.Perfil.INSTRUTOR
+                && instrutor.getPerfil() != conecta.demo.model.Perfil.ADMIN)
+            throw new RegraDeNegocioException("Usuario nao possui perfil de instrutor");
+        if (!instrutor.getUnidadeId().equals(chave.getUnidadeId()))
+            throw new RegraDeNegocioException("Instrutor pertence a outra unidade");
         chave.setStatus(StatusChave.RETIRADA);
         chave.setInstrutorId(instrutorId);
         chave.setPegaEm(Instant.now());
