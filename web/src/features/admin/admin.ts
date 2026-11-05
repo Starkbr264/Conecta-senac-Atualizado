@@ -365,8 +365,17 @@ export function salvarUser(): void {
 export function resetSenha(id: number): void {
   const u = getUserById(id);
   if (!u) return;
-  const nova = prompt(`Nova senha para "${u.nome}":`);
+  const nova = prompt(`Nova senha para "${u.nome}" (mínimo de 8 caracteres):`);
   if (!nova || !nova.trim()) return;
+  if (nova.trim().length < 8) {
+    toast('A senha deve ter pelo menos 8 caracteres.', 'erro');
+    return;
+  }
+  const confirmacao = prompt('Confirme a nova senha:');
+  if (confirmacao !== nova) {
+    toast('As senhas não conferem.', 'erro');
+    return;
+  }
   void updUser(id, { senha: nova.trim() });
   toast(`Senha de "${u.nome}" redefinida!`, 'ok');
 }

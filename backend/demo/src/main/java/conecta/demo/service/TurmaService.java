@@ -3,6 +3,9 @@ package conecta.demo.service;
 import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.exception.RecursoNaoEncontradoException;
 import conecta.demo.model.Turma;
+import conecta.demo.model.Perfil;
+import conecta.demo.model.Usuario;
+import conecta.demo.repository.ReservaRepository;
 import conecta.demo.repository.TurmaRepository;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.repository.UsuarioRepository;
@@ -16,11 +19,14 @@ public class TurmaService {
     private final TurmaRepository turmas;
     private final UnidadeRepository unidades;
     private final UsuarioRepository usuarios;
+    private final ReservaRepository reservas;
 
-    public TurmaService(TurmaRepository turmas, UnidadeRepository unidades, UsuarioRepository usuarios) {
+    public TurmaService(TurmaRepository turmas, UnidadeRepository unidades, UsuarioRepository usuarios,
+                        ReservaRepository reservas) {
         this.turmas = turmas;
         this.unidades = unidades;
         this.usuarios = usuarios;
+        this.reservas = reservas;
     }
 
     @Transactional(readOnly = true)
@@ -34,7 +40,7 @@ public class TurmaService {
     }
 
     public Turma criar(Turma turma) {
-        validar(turma);
+        validar(turma, null);
         turma.setId(proximoId());
         return turmas.save(turma);
     }
@@ -45,7 +51,7 @@ public class TurmaService {
 
     public Turma atualizar(Long id, Turma entrada) {
         Turma atual = buscar(id);
-        validar(entrada);
+        validar(entrada, id);
         atual.setNome(entrada.getNome());
         atual.setCodigo(entrada.getCodigo());
         atual.setCurso(entrada.getCurso());
@@ -58,15 +64,28 @@ public class TurmaService {
     }
 
     public void excluir(Long id) {
-        turmas.delete(buscar(id));
+        Turma turma = buscar(id);
+        reservas.deleteAll(reservas.findByTurmaId(id));
+        turmas.delete(turma);
     }
 
-    private void validar(Turma turma) {
+    private void validar(Turma turma, Long ignorarId) {
         if (turma.getDataInicio() != null && turma.getDataFim() != null && turma.getDataFim().isBefore(turma.getDataInicio()))
             throw new RegraDeNegocioException("A data final deve ser posterior a data inicial");
         if (!unidades.existsById(turma.getUnidadeId()))
             throw new RegraDeNegocioException("Unidade informada nao existe");
-        if (turma.getInstrutorId() != null && !usuarios.existsById(turma.getInstrutorId()))
-            throw new RegraDeNegocioException("Instrutor informado nao existe");
+        if (turma.getCodigo() == null || turma.getCodigo().isBlank())
+            throw new RegraDeNegocioException("Codigo da turma e obrigatorio");
+        if (turmas.findByCodigo(turma.getCodigo()).stream()
+                .anyMatch(t -> ignorarId == null || !t.getId().equals(ignorarId)))
+            throw new RegraDeNegocioException("Ja existe turma com este codigo");
+        if (turma.getInstrutorId() != null) {
+            Usuario instrutor = usuarios.findById(turma.getInstrutorId())
+                    .orElseThrow(() -> new RegraDeNegocioException("Instrutor informado nao existe"));
+            if (instrutor.getPerfil() != Perfil.INSTRUTOR)
+                throw new RegraDeNegocioException("Usuario vinculado nao possui perfil INSTRUTOR");
+            if (!instrutor.getUnidadeId().equals(turma.getUnidadeId()))
+                throw new RegraDeNegocioException("Instrutor deve pertencer a mesma unidade da turma");
+        }
     }
 }

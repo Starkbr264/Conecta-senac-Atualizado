@@ -10,6 +10,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/solicitacoes")
@@ -32,6 +33,7 @@ public class SolicitacaoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','INSTRUTOR')")
     public ResponseEntity<Solicitacao> criar(@Valid @RequestBody SolicitacaoRequest request) {
         Solicitacao criada = service.criar(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -42,6 +44,7 @@ public class SolicitacaoController {
     }
 
     @PostMapping("/{id}/resposta")
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     public Solicitacao responder(@PathVariable Long id, @Valid @RequestBody RespostaSolicitacaoRequest request) {
         return service.responder(id, request);
     }

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class UsuarioService {
+    public static final int TAMANHO_MINIMO_SENHA = 8;
     private final UsuarioRepository usuarios;
     private final UnidadeRepository unidades;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -41,6 +42,8 @@ public class UsuarioService {
 
     public Usuario criar(Usuario usuario) {
         validar(usuario);
+        if (usuario.getSenha() == null || usuario.getSenha().isBlank())
+            throw new RegraDeNegocioException("Senha e obrigatoria");
         if (usuarios.findByEmailIgnoreCase(usuario.getEmail()).isPresent())
             throw new RegraDeNegocioException("E-mail ja cadastrado");
         usuario.setId(proximoId());
@@ -83,5 +86,8 @@ public class UsuarioService {
     private void validar(Usuario usuario) {
         if (!unidades.existsById(usuario.getUnidadeId()))
             throw new RegraDeNegocioException("Unidade informada nao existe");
+        if (usuario.getSenha() != null && !usuario.getSenha().isBlank()
+                && usuario.getSenha().length() < TAMANHO_MINIMO_SENHA)
+            throw new RegraDeNegocioException("A senha deve ter pelo menos " + TAMANHO_MINIMO_SENHA + " caracteres");
     }
 }

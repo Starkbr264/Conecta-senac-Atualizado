@@ -11,6 +11,8 @@ import conecta.demo.model.StatusSolicitacao;
 import conecta.demo.model.Turma;
 import conecta.demo.model.Unidade;
 import conecta.demo.model.Usuario;
+import conecta.demo.exception.AcessoNegadoException;
+import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.repository.ChaveRepository;
 import conecta.demo.repository.NotificacaoRepository;
 import conecta.demo.repository.ReservaRepository;
@@ -92,9 +94,22 @@ public class SincService {
 
         Map<String, Object> resposta = new LinkedHashMap<>();
         resposta.put("ok", true);
-        resposta.put("banco", dados.banco());
+        resposta.put("banco", bancoVisivel());
         resposta.put("idsNovos", idsNovos);
         return resposta;
+    }
+
+    /** Autoriza o caminho de sincronizacao, que e usado pelos clientes para toda escrita. */
+    public static void validarPermissaoSincronizacao(String colecao, Perfil perfil) {
+        if (perfil == null || perfil == Perfil.ADMIN) return;
+        boolean permitido = switch (perfil) {
+            case COORDENADOR -> java.util.Set.of("salas", "turmas", "reservas", "solicitacoes", "notificacoes").contains(colecao);
+            case INSTRUTOR -> java.util.Set.of("solicitacoes", "notificacoes").contains(colecao);
+            case RECEPCAO -> java.util.Set.of("chaves", "notificacoes").contains(colecao);
+            default -> false;
+        };
+        if (!permitido)
+            throw new AcessoNegadoException("Perfil nao pode sincronizar a colecao " + colecao);
     }
 
     /**
@@ -122,7 +137,7 @@ public class SincService {
 
         Map<String, Object> resposta = new LinkedHashMap<>();
         resposta.put("ok", true);
-        resposta.put("banco", dados.banco());
+        resposta.put("banco", bancoVisivel());
         return resposta;
     }
 
@@ -144,6 +159,7 @@ public class SincService {
     private void aplicarCriados(Map<String, Object> criados, Map<String, Map<String, Long>> idsNovos) {
         for (Map.Entry<String, Object> entrada : criados.entrySet()) {
             String colecao = entrada.getKey();
+            validarPermissaoSincronizacao(colecao, perfilAutenticado());
             if (!(entrada.getValue() instanceof List<?>)) {
                 continue;
             }
@@ -155,6 +171,7 @@ public class SincService {
                     continue;
                 }
                 Long idProvisorio = Long.valueOf(item.get("id").toString());
+                validarUnidadeDoPayload(colecao, item);
                 if (existe(colecao, idProvisorio)) {
                     continue;
                 }
@@ -172,6 +189,7 @@ public class SincService {
     private void aplicarAlteracoes(Map<String, Object> alteracoes) {
         for (Map.Entry<String, Object> entrada : alteracoes.entrySet()) {
             String colecao = entrada.getKey();
+            validarPermissaoSincronizacao(colecao, perfilAutenticado());
             if (!(entrada.getValue() instanceof List<?>)) {
                 continue;
             }
@@ -181,6 +199,7 @@ public class SincService {
                 if (item == null || item.get("id") == null) {
                     continue;
                 }
+                validarUnidadeDoPayload(colecao, item);
                 salvar(colecao, item);
             }
         }
@@ -189,6 +208,7 @@ public class SincService {
     private void aplicarRemocoes(Map<String, Object> remocoes) {
         for (Map.Entry<String, Object> entrada : remocoes.entrySet()) {
             String colecao = entrada.getKey();
+            validarPermissaoSincronizacao(colecao, perfilAutenticado());
             if (!(entrada.getValue() instanceof List<?>)) {
                 continue;
             }
@@ -201,6 +221,45 @@ public class SincService {
                 deletar(colecao, Long.valueOf(idObj.toString()));
             }
         }
+    }
+
+    private Perfil perfilAutenticado() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) return null;
+        return auth.getAuthorities().stream()
+                .map(a -> a.getAuthority().replaceFirst("^ROLE_", ""))
+                .map(valor -> {
+                    try {
+                        return Perfil.from(valor);
+                    } catch (IllegalArgumentException ex) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .findFirst().orElse(null);
+    }
+
+    private Map<String, Object> bancoVisivel() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName()))
+            return dados.banco();
+        return usuarios.findByEmailIgnoreCase(auth.getName())
+                .map(dados::banco).orElseGet(dados::banco);
+    }
+
+    private void validarUnidadeDoPayload(String colecao, Map<String, Object> item) {
+        Perfil perfil = perfilAutenticado();
+        if (perfil == null || perfil == Perfil.ADMIN
+                || "notificacoes".equals(colecao)) return;
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        Long unidadeDoUsuario = usuarios.findByEmailIgnoreCase(auth.getName())
+                .map(Usuario::getUnidadeId).orElse(null);
+        Long unidadeDoItem = longOuNull(item.get("unidadeId"));
+        if (unidadeDoUsuario == null || !unidadeDoUsuario.equals(unidadeDoItem))
+            throw new AcessoNegadoException("Registro fora da unidade do usuario autenticado");
     }
 
     private boolean existe(String colecao, Long id) {
@@ -308,6 +367,9 @@ public class SincService {
                     // Ja esta hasheada (eco de cache antigo): nao re-hashear.
                     u.setSenha(senhaRecebida);
                 } else {
+                    if (senhaRecebida.length() < UsuarioService.TAMANHO_MINIMO_SENHA)
+                        throw new RegraDeNegocioException(
+                                "A senha deve ter pelo menos " + UsuarioService.TAMANHO_MINIMO_SENHA + " caracteres");
                     u.setSenha(hashSenha(senhaRecebida));
                 }
                 usuarios.save(u);
