@@ -18,11 +18,19 @@ public class ChaveService {
     private final ChaveRepository chaves;
     private final SalaRepository salas;
     private final UsuarioRepository usuarios;
+    private final IdAllocatorService ids;
 
     public ChaveService(ChaveRepository chaves, SalaRepository salas, UsuarioRepository usuarios) {
+        this(chaves, salas, usuarios, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ChaveService(ChaveRepository chaves, SalaRepository salas, UsuarioRepository usuarios,
+                        IdAllocatorService ids) {
         this.chaves = chaves;
         this.salas = salas;
         this.usuarios = usuarios;
+        this.ids = ids;
     }
 
     @Transactional(readOnly = true)
@@ -36,18 +44,24 @@ public class ChaveService {
     }
 
     public Chave criar(Chave chave) {
-        validar(chave);
+        validar(chave, null);
         chave.setId(proximoId());
         return chaves.save(chave);
     }
 
+    /** Valida uma chave sincronizada sem persisti-la. */
+    void validarParaSincronizacao(Chave chave, Long ignorarId) {
+        validar(chave, ignorarId);
+    }
+
     private Long proximoId() {
+        if (ids != null) return ids.next("chaves", () -> chaves.findAll().stream().mapToLong(Chave::getId).max().orElse(0L));
         return chaves.findAll().stream().mapToLong(Chave::getId).max().orElse(0L) + 1;
     }
 
     public Chave atualizar(Long id, Chave entrada) {
         Chave atual = buscar(id);
-        validar(entrada);
+        validar(entrada, id);
         atual.setCodigo(entrada.getCodigo());
         atual.setSalaId(entrada.getSalaId());
         atual.setAndar(entrada.getAndar());
@@ -84,7 +98,14 @@ public class ChaveService {
         chaves.delete(buscar(id));
     }
 
-    private void validar(Chave chave) {
+    private void validar(Chave chave, Long ignorarId) {
+        if (chave.getCodigo() == null || chave.getCodigo().isBlank()
+                || chave.getSalaId() == null || chave.getUnidadeId() == null)
+            throw new RegraDeNegocioException("Codigo, sala e unidade da chave sao obrigatorios");
+        chaves.findByCodigo(chave.getCodigo().trim()).ifPresent(existente -> {
+            if (ignorarId == null || !existente.getId().equals(ignorarId))
+                throw new RegraDeNegocioException("Ja existe uma chave com este codigo");
+        });
         var sala = salas.findById(chave.getSalaId()).orElseThrow(() -> new RecursoNaoEncontradoException("Sala", chave.getSalaId()));
         if (!sala.getUnidadeId().equals(chave.getUnidadeId()))
             throw new RegraDeNegocioException("A sala nao pertence a unidade informada");

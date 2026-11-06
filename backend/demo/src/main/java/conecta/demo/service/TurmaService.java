@@ -20,13 +20,21 @@ public class TurmaService {
     private final UnidadeRepository unidades;
     private final UsuarioRepository usuarios;
     private final ReservaRepository reservas;
+    private final IdAllocatorService ids;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public TurmaService(TurmaRepository turmas, UnidadeRepository unidades, UsuarioRepository usuarios,
                         ReservaRepository reservas) {
+        this(turmas, unidades, usuarios, reservas, null);
+    }
+
+    public TurmaService(TurmaRepository turmas, UnidadeRepository unidades, UsuarioRepository usuarios,
+                        ReservaRepository reservas, IdAllocatorService ids) {
         this.turmas = turmas;
         this.unidades = unidades;
         this.usuarios = usuarios;
         this.reservas = reservas;
+        this.ids = ids;
     }
 
     @Transactional(readOnly = true)
@@ -45,7 +53,13 @@ public class TurmaService {
         return turmas.save(turma);
     }
 
+    /** Valida uma turma sincronizada sem persisti-la. */
+    void validarParaSincronizacao(Turma turma, Long ignorarId) {
+        validar(turma, ignorarId);
+    }
+
     private Long proximoId() {
+        if (ids != null) return ids.next("turmas", () -> turmas.findAll().stream().mapToLong(Turma::getId).max().orElse(0L));
         return turmas.findAll().stream().mapToLong(Turma::getId).max().orElse(0L) + 1;
     }
 
@@ -72,7 +86,7 @@ public class TurmaService {
     private void validar(Turma turma, Long ignorarId) {
         if (turma.getDataInicio() != null && turma.getDataFim() != null && turma.getDataFim().isBefore(turma.getDataInicio()))
             throw new RegraDeNegocioException("A data final deve ser posterior a data inicial");
-        if (!unidades.existsById(turma.getUnidadeId()))
+        if (turma.getUnidadeId() == null || !unidades.existsById(turma.getUnidadeId()))
             throw new RegraDeNegocioException("Unidade informada nao existe");
         if (turma.getCodigo() == null || turma.getCodigo().isBlank())
             throw new RegraDeNegocioException("Codigo da turma e obrigatorio");

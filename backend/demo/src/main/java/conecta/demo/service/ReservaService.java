@@ -19,11 +19,19 @@ public class ReservaService {
     private final ReservaRepository reservas;
     private final SalaRepository salas;
     private final TurmaRepository turmas;
+    private final IdAllocatorService ids;
 
     public ReservaService(ReservaRepository reservas, SalaRepository salas, TurmaRepository turmas) {
+        this(reservas, salas, turmas, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ReservaService(ReservaRepository reservas, SalaRepository salas, TurmaRepository turmas,
+                          IdAllocatorService ids) {
         this.reservas = reservas;
         this.salas = salas;
         this.turmas = turmas;
+        this.ids = ids;
     }
 
     @Transactional(readOnly = true)
@@ -43,7 +51,20 @@ public class ReservaService {
         return reservas.save(reserva);
     }
 
+    /** Valida uma reserva sincronizada sem persisti-la. */
+    void validarParaSincronizacao(ReservaRequest request, Long ignorarId) {
+        if (request == null || request.salaId() == null || request.turno() == null
+                || request.turno().isBlank() || request.diasSemana() == null
+                || request.diasSemana().isEmpty() || request.dataInicio() == null
+                || request.dataFim() == null || request.unidadeId() == null) {
+            throw new RegraDeNegocioException("Dados da reserva invalidos");
+        }
+        Reserva proposta = montar(request);
+        validarDisponibilidade(proposta, ignorarId);
+    }
+
     private Long proximoId() {
+        if (ids != null) return ids.next("reservas", () -> reservas.findAll().stream().mapToLong(Reserva::getId).max().orElse(0L));
         return reservas.findAll().stream().mapToLong(Reserva::getId).max().orElse(0L) + 1;
     }
 

@@ -319,6 +319,7 @@ export function fecharUser(): void {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@.]+$/;
+const SENHA_MINIMA = 8;
 
 /** Persiste o usuario editado/criado. */
 export function salvarUser(): void {
@@ -334,6 +335,9 @@ export function salvarUser(): void {
   if (!perfil) return fmsg('mUMsg', 'erro', 'Selecione o perfil.');
   if (!unidadeId) return fmsg('mUMsg', 'erro', 'Selecione a unidade.');
   if (!editUserId && !senha) return fmsg('mUMsg', 'erro', 'Defina uma senha.');
+  if (senha && senha.length < SENHA_MINIMA) {
+    return fmsg('mUMsg', 'erro', `A senha deve ter pelo menos ${SENHA_MINIMA} caracteres.`);
+  }
 
   const existe = getUsuarios().find(
     (u: Usuario) =>
@@ -367,8 +371,8 @@ export function resetSenha(id: number): void {
   if (!u) return;
   const nova = prompt(`Nova senha para "${u.nome}" (mínimo de 8 caracteres):`);
   if (!nova || !nova.trim()) return;
-  if (nova.trim().length < 8) {
-    toast('A senha deve ter pelo menos 8 caracteres.', 'erro');
+  if (nova.trim().length < SENHA_MINIMA) {
+    toast(`A senha deve ter pelo menos ${SENHA_MINIMA} caracteres.`, 'erro');
     return;
   }
   const confirmacao = prompt('Confirme a nova senha:');

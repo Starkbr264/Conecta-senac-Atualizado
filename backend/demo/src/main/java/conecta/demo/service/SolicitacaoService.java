@@ -21,13 +21,51 @@ public class SolicitacaoService {
     private final UsuarioRepository usuarios;
     private final ReservaService reservas;
     private final NotificacaoRepository notificacoes;
+    private final IdAllocatorService ids;
+    private final TurmaRepository turmas;
+    private final UnidadeRepository unidades;
 
     public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes) {
+        this(solicitacoes, salas, usuarios, reservas, notificacoes, null, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes, IdAllocatorService ids, TurmaRepository turmas, UnidadeRepository unidades) {
         this.solicitacoes = solicitacoes;
         this.salas = salas;
         this.usuarios = usuarios;
         this.reservas = reservas;
         this.notificacoes = notificacoes;
+        this.ids = ids;
+        this.turmas = turmas;
+        this.unidades = unidades;
+    }
+
+    /**
+     * Valida uma solicitacao recebida do /api/sinc sem persisti-la.
+     *
+     * <p>Confere que sala, instrutor, unidade (e turma, quando informada)
+     * existem e pertencem a mesma unidade da solicitacao — nenhum registro
+     * orfao nem referencia cruzada entre unidades entra no banco.
+     */
+    void validarParaSincronizacao(Solicitacao sol) {
+        if (sol.getSalaId() == null || sol.getInstrutorId() == null || sol.getUnidadeId() == null || sol.getData() == null)
+            throw new RegraDeNegocioException("Sala, instrutor, unidade e data da solicitacao sao obrigatorios");
+        if (sol.getUnidadeId() == null || !unidades.existsById(sol.getUnidadeId()))
+            throw new RegraDeNegocioException("Unidade da solicitacao nao existe");
+        Sala sala = salas.findById(sol.getSalaId())
+                .orElseThrow(() -> new RegraDeNegocioException("Sala da solicitacao nao existe"));
+        Usuario instrutor = usuarios.findById(sol.getInstrutorId())
+                .orElseThrow(() -> new RegraDeNegocioException("Instrutor da solicitacao nao existe"));
+        if (!sol.getUnidadeId().equals(sala.getUnidadeId())
+                || !sol.getUnidadeId().equals(instrutor.getUnidadeId()))
+            throw new RegraDeNegocioException("Solicitacao deve usar instrutor, sala e unidade compativeis");
+        if (sol.getTurmaId() != null) {
+            Turma turma = turmas.findById(sol.getTurmaId())
+                    .orElseThrow(() -> new RegraDeNegocioException("Turma da solicitacao nao existe"));
+            if (!sol.getUnidadeId().equals(turma.getUnidadeId()))
+                throw new RegraDeNegocioException("Turma da solicitacao nao pertence a mesma unidade");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -68,10 +106,12 @@ public class SolicitacaoService {
     }
 
     private Long proximoId() {
+        if (ids != null) return ids.next("solicitacoes", () -> solicitacoes.findAll().stream().mapToLong(Solicitacao::getId).max().orElse(0L));
         return solicitacoes.findAll().stream().mapToLong(Solicitacao::getId).max().orElse(0L) + 1;
     }
 
     private Long proximoIdNotificacao() {
+        if (ids != null) return ids.next("notificacoes", () -> notificacoes.findAll().stream().mapToLong(Notificacao::getId).max().orElse(0L));
         return notificacoes.findAll().stream().mapToLong(Notificacao::getId).max().orElse(0L) + 1;
     }
 
