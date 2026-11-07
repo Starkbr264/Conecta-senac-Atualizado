@@ -35,7 +35,9 @@ public class UnidadeService {
     private final ReservaRepository reservas;
     private final ChaveRepository chaves;
     private final SolicitacaoRepository solicitacoes;
+    private final IdAllocatorService ids;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public UnidadeService(UnidadeRepository unidades,
                           UsuarioRepository usuarios,
                           SalaRepository salas,
@@ -43,6 +45,17 @@ public class UnidadeService {
                           ReservaRepository reservas,
                           ChaveRepository chaves,
                           SolicitacaoRepository solicitacoes) {
+        this(unidades, usuarios, salas, turmas, reservas, chaves, solicitacoes, null);
+    }
+
+    public UnidadeService(UnidadeRepository unidades,
+                          UsuarioRepository usuarios,
+                          SalaRepository salas,
+                          TurmaRepository turmas,
+                          ReservaRepository reservas,
+                          ChaveRepository chaves,
+                          SolicitacaoRepository solicitacoes,
+                          IdAllocatorService ids) {
         this.unidades = unidades;
         this.usuarios = usuarios;
         this.salas = salas;
@@ -50,6 +63,7 @@ public class UnidadeService {
         this.reservas = reservas;
         this.chaves = chaves;
         this.solicitacoes = solicitacoes;
+        this.ids = ids;
     }
 
     @Transactional(readOnly = true)
@@ -63,20 +77,25 @@ public class UnidadeService {
     }
 
     public Unidade criar(Unidade unidade) {
-        exigirNomeUnico(unidade.getNome(), null);
-        unidade.setCep(normalizarCep(unidade.getCep()));
+        validarParaSincronizacao(unidade, null);
         unidade.setId(proximoId());
         return unidades.save(unidade);
     }
 
+    /** Valida e normaliza uma unidade sincronizada sem persisti-la. */
+    void validarParaSincronizacao(Unidade unidade, Long ignorarId) {
+        exigirNomeUnico(unidade.getNome(), ignorarId);
+        unidade.setCep(normalizarCep(unidade.getCep()));
+    }
+
     private Long proximoId() {
+        if (ids != null) return ids.next("unidades", () -> unidades.findAll().stream().mapToLong(Unidade::getId).max().orElse(0L));
         return unidades.findAll().stream().mapToLong(Unidade::getId).max().orElse(0L) + 1;
     }
 
     public Unidade atualizar(Long id, Unidade entrada) {
         Unidade atual = buscar(id);
-        exigirNomeUnico(entrada.getNome(), id);
-        entrada.setCep(normalizarCep(entrada.getCep()));
+        validarParaSincronizacao(entrada, id);
         atual.setNome(entrada.getNome());
         atual.setCep(entrada.getCep());
         atual.setCidade(entrada.getCidade());

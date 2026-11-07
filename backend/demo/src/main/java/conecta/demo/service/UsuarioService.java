@@ -18,11 +18,18 @@ public class UsuarioService {
     public static final int TAMANHO_MINIMO_SENHA = 8;
     private final UsuarioRepository usuarios;
     private final UnidadeRepository unidades;
+    private final IdAllocatorService ids;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public UsuarioService(UsuarioRepository usuarios, UnidadeRepository unidades) {
+        this(usuarios, unidades, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public UsuarioService(UsuarioRepository usuarios, UnidadeRepository unidades, IdAllocatorService ids) {
         this.usuarios = usuarios;
         this.unidades = unidades;
+        this.ids = ids;
     }
 
     /** Hash BCrypt para senhas em texto puro. */
@@ -51,7 +58,13 @@ public class UsuarioService {
         return usuarios.save(usuario);
     }
 
+    /** Valida um usuario materializado pelo lote de sincronizacao sem persisti-lo. */
+    void validarParaSincronizacao(Usuario usuario) {
+        validar(usuario);
+    }
+
     private Long proximoId() {
+        if (ids != null) return ids.next("usuarios", () -> usuarios.findAll().stream().mapToLong(Usuario::getId).max().orElse(0L));
         return usuarios.findAll().stream().mapToLong(Usuario::getId).max().orElse(0L) + 1;
     }
 
@@ -84,7 +97,7 @@ public class UsuarioService {
     }
 
     private void validar(Usuario usuario) {
-        if (!unidades.existsById(usuario.getUnidadeId()))
+        if (usuario.getUnidadeId() == null || !unidades.existsById(usuario.getUnidadeId()))
             throw new RegraDeNegocioException("Unidade informada nao existe");
         if (usuario.getSenha() != null && !usuario.getSenha().isBlank()
                 && usuario.getSenha().length() < TAMANHO_MINIMO_SENHA)

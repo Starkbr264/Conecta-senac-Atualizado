@@ -12,11 +12,11 @@
  */
 
 import {
-  addSala,
-  deleteSala,
+  addSalaAsync,
+  delSalaAsync,
   getReservas,
   getSalas,
-  updateSala,
+  updSalaAsync,
 } from '../../core/storage';
 import { showMsg, showToast } from '../../core/ui';
 import { escapeHtml } from '../../core/format';
@@ -109,7 +109,7 @@ function lerDadosSala(): { dados: DadosSala; erros: string[] } {
 }
 
 /** Persiste a sala (cadastro ou edicao). */
-export function salvarSala(): void {
+export async function salvarSala(): Promise<void> {
   const { dados, erros } = lerDadosSala();
 
   if (erros.length > 0) {
@@ -117,13 +117,18 @@ export function salvarSala(): void {
     return;
   }
 
-  if (salaEditId) {
-    updateSala(salaEditId, dados);
-    showToast('Sala atualizada com sucesso!', 'success');
-    cancelarEdicaoSala();
-  } else {
-    addSala(dados);
-    showToast('Sala cadastrada com sucesso!', 'success');
+  try {
+    if (salaEditId) {
+      await updSalaAsync(salaEditId, dados);
+      showToast('Sala atualizada com sucesso!', 'success');
+      cancelarEdicaoSala();
+    } else {
+      await addSalaAsync(dados);
+      showToast('Sala cadastrada com sucesso!', 'success');
+    }
+  } catch {
+    showToast('Sala mantida localmente, aguardando sincronização.', 'warning');
+    return;
   }
 
   byId<HTMLFormElement>('formSala').reset();
@@ -167,7 +172,7 @@ export function cancelarEdicaoSala(): void {
 }
 
 /** Exclui uma sala, bloqueando quando existem reservas ativas. */
-export function excluirSala(id: number): void {
+export async function excluirSala(id: number): Promise<void> {
   const reservasVinculadas = getReservas().filter(
     (r) => r.salaId === id && r.status === 'ATIVA',
   );
@@ -179,8 +184,13 @@ export function excluirSala(id: number): void {
     return;
   }
   if (!confirm('Excluir esta sala? Esta ação não pode ser desfeita.')) return;
-  deleteSala(id);
-  showToast('Sala excluída.', 'warning');
+  try {
+    await delSalaAsync(id);
+    showToast('Sala excluída.', 'warning');
+  } catch {
+    showToast('Exclusão da sala pendente de sincronização.', 'warning');
+    return;
+  }
   renderTabelaSalas();
 }
 

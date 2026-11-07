@@ -10,7 +10,7 @@
  *  - fonte da verdade:    `GET /api/dados` em `server/index.js`.
  */
 
-import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken } from './api';
+import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi } from './api';
 import { getSessao } from './theme';
 import type {
   Atualizar,
@@ -53,6 +53,7 @@ export const K = {
   sessao: 'sn_v6_sessao',
   tema: 'sn_v6_tema',
   init: 'sn_v6_init_v1',
+  syncPendentes: 'sn_v6_sync_pendentes',
 } as const;
 
 /** Nomes das coleções espelhadas em cache. */
@@ -87,6 +88,46 @@ export interface CacheDados {
    * ressuscitadas na proxima sincronizacao.
    */
   _remocoes: Partial<Record<Colecao, number[]>>;
+}
+
+export interface SyncPayload {
+  operacaoId?: string;
+  criados?: Partial<Record<Colecao, unknown[]>>;
+  alteracoes?: Partial<Record<Colecao, unknown[]>>;
+  remocoes?: Partial<Record<Colecao, number[]>>;
+}
+
+interface SyncPendente {
+  operacaoId: string;
+  payload: SyncPayload;
+}
+
+export interface SyncResult {
+  confirmado: boolean;
+  pendente: boolean;
+  /** A operacao bloqueada contem senha e nao foi persistida na fila. */
+  exigeConexao?: boolean;
+  erro?: unknown;
+}
+
+export class SincronizacaoPendenteError extends Error {
+  readonly pendente = true;
+  /**
+   * `true` quando a operacao contem senha: ela fica so em memoria (nunca em
+   * `localStorage`) e POR ISSO exige conexao para concluir — nao sobrevive a
+   * recarregar a pagina.
+   */
+  readonly exigeConexao: boolean;
+
+  constructor(exigeConexao = false) {
+    super(
+      exigeConexao
+        ? 'Operacao com senha nao confirmada: exige conexao com o servidor e nao e mantida entre sessoes.'
+        : 'Operacao mantida localmente e pendente de sincronizacao.',
+    );
+    this.name = 'SincronizacaoPendenteError';
+    this.exigeConexao = exigeConexao;
+  }
 }
 
 /** Espelho em memoria dos dados (leitura livre para depuracao). */
@@ -129,9 +170,10 @@ function sv(key: string, valor: unknown): void {
   }
 }
 
-/** Proximo id livre de uma colecao (max + 1, como no legado). */
+/** ID negativo provisório; o ID positivo oficial é sempre criado pelo backend. */
 function nextId(lista: Array<{ id: number }>): number {
-  return lista.reduce((mx, x) => Math.max(mx, Number(x.id) || 0), 0) + 1;
+  const menor = lista.reduce((mx, x) => Math.min(mx, Number(x.id) || 0), 0);
+  return Math.min(menor, -Date.now()) - 1;
 }
 
 /** Copia ordenada por id. */
@@ -154,12 +196,51 @@ export function loadCache(): void {
   CACHE.chaves = lv<Chave>(K.chaves);
   CACHE.notificacoes = lv<Notificacao>(K.notificacoes);
   CACHE.solicitacoes = lv<Solicitacao>(K.solicitacoes);
+  lerFilaSync();
 }
 
 /** Grava a colecao no localStorage e a propaga ao servidor. */
-function persist(key: Colecao): void {
+const syncPromises = new WeakMap<object, Promise<SyncResult>>();
+let filaSync: SyncPendente[] = [];
+let flushPromise: Promise<SyncResult> | null = null;
+
+/**
+ * Status HTTP que significam recusa definitiva da operacao (validacao ou regra
+ * de negocio): a operacao sai da fila e o erro e reportado. Rede, 5xx, 401,
+ * 408 e 429 mantem a operacao pendente para reenvio.
+ */
+const REJEICOES_DEFINITIVAS = new Set([400, 403, 404, 409, 422]);
+
+function lerFilaSync(): void {
+  try {
+    const valor = localStorage.getItem(K.syncPendentes);
+    const lista: unknown = valor ? JSON.parse(valor) : [];
+    filaSync = Array.isArray(lista) ? lista as SyncPendente[] : [];
+  } catch {
+    filaSync = [];
+  }
+}
+
+function salvarFilaSync(): void {
+  // Operacoes de usuario com senha ficam somente em memoria: uma senha nunca
+  // deve sobreviver em localStorage, mesmo quando a API estiver indisponivel.
+  const persistiveis = filaSync.filter((op) => !JSON.stringify(op.payload).includes('"senha"'));
+  sv(K.syncPendentes, persistiveis);
+}
+
+function novoOperacaoId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function payloadDaColecao(key: Colecao, tipo: 'criados' | 'alteracoes', item: unknown): SyncPayload {
+  return { [tipo]: { [key]: [item] } } as SyncPayload;
+}
+
+function persist(key: Colecao, payload?: SyncPayload, entidade?: object): void {
   sv(K[key], CACHE[key]);
-  pushColecao(key);
+  const delta = payload ?? payloadDaColecao(key, 'alteracoes', CACHE[key][CACHE[key].length - 1]);
+  const promessa = enfileirar(delta);
+  if (entidade) syncPromises.set(entidade, promessa);
 }
 
 /** Coloca um id na fila de remocoes pendentes. */
@@ -174,36 +255,110 @@ function marcarRemovido(key: Colecao, id: number): void {
  * segundo plano (merge por id em `/api/sinc`). Se o servidor estiver fora do
  * ar, as remocoes permanecem na fila para a proxima tentativa.
  */
-function pushColecao(key: Colecao): void {
-  const itens = CACHE[key] as unknown[] | undefined;
-  if (!itens) return;
-
-  try {
-    const remocoes: Partial<Record<Colecao, number[]>> = {};
-    const fila = CACHE._remocoes[key];
-    if (fila && fila.length) remocoes[key] = fila;
-
-    sincronizar({ alteracoes: { [key]: itens }, remocoes })
-      .then((res) => {
-        delete CACHE._remocoes[key];
-        if (res && typeof res === 'object' && 'banco' in res) {
-          const banco = (res as { banco?: Record<string, unknown> }).banco;
-          if (banco && Array.isArray(banco[key])) {
-            (CACHE[key] as unknown[]) = banco[key] as unknown[];
-            sv(K[key], banco[key]);
-          }
-        }
-      })
-      .catch((err: unknown) => {
-        /* Se o servidor rejeitou a sincronizacao com status HTTP (4xx/5xx),
-           recarrega o estado integro do servidor para nao contaminar o cache. */
-        if (err && typeof err === 'object' && 'status' in err) {
-          void sincronizarServidor();
-        }
+function aplicarIdsOficiais(res: unknown): void {
+  if (!res || typeof res !== 'object') return;
+  const mapas = (res as { idsNovos?: Record<string, Record<string, number>> }).idsNovos;
+  if (!mapas) return;
+  const resolve = (colecao: string, valor: unknown): unknown =>
+    mapas[colecao]?.[String(valor)] ?? valor;
+  COLECOES.forEach((key) => {
+    CACHE[key].forEach((item) => {
+      if (mapas[key]?.[String(item.id)] !== undefined) item.id = Number(resolve(key, item.id));
+      (['unidadeId', 'instrutorId', 'salaId', 'turmaId'] as const).forEach((campo) => {
+        const colecao = campo === 'unidadeId' ? 'unidades' : campo === 'instrutorId' ? 'usuarios'
+          : campo === 'salaId' ? 'salas' : 'turmas';
+        const atual = (item as unknown as Record<string, unknown>)[campo];
+        if (atual !== undefined && mapas[colecao]?.[String(atual)] !== undefined)
+          (item as unknown as Record<string, unknown>)[campo] = resolve(colecao, atual);
       });
-  } catch {
-    /* nunca interrompe a operacao local */
-  }
+    });
+    sv(K[key], CACHE[key]);
+  });
+}
+
+async function flushPendentes(): Promise<SyncResult> {
+  if (flushPromise) return flushPromise;
+  flushPromise = (async (): Promise<SyncResult> => {
+    while (filaSync.length) {
+      const atual = filaSync[0];
+      try {
+        const resposta = await sincronizar(atual.payload);
+        aplicarIdsOficiais(resposta);
+        filaSync.shift();
+        salvarFilaSync();
+        if (resposta && typeof resposta === 'object' && 'banco' in resposta) {
+          const banco = (resposta as { banco?: Record<string, unknown> }).banco;
+          Object.keys(atual.payload.criados ?? {}).concat(Object.keys(atual.payload.alteracoes ?? {})).forEach((nome) => {
+            const key = nome as Colecao;
+            if (Array.isArray(banco?.[key])) {
+              CACHE[key] = banco[key] as never;
+              sv(K[key], banco[key]);
+            }
+          });
+        }
+      } catch (erro) {
+        // Rejeicao definitiva de negocio/validacao (4xx): o servidor recusou a
+        // operacao. Retira-a da fila para nao bloquear as demais, mas NUNCA de
+        // forma silenciosa — o erro segue para a interface.
+        if (erro instanceof ErroApi && REJEICOES_DEFINITIVAS.has(erro.status)) {
+          filaSync.shift();
+          salvarFilaSync();
+          return { confirmado: false, pendente: false, erro };
+        }
+        // Falha de rede / 5xx / 401: mantem o delta para reenvio.
+        return { confirmado: false, pendente: true, erro };
+      }
+    }
+    return { confirmado: true, pendente: false };
+  })().finally(() => { flushPromise = null; });
+  return flushPromise;
+}
+
+function enfileirar(payload: SyncPayload): Promise<SyncResult> {
+  const operacaoId = payload.operacaoId ?? novoOperacaoId();
+  const operacao: SyncPendente = { operacaoId, payload: { ...payload, operacaoId } };
+  filaSync.push(operacao);
+  salvarFilaSync();
+  return flushPendentes().then((resultado) => {
+    // Operacao com senha nao foi persistida na fila (salvarFilaSync a filtra);
+    // se ainda pendente, ela vale so nesta sessao — o chamador precisa saber.
+    const contemSenha = JSON.stringify(payload).includes('"senha"');
+    if (!resultado.confirmado && resultado.pendente && contemSenha) {
+      return { ...resultado, exigeConexao: true };
+    }
+    return resultado;
+  });
+}
+
+async function confirmar(entidade: object | null): Promise<void> {
+  const promessa = entidade ? syncPromises.get(entidade) : undefined;
+  if (!promessa) return;
+  const resultado = await promessa;
+  if (resultado.confirmado) return;
+  if (resultado.pendente) throw new SincronizacaoPendenteError(resultado.exigeConexao === true);
+  throw resultado.erro instanceof Error
+    ? resultado.erro
+    : new Error('Operacao recusada pelo servidor.');
+}
+
+export async function sincronizarPendencias(): Promise<boolean> {
+  if (!filaSync.length) lerFilaSync();
+  return (await flushPendentes()).confirmado;
+}
+
+/**
+ * Confirma a fila apos uma exclusao local: lança `SincronizacaoPendenteError`
+ * quando a falha e de rede (operacao mantida) e o erro original do servidor
+ * quando a operacao foi recusada definitivamente.
+ */
+async function confirmarFila(): Promise<void> {
+  if (!filaSync.length) lerFilaSync();
+  const resultado = await flushPendentes();
+  if (resultado.confirmado) return;
+  if (resultado.pendente) throw new SincronizacaoPendenteError();
+  throw resultado.erro instanceof Error
+    ? resultado.erro
+    : new Error('Operacao recusada pelo servidor.');
 }
 
 /**
@@ -216,6 +371,8 @@ function pushColecao(key: Colecao): void {
  * propagada por {@link pushColecao}.
  */
 export async function sincronizarServidor(): Promise<void> {
+  if (!filaSync.length) lerFilaSync();
+  if (filaSync.length && !(await flushPendentes()).confirmado) return;
   // Sem token JWT nao ha o que sincronizar: /api/dados exige autenticacao e a
   // chamada retornaria 401 (logado antes como "modo offline"/"sessao expirada",
   // mensagem enganosa na tela de login, que roda este fluxo antes do login).
@@ -240,7 +397,7 @@ export async function sincronizarServidor(): Promise<void> {
       });
 
       if (Object.keys(remocoes).length) {
-        await sincronizar({ alteracoes: {}, remocoes });
+        await sincronizar({ alteracoes: {}, remocoes, operacaoId: novoOperacaoId() });
         CACHE._remocoes = {};
       }
     }
@@ -525,8 +682,11 @@ export async function addUser(dados: NovoUsuario & { nome: string; email: string
     id: nextId(CACHE.usuarios),
     perfil: lowerPerfil(dados.perfil) as Perfil,
   };
+  const senha = (dados as unknown as { senha?: string }).senha;
+  delete (item as unknown as { senha?: string }).senha;
   CACHE.usuarios.push(item);
-  persist('usuarios');
+  persist('usuarios', payloadDaColecao('usuarios', 'criados', { ...item, ...(senha ? { senha } : {}) }), item);
+  await confirmar(item);
   return item;
 }
 
@@ -542,7 +702,10 @@ export async function updUser(id: number | string, dados: Atualizar<Usuario>): P
   if (payload.perfil) payload.perfil = lowerPerfil(payload.perfil) as Perfil;
 
   CACHE.usuarios[idx] = { ...CACHE.usuarios[idx], ...payload };
-  persist('usuarios');
+  const senha = (payload as unknown as { senha?: string }).senha;
+  delete (CACHE.usuarios[idx] as unknown as { senha?: string }).senha;
+  persist('usuarios', payloadDaColecao('usuarios', 'alteracoes', { ...CACHE.usuarios[idx], ...(senha ? { senha } : {}) }), CACHE.usuarios[idx]);
+  await confirmar(CACHE.usuarios[idx]);
   return { ...CACHE.usuarios[idx] };
 }
 
@@ -552,12 +715,16 @@ export async function updUsuario(id: number | string, dados: Atualizar<Usuario>)
 
 export async function delUser(id: number | string): Promise<void> {
   CACHE.usuarios = CACHE.usuarios.filter((u) => String(u.id) !== String(id));
-  marcarRemovido('usuarios', Number(id));
-  persist('usuarios');
+  persist('usuarios', { remocoes: { usuarios: [Number(id)] } });
 }
 
 export async function delUsuario(id: number | string): Promise<void> {
   return delUser(id);
+}
+
+export async function delUserAsync(id: number | string): Promise<void> {
+  await delUser(id);
+  await confirmarFila();
 }
 
 // ---------------------------------------------------------------------------
@@ -567,22 +734,39 @@ export async function delUsuario(id: number | string): Promise<void> {
 export function addUnidade(d: NovoUnidade): Unidade {
   const item: Unidade = { ...d, id: nextId(CACHE.unidades) };
   CACHE.unidades.push(item);
-  persist('unidades');
+  persist('unidades', payloadDaColecao('unidades', 'criados', item), item);
   return item;
+}
+
+export async function addUnidadeAsync(d: NovoUnidade): Promise<Unidade> {
+  const item = addUnidade(d);
+  await confirmar(item);
+  return { ...item };
 }
 
 export function updUnidade(id: number | string, d: Atualizar<Unidade>): Unidade | null {
   const idx = CACHE.unidades.findIndex((u) => String(u.id) === String(id));
   if (idx < 0) return null;
   CACHE.unidades[idx] = { ...CACHE.unidades[idx], ...d };
-  persist('unidades');
+  persist('unidades', payloadDaColecao('unidades', 'alteracoes', CACHE.unidades[idx]), CACHE.unidades[idx]);
   return { ...CACHE.unidades[idx] };
+}
+
+export async function updUnidadeAsync(id: number | string, d: Atualizar<Unidade>): Promise<Unidade | null> {
+  const item = updUnidade(id, d);
+  if (!item) return null;
+  await confirmar(CACHE.unidades.find((u) => String(u.id) === String(id)) ?? null);
+  return item;
 }
 
 export function delUnidade(id: number | string): void {
   CACHE.unidades = CACHE.unidades.filter((u) => String(u.id) !== String(id));
-  marcarRemovido('unidades', Number(id));
-  persist('unidades');
+  persist('unidades', { remocoes: { unidades: [Number(id)] } });
+}
+
+export async function delUnidadeAsync(id: number | string): Promise<void> {
+  delUnidade(id);
+  await confirmarFila();
 }
 
 // ---------------------------------------------------------------------------
@@ -611,8 +795,14 @@ export function addSala(d: NovaSalaSemUnidade): Sala {
     unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.salas.push(item);
-  persist('salas');
+  persist('salas', payloadDaColecao('salas', 'criados', item), item);
   return item;
+}
+
+export async function addSalaAsync(d: NovaSalaSemUnidade): Promise<Sala> {
+  const item = addSala(d);
+  await confirmar(item);
+  return { ...item };
 }
 
 export function updSala(id: number | string, d: Atualizar<Sala>): Sala | null {
@@ -621,8 +811,15 @@ export function updSala(id: number | string, d: Atualizar<Sala>): Sala | null {
 
   const turnos = d.turnosDisponiveis ?? d.turnos ?? CACHE.salas[idx].turnosDisponiveis ?? [];
   CACHE.salas[idx] = { ...CACHE.salas[idx], ...d, turnosDisponiveis: turnos, turnos };
-  persist('salas');
+  persist('salas', payloadDaColecao('salas', 'alteracoes', CACHE.salas[idx]), CACHE.salas[idx]);
   return { ...CACHE.salas[idx] };
+}
+
+export async function updSalaAsync(id: number | string, d: Atualizar<Sala>): Promise<Sala | null> {
+  const item = updSala(id, d);
+  if (!item) return null;
+  await confirmar(CACHE.salas.find((s) => String(s.id) === String(id)) ?? null);
+  return item;
 }
 
 export function updateSala(id: number | string, d: Atualizar<Sala>): Sala | null {
@@ -631,8 +828,12 @@ export function updateSala(id: number | string, d: Atualizar<Sala>): Sala | null
 
 export function delSala(id: number | string): void {
   CACHE.salas = CACHE.salas.filter((s) => String(s.id) !== String(id));
-  marcarRemovido('salas', Number(id));
-  persist('salas');
+  persist('salas', { remocoes: { salas: [Number(id)] } });
+}
+
+export async function delSalaAsync(id: number | string): Promise<void> {
+  delSala(id);
+  await confirmarFila();
 }
 
 export function deleteSala(id: number | string): void {
@@ -658,16 +859,29 @@ export function addTurma(d: NovaTurmaSemUnidade): Turma {
     unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.turmas.push(item);
-  persist('turmas');
+  persist('turmas', payloadDaColecao('turmas', 'criados', item), item);
   return item;
+}
+
+export async function addTurmaAsync(d: NovaTurmaSemUnidade): Promise<Turma> {
+  const item = addTurma(d);
+  await confirmar(item);
+  return { ...item };
 }
 
 export function updTurma(id: number | string, d: Atualizar<Turma>): Turma | null {
   const idx = CACHE.turmas.findIndex((t) => String(t.id) === String(id));
   if (idx < 0) return null;
   CACHE.turmas[idx] = { ...CACHE.turmas[idx], ...d };
-  persist('turmas');
+  persist('turmas', payloadDaColecao('turmas', 'alteracoes', CACHE.turmas[idx]), CACHE.turmas[idx]);
   return { ...CACHE.turmas[idx] };
+}
+
+export async function updTurmaAsync(id: number | string, d: Atualizar<Turma>): Promise<Turma | null> {
+  const item = updTurma(id, d);
+  if (!item) return null;
+  await confirmar(CACHE.turmas.find((t) => String(t.id) === String(id)) ?? null);
+  return item;
 }
 
 export function updateTurma(id: number | string, d: Atualizar<Turma>): Turma | null {
@@ -679,13 +893,19 @@ export function updateTurma(id: number | string, d: Atualizar<Turma>): Turma | n
  * (Regra do legado — ver `README.md` do frontend original.)
  */
 export function delTurma(id: number | string): void {
+  const reservasRemovidas = CACHE.reservas
+    .filter((r) => String(r.turmaId) === String(id))
+    .map((r) => Number(r.id));
   CACHE.turmas = CACHE.turmas.filter((t) => String(t.id) !== String(id));
-  marcarRemovido('turmas', Number(id));
-
   CACHE.reservas = CACHE.reservas.filter((r) => String(r.turmaId) !== String(id));
 
-  persist('turmas');
-  persist('reservas');
+  persist('turmas', { remocoes: { turmas: [Number(id)] } });
+  if (reservasRemovidas.length) persist('reservas', { remocoes: { reservas: reservasRemovidas } });
+}
+
+export async function delTurmaAsync(id: number | string): Promise<void> {
+  delTurma(id);
+  await confirmarFila();
 }
 
 export function deleteTurma(id: number | string): void {
@@ -704,26 +924,39 @@ export function addReserva(d: NovaReserva): Reserva {
     unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.reservas.push(item);
-  persist('reservas');
+  persist('reservas', payloadDaColecao('reservas', 'criados', item), item);
   return item;
 }
 
 export async function addReservaAsync(d: NovaReserva): Promise<Reserva> {
-  return addReserva(d);
+  const item = addReserva(d);
+  await confirmar(item);
+  return { ...item };
+}
+
+export async function updReservaAsync(id: number | string, d: Atualizar<Reserva>): Promise<Reserva | null> {
+  const item = updReserva(id, d);
+  if (!item) return null;
+  await confirmar(CACHE.reservas.find((r) => String(r.id) === String(id)) ?? null);
+  return item;
 }
 
 export function updReserva(id: number | string, d: Atualizar<Reserva>): Reserva | null {
   const idx = CACHE.reservas.findIndex((r) => String(r.id) === String(id));
   if (idx < 0) return null;
   CACHE.reservas[idx] = { ...CACHE.reservas[idx], ...d };
-  persist('reservas');
+  persist('reservas', payloadDaColecao('reservas', 'alteracoes', CACHE.reservas[idx]), CACHE.reservas[idx]);
   return { ...CACHE.reservas[idx] };
 }
 
 export function delReserva(id: number | string): void {
   CACHE.reservas = CACHE.reservas.filter((r) => String(r.id) !== String(id));
-  marcarRemovido('reservas', Number(id));
-  persist('reservas');
+  persist('reservas', { remocoes: { reservas: [Number(id)] } });
+}
+
+export async function delReservaAsync(id: number | string): Promise<void> {
+  delReserva(id);
+  await confirmarFila();
 }
 
 export function deleteReserva(id: number | string): void {
@@ -742,7 +975,7 @@ export function addChave(d: NovaChave): Chave {
     unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.chaves.push(item);
-  persist('chaves');
+  persist('chaves', payloadDaColecao('chaves', 'criados', item), item);
   return item;
 }
 
@@ -750,14 +983,25 @@ export function updChave(id: number | string, d: Atualizar<Chave>): Chave | null
   const idx = CACHE.chaves.findIndex((c) => String(c.id) === String(id));
   if (idx < 0) return null;
   CACHE.chaves[idx] = { ...CACHE.chaves[idx], ...d };
-  persist('chaves');
+  persist('chaves', payloadDaColecao('chaves', 'alteracoes', CACHE.chaves[idx]), CACHE.chaves[idx]);
   return { ...CACHE.chaves[idx] };
+}
+
+export async function updChaveAsync(id: number | string, d: Atualizar<Chave>): Promise<Chave | null> {
+  const item = updChave(id, d);
+  if (!item) return null;
+  await confirmar(CACHE.chaves.find((c) => String(c.id) === String(id)) ?? null);
+  return item;
 }
 
 export function delChave(id: number | string): void {
   CACHE.chaves = CACHE.chaves.filter((c) => String(c.id) !== String(id));
-  marcarRemovido('chaves', Number(id));
-  persist('chaves');
+  persist('chaves', { remocoes: { chaves: [Number(id)] } });
+}
+
+export async function delChaveAsync(id: number | string): Promise<void> {
+  delChave(id);
+  await confirmarFila();
 }
 
 export function deleteChave(id: number | string): void {
@@ -774,7 +1018,9 @@ export function retirarChave(id: number | string, instrutorId: number | string):
 }
 
 export async function retirarChaveAsync(id: number | string, instrutorId: number | string): Promise<Chave | null> {
-  return retirarChave(id, instrutorId);
+  const item = retirarChave(id, instrutorId);
+  await confirmar(CACHE.chaves.find((c) => String(c.id) === String(id)) ?? null);
+  return item;
 }
 
 /**
@@ -790,7 +1036,15 @@ export function devolverChaveApi(id: number | string): Chave | null {
 }
 
 export async function devolverChaveAsync(id: number | string): Promise<Chave | null> {
-  return devolverChaveApi(id);
+  const item = devolverChaveApi(id);
+  await confirmar(CACHE.chaves.find((c) => String(c.id) === String(id)) ?? null);
+  return item;
+}
+
+export async function addChaveAsync(d: NovaChave): Promise<Chave> {
+  const item = addChave(d);
+  await confirmar(item);
+  return { ...item };
 }
 
 // ---------------------------------------------------------------------------
@@ -805,20 +1059,29 @@ export function addSolic(d: NovaSolicitacao): Solicitacao {
     unidadeId: d.unidadeId ?? unidadePadrao(),
   };
   CACHE.solicitacoes.push(item);
-  persist('solicitacoes');
+  persist('solicitacoes', payloadDaColecao('solicitacoes', 'criados', item), item);
   return item;
+}
+
+export async function addSolicAsync(d: NovaSolicitacao): Promise<Solicitacao> {
+  const item = addSolic(d);
+  await confirmar(item);
+  return { ...item };
 }
 
 export function updSolic(id: number | string, d: Atualizar<Solicitacao>): Solicitacao | null {
   const idx = CACHE.solicitacoes.findIndex((s) => String(s.id) === String(id));
   if (idx < 0) return null;
   CACHE.solicitacoes[idx] = { ...CACHE.solicitacoes[idx], ...d };
-  persist('solicitacoes');
+  persist('solicitacoes', payloadDaColecao('solicitacoes', 'alteracoes', CACHE.solicitacoes[idx]), CACHE.solicitacoes[idx]);
   return { ...CACHE.solicitacoes[idx] };
 }
 
 export async function updSolicAsync(id: number | string, d: Atualizar<Solicitacao>): Promise<Solicitacao | null> {
-  return updSolic(id, d);
+  const item = updSolic(id, d);
+  if (!item) return null;
+  await confirmar(CACHE.solicitacoes.find((s) => String(s.id) === String(id)) ?? null);
+  return item;
 }
 
 // ---------------------------------------------------------------------------
@@ -852,12 +1115,14 @@ export function addNotif(
   };
 
   CACHE.notificacoes.push(item);
-  persist('notificacoes');
+  persist('notificacoes', payloadDaColecao('notificacoes', 'criados', item), item);
   return item;
 }
 
 export async function addNotifAsync(d: Parameters<typeof addNotif>[0]): Promise<Notificacao> {
-  return addNotif(d);
+  const item = addNotif(d);
+  await confirmar(item);
+  return { ...item };
 }
 
 export function countNaoLidas(perfil: Perfil | string, unidadeId?: number | string | null): number {
@@ -865,10 +1130,11 @@ export function countNaoLidas(perfil: Perfil | string, unidadeId?: number | stri
 }
 
 export function marcarTodasLidas(perfil: Perfil | string, unidadeId?: number | string | null): void {
-  getNotifsPara(perfil, unidadeId).forEach((n) => {
+  const alteradas = getNotifsPara(perfil, unidadeId);
+  alteradas.forEach((n) => {
     n.lida = true;
   });
-  persist('notificacoes');
+  if (alteradas.length) persist('notificacoes', { alteracoes: { notificacoes: alteradas } }, alteradas[0]);
 }
 
 // ---------------------------------------------------------------------------
@@ -912,6 +1178,20 @@ export function setOverride(
     manualCriadaEm: status ? new Date().toISOString().slice(0, 19) : null,
     unidadeId: unidadeId ? Number(unidadeId) : undefined,
   });
+}
+
+/** Versao aguardada de {@link setOverride}: só confirma após a API. */
+export async function setOverrideAsync(
+  salaId: number | string,
+  unidadeId: number | string | null | undefined,
+  status: StatusManualSala | null,
+  motivo?: string,
+  por?: string,
+): Promise<Sala | null> {
+  const item = setOverride(salaId, unidadeId, status, motivo, por);
+  if (!item) return null;
+  await confirmar(CACHE.salas.find((s) => String(s.id) === String(salaId)) ?? null);
+  return item;
 }
 
 // ---------------------------------------------------------------------------

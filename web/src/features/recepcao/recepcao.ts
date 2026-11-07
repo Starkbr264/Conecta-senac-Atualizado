@@ -14,10 +14,10 @@
  */
 
 import {
-  addChave,
+  addChaveAsync,
   addNotifAsync,
   countNaoLidas,
-  delChave,
+  delChaveAsync,
   devolverChaveAsync,
   getChaveById,
   getChaves,
@@ -33,7 +33,7 @@ import {
   initDados,
   marcarTodasLidas,
   retirarChaveAsync,
-  updChave,
+  updChaveAsync,
   unidadePadrao,
   type NovaChave,
   type OverrideSala,
@@ -695,7 +695,7 @@ export function abrirChave(id: number | null = null): void {
 }
 
 /** Persiste a chave criada/editada. */
-export function salvarChave(): void {
+export async function salvarChave(): Promise<void> {
   const id = parseInt(byId<HTMLInputElement>('mCId').value, 10) || null;
   const salaId = parseInt(byId<HTMLSelectElement>('mCSala').value, 10) || null;
   const codigo = byId<HTMLInputElement>('mCCod').value.trim();
@@ -711,22 +711,32 @@ export function salvarChave(): void {
     andar,
     unidadeId: unidadePadrao(),
   };
-  if (id) {
-    updChave(id, dados);
-    toast('Chave atualizada!', 'ok');
-  } else {
-    addChave(dados);
-    toast('Chave criada!', 'ok');
+  try {
+    if (id) {
+      await updChaveAsync(id, dados);
+      toast('Chave atualizada!', 'ok');
+    } else {
+      await addChaveAsync(dados);
+      toast('Chave criada!', 'ok');
+    }
+  } catch {
+    toast('Chave mantida localmente, aguardando sincronização.', 'aviso');
+    return;
   }
   modalFechar('modalChave');
   rdChaves();
 }
 
 /** Exclui uma chave apos confirmacao. */
-export function excluirChave(id: number): void {
+export async function excluirChave(id: number): Promise<void> {
   if (!confirm('Excluir esta chave?')) return;
-  delChave(id);
-  toast('Chave excluída.', 'aviso');
+  try {
+    await delChaveAsync(id);
+    toast('Chave excluída.', 'aviso');
+  } catch {
+    toast('Exclusão da chave pendente de sincronização.', 'aviso');
+    return;
+  }
   rdChaves();
 }
 

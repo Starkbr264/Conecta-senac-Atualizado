@@ -29,8 +29,8 @@
  */
 
 import {
-  addNotif,
-  addSolic,
+  addNotifAsync,
+  addSolicAsync,
   countNaoLidas,
   getNotifsPara,
   getReservas,
@@ -641,7 +641,7 @@ function getTurnosSolic(): Turno[] {
 }
 
 /** Valida e envia a solicitacao de sala. */
-export function enviarSolic(): void {
+export async function enviarSolic(): Promise<void> {
   const salaId = parseInt(byId<HTMLInputElement>('slSalaId').value, 10);
   const turnos = [...new Set(getTurnosSolic())];
   const motivo = byId<HTMLTextAreaElement>('slMotivo').value.trim();
@@ -785,24 +785,28 @@ export function enviarSolic(): void {
     modo: modoData,
   } as unknown as NovaSolicitacao;
 
-  addSolic(payload);
-
   const sala = getSalaById(salaId);
   const horario = horaIni && horaFim ? ` das ${horaIni} às ${horaFim}` : '';
-  addNotif({
-    paraPerfil: 'coordenador',
-    unidadeId: unidadePadrao(),
-    tipo: 'solic',
-    titulo: 'Nova Solicitação de Sala',
-    msg:
-      `${sess?.nome ?? ''} solicitou a sala "${sala ? sala.nome : '?'}"` +
-      ` em ${fmtData(dataIniGlobal)}` +
-      (modoData === 'periodo' ? ` até ${fmtData(dataFimGlobal)}` : '') +
-      (modoData === 'especificas' ? ` (${datasParaEnviar.length} data(s))` : '') +
-      `${horario}.`,
-  });
+  try {
+    await addSolicAsync(payload);
+    await addNotifAsync({
+      paraPerfil: 'coordenador',
+      unidadeId: unidadePadrao(),
+      tipo: 'solic',
+      titulo: 'Nova Solicitação de Sala',
+      msg:
+        `${sess?.nome ?? ''} solicitou a sala "${sala ? sala.nome : '?'}"` +
+        ` em ${fmtData(dataIniGlobal)}` +
+        (modoData === 'periodo' ? ` até ${fmtData(dataFimGlobal)}` : '') +
+        (modoData === 'especificas' ? ` (${datasParaEnviar.length} data(s))` : '') +
+        `${horario}.`,
+    });
+  } catch {
+    toast('Solicitação mantida localmente, aguardando sincronização.', 'aviso');
+    return;
+  }
 
-  toast('Solicitação enviada! Aguarde aprovação.', 'ok');
+  toast('Solicitação enviada e confirmada pelo servidor.', 'ok');
   modalFechar('modalSolic');
 }
 

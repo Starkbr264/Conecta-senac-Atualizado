@@ -9,8 +9,8 @@
  */
 
 import {
-  addReserva,
-  deleteReserva,
+  addReservaAsync,
+  delReservaAsync,
   getReservas,
   getSalas,
   getTurmas,
@@ -197,7 +197,7 @@ export function verificarConflito(
 }
 
 /** Valida e persiste uma nova reserva. */
-export function salvarReserva(): void {
+export async function salvarReserva(): Promise<void> {
   const salaId = parseInt(byId<HTMLSelectElement>('reservaSala').value, 10);
   const turmaId = parseInt(byId<HTMLSelectElement>('reservaTurma').value, 10);
   const turno = byId<HTMLSelectElement>('reservaTurno').value;
@@ -262,8 +262,13 @@ export function salvarReserva(): void {
     return;
   }
 
-  addReserva(nova as Omit<Reserva, 'id'>);
-  showToast('Reserva criada com sucesso!', 'success');
+  try {
+    await addReservaAsync(nova as Omit<Reserva, 'id'>);
+    showToast('Reserva criada com sucesso!', 'success');
+  } catch {
+    showToast('Reserva mantida localmente, aguardando sincronização.', 'warning');
+    return;
+  }
   byId<HTMLFormElement>('formReserva').reset();
   qsa('#diasCheckboxes .check-chip').forEach((c) =>
     c.classList.remove('checked'),
@@ -274,10 +279,15 @@ export function salvarReserva(): void {
 }
 
 /** Exclui uma reserva apos confirmacao. */
-export function excluirReserva(id: number): void {
+export async function excluirReserva(id: number): Promise<void> {
   if (!confirm('Excluir esta reserva?')) return;
-  deleteReserva(id);
-  showToast('Reserva excluída.', 'warning');
+  try {
+    await delReservaAsync(id);
+    showToast('Reserva excluída.', 'warning');
+  } catch {
+    showToast('Exclusão da reserva pendente de sincronização.', 'warning');
+    return;
+  }
   renderTabelaReservas();
 }
 

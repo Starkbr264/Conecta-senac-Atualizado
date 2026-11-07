@@ -26,6 +26,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(DadosInvalidosException.class)
+    ResponseEntity<Map<String, String>> dadosInvalidos(DadosInvalidosException ex) {
+        return ResponseEntity.badRequest().body(Map.of("erro", ex.getMessage(), "campo", ex.getCampo()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<Map<String, String>> invalid(MethodArgumentNotValidException ex) {
         return ResponseEntity.badRequest().body(Map.of("erro", "Dados invalidos", "campo", ex.getBindingResult().getFieldError().getField()));

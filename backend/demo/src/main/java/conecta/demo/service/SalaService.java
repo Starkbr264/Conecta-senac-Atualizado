@@ -22,18 +22,25 @@ public class SalaService {
     private final UnidadeRepository unidades;
     private final UsuarioRepository usuarios;
     private final ReservaRepository reservas;
+    private final IdAllocatorService ids;
 
     public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios) {
-        this(salas, unidades, usuarios, null);
+        this(salas, unidades, usuarios, null, null);
+    }
+
+    public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios,
+                       ReservaRepository reservas) {
+        this(salas, unidades, usuarios, reservas, null);
     }
 
     @Autowired
     public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios,
-                       ReservaRepository reservas) {
+                       ReservaRepository reservas, IdAllocatorService ids) {
         this.salas = salas;
         this.unidades = unidades;
         this.usuarios = usuarios;
         this.reservas = reservas;
+        this.ids = ids;
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +57,11 @@ public class SalaService {
         validar(sala);
         sala.setId(proximoId());
         return salas.save(sala);
+    }
+
+    /** Valida uma sala sincronizada sem persisti-la. */
+    void validarParaSincronizacao(Sala sala) {
+        validar(sala);
     }
 
     /**
@@ -112,6 +124,7 @@ public class SalaService {
     }
 
     private Long proximoId() {
+        if (ids != null) return ids.next("salas", () -> salas.findAll().stream().mapToLong(Sala::getId).max().orElse(0L));
         return salas.findAll().stream().mapToLong(Sala::getId).max().orElse(0L) + 1;
     }
 }

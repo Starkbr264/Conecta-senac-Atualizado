@@ -31,6 +31,18 @@ import type {
   Unidade,
   Usuario,
 } from '../types';
+import { clearSessao } from './theme';
+
+/**
+ * 401 = token invalido/expirado. Alem de remover o JWT, limpa a sessao para
+ * que as demais abas (que ouvem o evento `storage`) tambem saiam do painel em
+ * vez de manter uma identidade visual sem token por tras.
+ */
+function encerrarSessaoExpirada(): never {
+  salvarToken(null);
+  clearSessao();
+  throw new ErroApi('Sessao expirada. Faca login novamente.', 401);
+}
 
 /**
  * Sentinela aceito em `__CONECTA_API_BASE__` e em `VITE_API_BASE` para
@@ -242,8 +254,7 @@ export async function apiGet<T>(caminho: string): Promise<T> {
     headers: { Accept: 'application/json' },
   });
   if (res.status === 401) {
-    salvarToken(null);
-    throw new ErroApi('Sessao expirada. Faca login novamente.', 401);
+    encerrarSessaoExpirada();
   }
   if (!res.ok) {
     const corpo = await lerJson<Partial<RespostaErro>>(res);
@@ -260,8 +271,7 @@ export async function apiPost<T>(caminho: string, corpo?: unknown): Promise<T> {
     body: JSON.stringify(corpo ?? {}),
   });
   if (res.status === 401) {
-    salvarToken(null);
-    throw new ErroApi('Sessao expirada. Faca login novamente.', 401);
+    encerrarSessaoExpirada();
   }
   if (!res.ok) {
     const corpoErro = await lerJson<Partial<RespostaErro>>(res);

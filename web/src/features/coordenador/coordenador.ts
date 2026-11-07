@@ -27,12 +27,12 @@
 import {
   addNotifAsync,
   addReservaAsync,
-  addSala,
-  addTurma,
+  addSalaAsync,
+  addTurmaAsync,
   countNaoLidas,
-  delReserva,
-  delSala,
-  delTurma,
+  delReservaAsync,
+  delSalaAsync,
+  delTurmaAsync,
   getNotifsPara,
   getOverride,
   getReservaById,
@@ -47,11 +47,11 @@ import {
   getUsersByPerfil,
   initDados,
   marcarTodasLidas,
-  setOverride,
-  updReserva,
-  updSala,
+  setOverrideAsync,
+  updReservaAsync,
+  updSalaAsync,
   updSolicAsync,
-  updTurma,
+  updTurmaAsync,
   unidadePadrao,
   type NovoSala,
   type OverrideSala,
@@ -378,7 +378,7 @@ export function abrirSala(id: number | null = null): void {
 }
 
 /** Persiste a sala criada/editada. */
-export function salvarSala(): void {
+export async function salvarSala(): Promise<void> {
   const nome = byId<HTMLInputElement>('mSNome').value.trim();
   const cap = parseInt(byId<HTMLInputElement>('mSCap').value, 10);
   const tipo = byId<HTMLInputElement>('mSTipo').value.trim();
@@ -406,12 +406,17 @@ export function salvarSala(): void {
     turnosDisponiveis: turnos,
     unidadeId: unidadePadrao(),
   };
-  if (editSalaId) {
-    updSala(editSalaId, dados);
-    toast('Sala atualizada!', 'ok');
-  } else {
-    addSala(dados);
-    toast('Sala cadastrada!', 'ok');
+  try {
+    if (editSalaId) {
+      await updSalaAsync(editSalaId, dados);
+      toast('Sala atualizada!', 'ok');
+    } else {
+      await addSalaAsync(dados);
+      toast('Sala cadastrada!', 'ok');
+    }
+  } catch {
+    toast('Sala mantida localmente, aguardando sincronização.', 'aviso');
+    return;
   }
   modalFechar('modalSala');
   rdSalas();
@@ -419,7 +424,7 @@ export function salvarSala(): void {
 }
 
 /** Exclui uma sala, bloqueando quando existem reservas vinculadas. */
-export function excluirSala(id: number): void {
+export async function excluirSala(id: number): Promise<void> {
   const s = getSalaById(id);
   if (!s) return;
   if (getReservas().filter((r) => r.salaId === id).length > 0) {
@@ -427,8 +432,12 @@ export function excluirSala(id: number): void {
     return;
   }
   if (!confirm(`Excluir "${s.nome}"?`)) return;
-  delSala(id);
-  toast('Sala excluída.', 'aviso');
+  try {
+    await delSalaAsync(id);
+    toast('Sala excluída.', 'aviso');
+  } catch {
+    toast('Exclusão pendente de sincronização.', 'aviso');
+  }
   rdSalas();
 }
 
@@ -559,7 +568,7 @@ export function abrirTurma(id: number | null = null): void {
 }
 
 /** Persiste a turma criada/editada. */
-export function salvarTurma(): void {
+export async function salvarTurma(): Promise<void> {
   const nome = byId<HTMLInputElement>('mTCod').value.trim();
   const curso = byId<HTMLInputElement>('mTCurso').value.trim();
   const turno = byId<HTMLSelectElement>('mTTurno').value;
@@ -584,26 +593,35 @@ export function salvarTurma(): void {
     instrutorId: instId,
     unidadeId: unidadePadrao(),
   };
-  if (editTurmaId) {
-    updTurma(editTurmaId, dados);
-    toast('Turma atualizada!', 'ok');
-  } else {
-    addTurma(dados);
-    toast('Turma cadastrada!', 'ok');
+  try {
+    if (editTurmaId) {
+      await updTurmaAsync(editTurmaId, dados);
+      toast('Turma atualizada!', 'ok');
+    } else {
+      await addTurmaAsync(dados);
+      toast('Turma cadastrada!', 'ok');
+    }
+  } catch {
+    toast('Turma mantida localmente, aguardando sincronização.', 'aviso');
+    return;
   }
   modalFechar('modalTurma');
   rdTurmas();
 }
 
 /** Exclui uma turma e, em cascata no cliente, as reservas vinculadas. */
-export function excluirTurma(id: number): void {
+export async function excluirTurma(id: number): Promise<void> {
   const t = getTurmaById(id);
   if (!t) return;
   if (!confirm(`Excluir turma "${t.nome}"?`)) return;
-  delTurma(id);
-  getReservas()
-    .filter((r) => r.turmaId === id)
-    .forEach((r) => delReserva(r.id));
+  try {
+    await delTurmaAsync(id);
+  } catch {
+    toast('Exclusão da turma pendente de sincronização.', 'aviso');
+    return;
+  }
+  // As reservas vinculadas já foram removidas e enfileiradas em cascata por
+  // `delTurmaAsync`; aqui só confirmamos a remoção já processada.
   toast('Turma excluída.', 'aviso');
   rdTurmas();
 }
@@ -803,7 +821,7 @@ export function abrirReserva(id: number | null = null): void {
 }
 
 /** Persiste a reserva criada/editada, validando turno, turma e conflitos. */
-export function salvarReserva(): void {
+export async function salvarReserva(): Promise<void> {
   const salaId = parseInt(byId<HTMLSelectElement>('mRSala').value, 10);
   const turmaId = parseInt(byId<HTMLSelectElement>('mRTurma').value, 10);
   const turno = byId<HTMLSelectElement>('mRTurno').value;
@@ -859,8 +877,9 @@ export function salvarReserva(): void {
   }
 
   const reservadoPorId = sess ? sess.id : null;
-  if (editReservaId) {
-    const updDados: Parameters<typeof updReserva>[1] = {
+  try {
+   if (editReservaId) {
+    const updDados: Parameters<typeof updReservaAsync>[1] = {
       salaId,
       turno,
       diasSemana: dias,
@@ -870,10 +889,10 @@ export function salvarReserva(): void {
       unidadeId: unidadePadrao(),
     };
     if (!isAvulsaEdit) updDados.turmaId = turmaId;
-    updReserva(editReservaId, updDados);
+    await updReservaAsync(editReservaId, updDados);
     toast('Reserva atualizada!', 'ok');
   } else {
-    addReservaAsync({
+    await addReservaAsync({
       salaId,
       turmaId,
       turno,
@@ -885,6 +904,10 @@ export function salvarReserva(): void {
     });
     toast('Reserva criada!', 'ok');
   }
+  } catch {
+    toast('Reserva mantida localmente, aguardando sincronização.', 'aviso');
+    return;
+  }
   editReservaId = null;
   modalFechar('modalRes');
   rdReservas();
@@ -892,14 +915,18 @@ export function salvarReserva(): void {
 }
 
 /** Exclui uma reserva; reservas originadas por solicitacao recusam a solicitacao. */
-export function excluirReserva(id: number): void {
+export async function excluirReserva(id: number): Promise<void> {
   if (!confirm('Excluir esta reserva?')) return;
   const r = getReservaById(id);
   if (r && r.avulsa && r.solicId) {
-    updSolicAsync(r.solicId, { status: 'recusada' });
+    void updSolicAsync(r.solicId, { status: 'recusada' });
   }
-  delReserva(id);
-  toast('Reserva excluída.', 'aviso');
+  try {
+    await delReservaAsync(id);
+    toast('Reserva excluída.', 'aviso');
+  } catch {
+    toast('Exclusão da reserva pendente de sincronização.', 'aviso');
+  }
   rdReservas();
   refreshMapaCoord();
 }
@@ -1022,7 +1049,7 @@ export function abrirAtrib(instId: number): void {
 }
 
 /** Aplica as turmas marcadas no modal de atribuicao. */
-export function salvarAtrib(): void {
+export async function salvarAtrib(): Promise<void> {
   const instId = parseInt(byId<HTMLInputElement>('mAInstId').value, 10);
   const ids = Array.from(
     document.querySelectorAll<HTMLInputElement>('#mATurmas input[type="checkbox"]:checked'),
@@ -1033,8 +1060,13 @@ export function salvarAtrib(): void {
     fmsg('mAMsg', 'erro', 'Selecione ao menos uma turma.');
     return;
   }
-  ids.forEach((turmaId) => updTurma(turmaId, { instrutorId: instId }));
-  toast(ids.length === 1 ? 'Turma atribuida!' : 'Turmas atribuidas!', 'ok');
+  try {
+    await Promise.all(ids.map((turmaId) => updTurmaAsync(turmaId, { instrutorId: instId })));
+    toast(ids.length === 1 ? 'Turma atribuida!' : 'Turmas atribuidas!', 'ok');
+  } catch {
+    toast('Atribuição mantida localmente, aguardando sincronização.', 'aviso');
+    return;
+  }
   modalFechar('modalAtrib');
   rdInstrutores();
   rdTurmas();
@@ -1341,14 +1373,18 @@ function aplicarOverride(salaId: number, unidadeId: number, status: StatusManual
     motivo = resposta;
   }
   const s = getSessao();
-  setOverride(
+  void setOverrideAsync(
     salaId,
     unidadeId,
     status === 'auto' ? null : status,
     motivo,
     s ? s.nome : '—',
-  );
-  rdMapa();
+  )
+    .then(() => rdMapa())
+    .catch(() => {
+      toast('Alteração mantida localmente, aguardando sincronização.', 'aviso');
+      rdMapa();
+    });
 }
 
 /**

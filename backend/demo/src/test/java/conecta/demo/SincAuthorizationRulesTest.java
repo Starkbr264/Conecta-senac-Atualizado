@@ -20,4 +20,16 @@ class SincAuthorizationRulesTest {
         assertDoesNotThrow(() ->
                 SincService.validarPermissaoSincronizacao("salas", Perfil.COORDENADOR));
     }
+
+    @Test
+    void perfilAusenteNaoPodeSincronizar() {
+        assertThrows(AcessoNegadoException.class,
+                () -> SincService.validarPermissaoSincronizacao("salas", null));
+    }
+
+    @Test
+    void colecaoDesconhecidaNaoPodeSerSincronizada() {
+        assertThrows(AcessoNegadoException.class,
+                () -> SincService.validarPermissaoSincronizacao("colecao-inexistente", Perfil.ADMIN));
+    }
 }

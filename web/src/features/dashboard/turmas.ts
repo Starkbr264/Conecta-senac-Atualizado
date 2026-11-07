@@ -9,11 +9,11 @@
  */
 
 import {
-  addTurma,
-  deleteTurma,
+  addTurmaAsync,
+  delTurmaAsync,
   getReservas,
   getTurmas,
-  updateTurma,
+  updTurmaAsync,
 } from '../../core/storage';
 import { showMsg, showToast } from '../../core/ui';
 import { calcStatus, escapeHtml, fmtData } from '../../core/format';
@@ -103,7 +103,7 @@ function lerDadosTurma(): { dados: DadosTurma; erros: string[] } {
 }
 
 /** Persiste a turma (cadastro ou edicao). */
-export function salvarTurma(): void {
+export async function salvarTurma(): Promise<void> {
   const { dados, erros } = lerDadosTurma();
 
   if (erros.length > 0) {
@@ -111,13 +111,18 @@ export function salvarTurma(): void {
     return;
   }
 
-  if (turmaEditId) {
-    updateTurma(turmaEditId, dados);
-    showToast('Turma atualizada com sucesso!', 'success');
-    cancelarEdicaoTurma();
-  } else {
-    addTurma(dados);
-    showToast('Turma cadastrada com sucesso!', 'success');
+  try {
+    if (turmaEditId) {
+      await updTurmaAsync(turmaEditId, dados);
+      showToast('Turma atualizada com sucesso!', 'success');
+      cancelarEdicaoTurma();
+    } else {
+      await addTurmaAsync(dados);
+      showToast('Turma cadastrada com sucesso!', 'success');
+    }
+  } catch {
+    showToast('Turma mantida localmente, aguardando sincronização.', 'warning');
+    return;
   }
 
   byId<HTMLFormElement>('formTurma').reset();
@@ -157,7 +162,7 @@ export function cancelarEdicaoTurma(): void {
 }
 
 /** Exclui uma turma, bloqueando quando existem reservas ativas. */
-export function excluirTurma(id: number): void {
+export async function excluirTurma(id: number): Promise<void> {
   const reservasVinculadas = getReservas().filter(
     (r) => r.turmaId === id && r.status === 'ATIVA',
   );
@@ -169,8 +174,13 @@ export function excluirTurma(id: number): void {
     return;
   }
   if (!confirm('Excluir esta turma? Esta ação não pode ser desfeita.')) return;
-  deleteTurma(id);
-  showToast('Turma excluída.', 'warning');
+  try {
+    await delTurmaAsync(id);
+    showToast('Turma excluída.', 'warning');
+  } catch {
+    showToast('Exclusão da turma pendente de sincronização.', 'warning');
+    return;
+  }
   renderTabelaTurmas();
 }
 

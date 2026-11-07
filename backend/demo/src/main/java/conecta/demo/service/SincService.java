@@ -11,20 +11,27 @@ import conecta.demo.model.StatusSolicitacao;
 import conecta.demo.model.Turma;
 import conecta.demo.model.Unidade;
 import conecta.demo.model.Usuario;
+import conecta.demo.dto.ReservaRequest;
 import conecta.demo.exception.AcessoNegadoException;
+import conecta.demo.exception.DadosInvalidosException;
 import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.repository.ChaveRepository;
 import conecta.demo.repository.NotificacaoRepository;
 import conecta.demo.repository.ReservaRepository;
 import conecta.demo.repository.SalaRepository;
 import conecta.demo.repository.SolicitacaoRepository;
+import conecta.demo.repository.SincOperacaoRepository;
 import conecta.demo.repository.TurmaRepository;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.repository.UsuarioRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,13 +62,39 @@ public class SincService {
     private final conecta.demo.repository.SessaoRepository sessoes;
     private final SeedService seedService;
     private final DadosService dados;
+    private final UsuarioService usuarioService;
+    private final UnidadeService unidadeService;
+    private final SalaService salaService;
+    private final TurmaService turmaService;
+    private final ReservaService reservaService;
+    private final ChaveService chaveService;
+    private final SolicitacaoService solicitacaoService;
+    private final IdAllocatorService ids;
+    private final SincOperacaoRepository operacoes;
+    private final Validator validator;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public SincService(UsuarioRepository usuarios, UnidadeRepository unidades, SalaRepository salas,
                        TurmaRepository turmas, ReservaRepository reservas, ChaveRepository chaves,
                        NotificacaoRepository notificacoes, SolicitacaoRepository solicitacoes,
                        conecta.demo.repository.SessaoRepository sessoes, SeedService seedService,
-                       DadosService dados) {
+                       DadosService dados, UsuarioService usuarioService, UnidadeService unidadeService,
+                       SalaService salaService, TurmaService turmaService, ReservaService reservaService,
+                       ChaveService chaveService, Validator validator, IdAllocatorService ids) {
+        this(usuarios, unidades, salas, turmas, reservas, chaves, notificacoes, solicitacoes, sessoes,
+                seedService, dados, usuarioService, unidadeService, salaService, turmaService,
+                reservaService, chaveService, null, validator, ids, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public SincService(UsuarioRepository usuarios, UnidadeRepository unidades, SalaRepository salas,
+                       TurmaRepository turmas, ReservaRepository reservas, ChaveRepository chaves,
+                       NotificacaoRepository notificacoes, SolicitacaoRepository solicitacoes,
+                       conecta.demo.repository.SessaoRepository sessoes, SeedService seedService,
+                       DadosService dados, UsuarioService usuarioService, UnidadeService unidadeService,
+                        SalaService salaService, TurmaService turmaService, ReservaService reservaService,
+                        ChaveService chaveService, SolicitacaoService solicitacaoService,
+                        Validator validator, IdAllocatorService ids, SincOperacaoRepository operacoes) {
         this.usuarios = usuarios;
         this.unidades = unidades;
         this.salas = salas;
@@ -73,6 +106,16 @@ public class SincService {
         this.sessoes = sessoes;
         this.seedService = seedService;
         this.dados = dados;
+        this.usuarioService = usuarioService;
+        this.unidadeService = unidadeService;
+        this.salaService = salaService;
+        this.turmaService = turmaService;
+        this.reservaService = reservaService;
+        this.chaveService = chaveService;
+        this.solicitacaoService = solicitacaoService;
+        this.validator = validator;
+        this.ids = ids;
+        this.operacoes = operacoes;
     }
 
     /**
@@ -83,6 +126,12 @@ public class SincService {
      */
     @Transactional
     public Map<String, Object> sincronizar(Map<String, Object> corpo) {
+        String operacaoId = corpo == null || corpo.get("operacaoId") == null
+                ? null : corpo.get("operacaoId").toString().trim();
+        if (operacoes != null && operacaoId != null && !operacaoId.isEmpty()) {
+            var anterior = operacoes.findById(operacaoId);
+            if (anterior.isPresent()) return lerResposta(anterior.get().getRespostaJson());
+        }
         Map<String, Object> alteracoes = extrair(corpo, "alteracoes");
         Map<String, Object> criados = extrair(corpo, "criados");
         Map<String, Object> remocoes = extrair(corpo, "remocoes");
@@ -96,12 +145,34 @@ public class SincService {
         resposta.put("ok", true);
         resposta.put("banco", bancoVisivel());
         resposta.put("idsNovos", idsNovos);
+        if (operacoes != null && operacaoId != null && !operacaoId.isEmpty()) {
+            try {
+                operacoes.save(new conecta.demo.model.SincOperacao(
+                        operacaoId, new tools.jackson.databind.ObjectMapper().writeValueAsString(resposta)));
+            } catch (Exception ex) {
+                throw new IllegalStateException("Falha ao registrar operacao de sincronizacao", ex);
+            }
+        }
         return resposta;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> lerResposta(String json) {
+        try {
+            return new tools.jackson.databind.ObjectMapper().readValue(json, Map.class);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Falha ao ler operacao de sincronizacao", ex);
+        }
     }
 
     /** Autoriza o caminho de sincronizacao, que e usado pelos clientes para toda escrita. */
     public static void validarPermissaoSincronizacao(String colecao, Perfil perfil) {
-        if (perfil == null || perfil == Perfil.ADMIN) return;
+        java.util.Set<String> colecoesConhecidas = java.util.Set.of(
+                "usuarios", "unidades", "salas", "turmas", "reservas", "chaves",
+                "notificacoes", "solicitacoes");
+        if (perfil == null || !colecoesConhecidas.contains(colecao))
+            throw new AcessoNegadoException("Perfil nao autorizado para sincronizacao");
+        if (perfil == Perfil.ADMIN) return;
         boolean permitido = switch (perfil) {
             case COORDENADOR -> java.util.Set.of("salas", "turmas", "reservas", "solicitacoes", "notificacoes").contains(colecao);
             case INSTRUTOR -> java.util.Set.of("solicitacoes", "notificacoes").contains(colecao);
@@ -157,28 +228,27 @@ public class SincService {
     }
 
     private void aplicarCriados(Map<String, Object> criados, Map<String, Map<String, Long>> idsNovos) {
-        for (Map.Entry<String, Object> entrada : criados.entrySet()) {
-            String colecao = entrada.getKey();
+        for (String colecao : colecoesOrdenadas(criados)) {
+            Object valor = criados.get(colecao);
             validarPermissaoSincronizacao(colecao, perfilAutenticado());
-            if (!(entrada.getValue() instanceof List<?>)) {
-                continue;
-            }
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> itens = (List<Map<String, Object>>) entrada.getValue();
+            if (!(valor instanceof List<?>))
+                throw new DadosInvalidosException("criados." + colecao, "deve ser uma lista");
+            List<?> itens = (List<?>) valor;
             Map<String, Long> mapa = new LinkedHashMap<>();
-            for (Map<String, Object> item : itens) {
-                if (item == null || item.get("id") == null) {
-                    continue;
-                }
-                Long idProvisorio = Long.valueOf(item.get("id").toString());
+            for (Object bruto : itens) {
+                if (!(bruto instanceof Map<?, ?>))
+                    throw new DadosInvalidosException(colecao, "item deve ser um objeto");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> item = (Map<String, Object>) bruto;
+                Long idProvisorio = longObrigatorio(item.get("id"), colecao + ".id");
                 validarUnidadeDoPayload(colecao, item);
-                if (existe(colecao, idProvisorio)) {
-                    continue;
-                }
+                substituirReferenciasProvisorias(item, idsNovos);
                 Long oficial = proximoId(colecao);
                 item.put("id", oficial);
-                salvar(colecao, item);
-                mapa.put(String.valueOf(idProvisorio), oficial);
+                Long persistido = salvar(colecao, item, true);
+                if (persistido == null)
+                    throw new IllegalStateException("Persistencia sem ID para " + colecao);
+                mapa.put(String.valueOf(idProvisorio), persistido);
             }
             if (!mapa.isEmpty()) {
                 idsNovos.put(colecao, mapa);
@@ -190,17 +260,16 @@ public class SincService {
         for (Map.Entry<String, Object> entrada : alteracoes.entrySet()) {
             String colecao = entrada.getKey();
             validarPermissaoSincronizacao(colecao, perfilAutenticado());
-            if (!(entrada.getValue() instanceof List<?>)) {
-                continue;
-            }
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> itens = (List<Map<String, Object>>) entrada.getValue();
-            for (Map<String, Object> item : itens) {
-                if (item == null || item.get("id") == null) {
-                    continue;
-                }
-                validarUnidadeDoPayload(colecao, item);
-                salvar(colecao, item);
+            if (!(entrada.getValue() instanceof List<?>))
+                throw new DadosInvalidosException("alteracoes." + colecao, "deve ser uma lista");
+            List<?> itens = (List<?>) entrada.getValue();
+            for (Object bruto : itens) {
+                if (!(bruto instanceof Map<?, ?>))
+                    throw new DadosInvalidosException(colecao, "item deve ser um objeto");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> item = (Map<String, Object>) bruto;
+                longObrigatorio(item.get("id"), colecao + ".id");
+                salvar(colecao, item, false);
             }
         }
     }
@@ -209,18 +278,42 @@ public class SincService {
         for (Map.Entry<String, Object> entrada : remocoes.entrySet()) {
             String colecao = entrada.getKey();
             validarPermissaoSincronizacao(colecao, perfilAutenticado());
-            if (!(entrada.getValue() instanceof List<?>)) {
-                continue;
-            }
+            if (!(entrada.getValue() instanceof List<?>))
+                throw new DadosInvalidosException("remocoes." + colecao, "deve ser uma lista");
             @SuppressWarnings("unchecked")
             List<Object> ids = (List<Object>) entrada.getValue();
             for (Object idObj : ids) {
                 if (idObj == null) {
                     continue;
                 }
-                deletar(colecao, Long.valueOf(idObj.toString()));
+                deletar(colecao, longObrigatorio(idObj, colecao + ".id"));
             }
         }
+    }
+
+    private List<String> colecoesOrdenadas(Map<String, Object> colecoes) {
+        List<String> ordem = List.of("unidades", "usuarios", "salas", "turmas", "reservas",
+                "chaves", "solicitacoes", "notificacoes");
+        List<String> resultado = new ArrayList<>();
+        for (String colecao : ordem) if (colecoes.containsKey(colecao)) resultado.add(colecao);
+        for (String colecao : colecoes.keySet()) if (!resultado.contains(colecao)) resultado.add(colecao);
+        return resultado;
+    }
+
+    private void substituirReferenciasProvisorias(Map<String, Object> item,
+                                                   Map<String, Map<String, Long>> idsNovos) {
+        substituirReferencia(item, "unidadeId", "unidades", idsNovos);
+        substituirReferencia(item, "instrutorId", "usuarios", idsNovos);
+        substituirReferencia(item, "salaId", "salas", idsNovos);
+        substituirReferencia(item, "turmaId", "turmas", idsNovos);
+    }
+
+    private void substituirReferencia(Map<String, Object> item, String campo, String colecao,
+                                      Map<String, Map<String, Long>> idsNovos) {
+        Object valor = item.get(campo);
+        if (valor == null) return;
+        Long oficial = idsNovos.getOrDefault(colecao, Map.of()).get(valor.toString());
+        if (oficial != null) item.put(campo, oficial);
     }
 
     private Perfil perfilAutenticado() {
@@ -251,14 +344,18 @@ public class SincService {
 
     private void validarUnidadeDoPayload(String colecao, Map<String, Object> item) {
         Perfil perfil = perfilAutenticado();
-        if (perfil == null || perfil == Perfil.ADMIN
-                || "notificacoes".equals(colecao)) return;
+        if (perfil == null || perfil == Perfil.ADMIN) return;
         var auth = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
         Long unidadeDoUsuario = usuarios.findByEmailIgnoreCase(auth.getName())
                 .map(Usuario::getUnidadeId).orElse(null);
-        Long unidadeDoItem = longOuNull(item.get("unidadeId"));
-        if (unidadeDoUsuario == null || !unidadeDoUsuario.equals(unidadeDoItem))
+        Long unidadeDoItem = longOuNull(item.get("unidadeId"), colecao + ".unidadeId");
+        if ("notificacoes".equals(colecao) && unidadeDoItem == null) {
+            Long paraId = longOuNull(item.get("paraId"), colecao + ".paraId");
+            unidadeDoItem = paraId == null ? null : usuarios.findById(paraId)
+                    .map(Usuario::getUnidadeId).orElse(null);
+        }
+        if (unidadeDoUsuario == null || unidadeDoItem == null || !unidadeDoUsuario.equals(unidadeDoItem))
             throw new AcessoNegadoException("Registro fora da unidade do usuario autenticado");
     }
 
@@ -277,6 +374,19 @@ public class SincService {
     }
 
     private long proximoId(String colecao) {
+        if (ids != null) {
+            return switch (colecao) {
+                case "usuarios" -> ids.next("usuarios", () -> usuarios.findAll().stream().mapToLong(Usuario::getId).max().orElse(0L));
+                case "unidades" -> ids.next("unidades", () -> unidades.findAll().stream().mapToLong(Unidade::getId).max().orElse(0L));
+                case "salas" -> ids.next("salas", () -> salas.findAll().stream().mapToLong(Sala::getId).max().orElse(0L));
+                case "turmas" -> ids.next("turmas", () -> turmas.findAll().stream().mapToLong(Turma::getId).max().orElse(0L));
+                case "reservas" -> ids.next("reservas", () -> reservas.findAll().stream().mapToLong(Reserva::getId).max().orElse(0L));
+                case "chaves" -> ids.next("chaves", () -> chaves.findAll().stream().mapToLong(Chave::getId).max().orElse(0L));
+                case "notificacoes" -> ids.next("notificacoes", () -> notificacoes.findAll().stream().mapToLong(Notificacao::getId).max().orElse(0L));
+                case "solicitacoes" -> ids.next("solicitacoes", () -> solicitacoes.findAll().stream().mapToLong(Solicitacao::getId).max().orElse(0L));
+                default -> throw new RegraDeNegocioException("Colecao de sincronizacao desconhecida: " + colecao);
+            };
+        }
         switch (colecao) {
             case "usuarios": return usuarios.findAll().stream().mapToLong(Usuario::getId).max().orElse(0L) + 1;
             case "unidades": return unidades.findAll().stream().mapToLong(Unidade::getId).max().orElse(0L) + 1;
@@ -310,33 +420,49 @@ public class SincService {
      * <p>A pendencia "perda de campos no POST /api/sinc" da
      * {@code docs/ARQUITETURA_ATUALIZADA.md} esta resolvida.
      */
-    private void salvar(String colecao, Map<String, Object> item) {
+    private Long salvar(String colecao, Map<String, Object> item, boolean criacao) {
         // Registro sem "id" nao pode ser materializado (o id e a chave primaria
         // e e gerado manualmente, sem @GeneratedValue). Ignorar em vez de
         // estourar NullPointerException e derrubar as demais colecoes.
-        if (longOuNull(item.get("id")) == null) return;
+        Long id = longObrigatorio(item.get("id"), colecao + ".id");
+        Object persistido = criacao ? null : buscarPersistido(colecao, id);
+        if (!criacao) {
+            validarUnidadeDoRegistro(colecao, id);
+            Long unidadeReal = unidadeDoRegistro(colecao, id);
+            Object unidadeRecebida = item.get("unidadeId");
+            if (unidadeRecebida != null && unidadeReal != null
+                    && !unidadeReal.equals(longOuNull(unidadeRecebida, colecao + ".unidadeId"))
+                    && perfilAutenticado() != Perfil.ADMIN) {
+                throw new AcessoNegadoException("Registro fora da unidade do usuario autenticado");
+            }
+            // A unidade de um registro existente vem do banco, nunca do cache
+            // filtrado nem de um payload adulterado.
+            if (unidadeReal != null) item.put("unidadeId", unidadeReal);
+        } else {
+            validarUnidadeDoPayload(colecao, item);
+        }
         switch (colecao) {
             case "usuarios":
-                Usuario u = new Usuario();
-                u.setId(Long.valueOf(item.get("id").toString()));
+                Usuario u = persistido instanceof Usuario existente ? existente : new Usuario();
+                u.setId(id);
                 u.setNome(str(item.get("nome")));
                 u.setEmail(str(item.get("email")));
-                u.setPerfil(item.get("perfil") == null ? null : Perfil.from(item.get("perfil").toString()));
-                u.setUnidadeId(longOuNull(item.get("unidadeId")));
+                u.setPerfil(perfilOuNull(item.get("perfil"), colecao + ".perfil"));
+                u.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
                 if (u.getNome() == null || u.getNome().isBlank()
                         || !emailValido(u.getEmail())
                         || u.getPerfil() == null
                         || u.getUnidadeId() == null) {
-                    // Registro incompleto ou com e-mail fora do padrao (@Email):
-                    // ignora para nao abortar a sincronizacao do lote com HTTP 500.
-                    break;
+                    throw new RegraDeNegocioException("Dados do usuario invalidos");
                 }
                 // Evita violacao de @UniqueConstraint(columnNames = "email") e colisao
                 // de nextId entre dois clientes sincronizando em paralelo:
                 var existentePorEmail = usuarios.findByEmailIgnoreCase(u.getEmail());
                 String senhaRecebida = str(item.get("senha"));
                 if (existentePorEmail.isPresent()) {
-                    u.setId(existentePorEmail.get().getId());
+                    Long idExistente = existentePorEmail.get().getId();
+                    if (criacao || !idExistente.equals(u.getId()))
+                        throw new RegraDeNegocioException("Ja existe um usuario com este e-mail");
                 } else if (usuarios.existsById(u.getId())
                         && senhaRecebida != null && !senhaRecebida.isBlank()
                         && !senhaRecebida.startsWith("$2a$")
@@ -357,9 +483,7 @@ public class SincService {
                     String senhaAtual = usuarios.findById(u.getId())
                             .map(Usuario::getSenha).orElse(null);
                     if (senhaAtual == null) {
-                        // Usuario novo sem senha: ignora em vez de derrubar a colecao
-                        // (mesmo padrao do registro sem "id").
-                        break;
+                        throw new RegraDeNegocioException("Senha e obrigatoria para criar usuario");
                     }
                     u.setSenha(senhaAtual);
                 } else if (senhaRecebida.startsWith("$2a$") || senhaRecebida.startsWith("$2b$")
@@ -372,26 +496,28 @@ public class SincService {
                                 "A senha deve ter pelo menos " + UsuarioService.TAMANHO_MINIMO_SENHA + " caracteres");
                     u.setSenha(hashSenha(senhaRecebida));
                 }
-                usuarios.save(u);
-                break;
+                validarEntidade(u);
+                usuarioService.validarParaSincronizacao(u);
+                return usuarios.save(u).getId();
             case "unidades":
-                Unidade un = new Unidade();
-                un.setId(Long.valueOf(item.get("id").toString()));
+                Unidade un = persistido instanceof Unidade existente ? existente : new Unidade();
+                un.setId(id);
                 un.setNome(str(item.get("nome")));
                 un.setCep(normalizarCep(str(item.get("cep"))));
                 un.setCidade(str(item.get("cidade")));
                 un.setEndereco(str(item.get("endereco")));
-                unidades.save(un);
-                break;
+                validarEntidade(un);
+                unidadeService.validarParaSincronizacao(un, un.getId());
+                return unidades.save(un).getId();
             case "salas":
-                Sala s = new Sala();
-                s.setId(Long.valueOf(item.get("id").toString()));
+                Sala s = persistido instanceof Sala existente ? existente : new Sala();
+                s.setId(id);
                 s.setNome(str(item.get("nome")));
                 s.setTipo(str(item.get("tipo")));
-                s.setCapacidade(item.get("capacidade") == null ? null : Integer.valueOf(item.get("capacidade").toString()));
+                s.setCapacidade(integerOuNull(item.get("capacidade"), colecao + ".capacidade"));
                 s.setAndar(str(item.get("andar")));
                 s.setBloco(str(item.get("bloco")));
-                s.setUnidadeId(longOuNull(item.get("unidadeId")));
+                s.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
                 // Campos que antes eram zerados a cada sincronizacao (pendencia
                 // "perda de dados no POST /api/sinc" do relatorio de arquitetura).
                 s.setTurnosDisponiveis(listaDeStrings(item.get("turnosDisponiveis")));
@@ -399,80 +525,88 @@ public class SincService {
                 s.setStatusManual(str(item.get("statusManual")));
                 s.setMotivoManual(str(item.get("motivoManual")));
                 s.setManualPor(str(item.get("manualPor")));
-                if (item.get("manualCriadaEm") != null) s.setManualCriadaEm(Instant.parse(item.get("manualCriadaEm").toString()));
+                s.setManualCriadaEm(instantOuNull(item.get("manualCriadaEm"), colecao + ".manualCriadaEm"));
                 s.setAtiva(item.get("ativa") == null || Boolean.parseBoolean(item.get("ativa").toString()));
-                salas.save(s);
-                break;
+                validarEntidade(s);
+                salaService.validarParaSincronizacao(s);
+                return salas.save(s).getId();
             case "turmas":
-                Turma t = new Turma();
-                t.setId(Long.valueOf(item.get("id").toString()));
+                Turma t = persistido instanceof Turma existente ? existente : new Turma();
+                t.setId(id);
                 t.setNome(str(item.get("nome")));
                 t.setCodigo(str(item.get("codigo")));
                 t.setCurso(str(item.get("curso")));
                 t.setTurno(str(item.get("turno")));
-                t.setInstrutorId(item.get("instrutorId") == null ? null : Long.valueOf(item.get("instrutorId").toString()));
-                t.setUnidadeId(longOuNull(item.get("unidadeId")));
-                if (item.get("dataInicio") != null) t.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
-                if (item.get("dataFim") != null) t.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
-                turmas.save(t);
-                break;
+                t.setInstrutorId(longOuNull(item.get("instrutorId"), colecao + ".instrutorId"));
+                t.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
+                t.setDataInicio(dataOuNull(item.get("dataInicio"), colecao + ".dataInicio"));
+                t.setDataFim(dataOuNull(item.get("dataFim"), colecao + ".dataFim"));
+                validarEntidade(t);
+                turmaService.validarParaSincronizacao(t, t.getId());
+                return turmas.save(t).getId();
             case "reservas":
-                Reserva r = new Reserva();
-                r.setId(Long.valueOf(item.get("id").toString()));
-                r.setSalaId(longOuNull(item.get("salaId")));
-                r.setTurmaId(longOuNull(item.get("turmaId")));
+                Reserva r = persistido instanceof Reserva existente ? existente : new Reserva();
+                r.setId(id);
+                r.setSalaId(longOuNull(item.get("salaId"), colecao + ".salaId"));
+                r.setTurmaId(longOuNull(item.get("turmaId"), colecao + ".turmaId"));
                 r.setTurno(str(item.get("turno")));
-                if (item.get("dataInicio") != null) r.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
-                if (item.get("dataFim") != null) r.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
+                r.setDataInicio(dataOuNull(item.get("dataInicio"), colecao + ".dataInicio"));
+                r.setDataFim(dataOuNull(item.get("dataFim"), colecao + ".dataFim"));
                 r.setHoraInicio(str(item.get("horaInicio")));
                 r.setHoraFim(str(item.get("horaFim")));
-                r.setInstrutorId(longOuNull(item.get("instrutorId")));
-                r.setUnidadeId(longOuNull(item.get("unidadeId")));
-                r.setStatus(item.get("status") == null ? "ATIVA" : item.get("status").toString());
+                r.setInstrutorId(longOuNull(item.get("instrutorId"), colecao + ".instrutorId"));
+                r.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
+                r.setStatus(statusReservaOuPadrao(item.get("status"), colecao + ".status"));
                 r.setAvulsa(item.get("avulsa") != null && Boolean.parseBoolean(item.get("avulsa").toString()));
                 r.setDiasSemana(conjuntoDeStrings(item.get("diasSemana")));
-                reservas.save(r);
-                break;
+                validarEntidade(r);
+                reservaService.validarParaSincronizacao(reservaRequest(item), r.getId());
+                return reservas.save(r).getId();
             case "chaves":
-                Chave c = new Chave();
-                c.setId(Long.valueOf(item.get("id").toString()));
+                Chave c = persistido instanceof Chave existente ? existente : new Chave();
+                c.setId(id);
                 c.setCodigo(str(item.get("codigo")));
-                c.setSalaId(longOuNull(item.get("salaId")));
+                c.setSalaId(longOuNull(item.get("salaId"), colecao + ".salaId"));
                 c.setAndar(str(item.get("andar")));
-                c.setStatus(item.get("status") == null ? StatusChave.DISPONIVEL : StatusChave.from(item.get("status").toString()));
-                c.setInstrutorId(item.get("instrutorId") == null ? null : Long.valueOf(item.get("instrutorId").toString()));
-                if (item.get("pegaEm") != null) c.setPegaEm(Instant.parse(item.get("pegaEm").toString()));
-                c.setUnidadeId(longOuNull(item.get("unidadeId")));
-                chaves.save(c);
-                break;
+                c.setStatus(statusChaveOuPadrao(item.get("status"), colecao + ".status"));
+                c.setInstrutorId(longOuNull(item.get("instrutorId"), colecao + ".instrutorId"));
+                c.setPegaEm(instantOuNull(item.get("pegaEm"), colecao + ".pegaEm"));
+                c.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
+                validarEntidade(c);
+                chaveService.validarParaSincronizacao(c, c.getId());
+                return chaves.save(c).getId();
             case "notificacoes":
-                Notificacao n = new Notificacao();
-                n.setId(Long.valueOf(item.get("id").toString()));
+                Notificacao n = persistido instanceof Notificacao existente ? existente : new Notificacao();
+                n.setId(id);
                 n.setTipo(str(item.get("tipo")));
                 n.setTitulo(str(item.get("titulo")));
                 n.setMsg(str(item.get("msg")));
                 n.setParaPerfil(str(item.get("paraPerfil")));
-                n.setParaId(item.get("paraId") == null ? null : Long.valueOf(item.get("paraId").toString()));
-                n.setUnidadeId(item.get("unidadeId") == null ? null : Long.valueOf(item.get("unidadeId").toString()));
+                n.setParaId(longOuNull(item.get("paraId"), colecao + ".paraId"));
+                n.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
                 n.setLida(item.get("lida") != null && Boolean.parseBoolean(item.get("lida").toString()));
-                if (item.get("criadaEm") != null) n.setCriadaEm(Instant.parse(item.get("criadaEm").toString()));
-                notificacoes.save(n);
-                break;
+                Instant criadaEm = instantOuNull(item.get("criadaEm"), colecao + ".criadaEm");
+                if (criadaEm != null) n.setCriadaEm(criadaEm);
+                validarEntidade(n);
+                validarNotificacao(n);
+                return notificacoes.save(n).getId();
             case "solicitacoes":
-                Solicitacao sol = new Solicitacao();
-                sol.setId(Long.valueOf(item.get("id").toString()));
-                sol.setSalaId(longOuNull(item.get("salaId")));
-                sol.setInstrutorId(longOuNull(item.get("instrutorId")));
-                sol.setTurmaId(longOuNull(item.get("turmaId")));
-                sol.setUnidadeId(longOuNull(item.get("unidadeId")));
-                if (item.get("data") != null) sol.setData(java.time.LocalDate.parse(item.get("data").toString()));
-                if (item.get("dataInicio") != null) sol.setDataInicio(java.time.LocalDate.parse(item.get("dataInicio").toString()));
-                if (item.get("dataFim") != null) sol.setDataFim(java.time.LocalDate.parse(item.get("dataFim").toString()));
+                Solicitacao sol = persistido instanceof Solicitacao existente ? existente : new Solicitacao();
+                sol.setId(id);
+                sol.setSalaId(longOuNull(item.get("salaId"), colecao + ".salaId"));
+                sol.setInstrutorId(longOuNull(item.get("instrutorId"), colecao + ".instrutorId"));
+                sol.setTurmaId(longOuNull(item.get("turmaId"), colecao + ".turmaId"));
+                sol.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
+                sol.setData(dataOuNull(item.get("data"), colecao + ".data"));
+                sol.setDataInicio(dataOuNull(item.get("dataInicio"), colecao + ".dataInicio"));
+                sol.setDataFim(dataOuNull(item.get("dataFim"), colecao + ".dataFim"));
                 sol.setMotivo(str(item.get("motivo")));
                 sol.setResposta(str(item.get("resposta")));
-                sol.setStatus(item.get("status") == null ? StatusSolicitacao.PENDENTE : StatusSolicitacao.from(item.get("status").toString()));
-                if (item.get("criadaEm") != null) sol.setCriadaEm(Instant.parse(item.get("criadaEm").toString()));
-                if (item.get("respondidaEm") != null) sol.setRespondidaEm(Instant.parse(item.get("respondidaEm").toString()));
+                sol.setStatus(statusSolicitacaoOuPadrao(item.get("status"), colecao + ".status"));
+                sol.setCriadaEm(item.containsKey("criadaEm")
+                        ? instantOuNull(item.get("criadaEm"), colecao + ".criadaEm")
+                        : (sol.getCriadaEm() == null ? Instant.now() : sol.getCriadaEm()));
+                sol.setRespondidaEm(instantOuNull(item.get("respondidaEm"), colecao + ".respondidaEm"));
                 sol.setModo(str(item.get("modo")));
                 sol.setTurno(str(item.get("turno")));
                 sol.setHoraInicio(str(item.get("horaInicio")));
@@ -492,14 +626,16 @@ public class SincService {
                     List<Object> datas = (List<Object>) item.get("datasEspecificas");
                     sol.setDatasEspecificas(datas.stream().map(Object::toString).toList());
                 }
-                solicitacoes.save(sol);
-                break;
+                validarEntidade(sol);
+                solicitacaoService.validarParaSincronizacao(sol);
+                return solicitacoes.save(sol).getId();
             default:
-                break;
+                throw new AcessoNegadoException("Colecao nao autorizada para sincronizacao");
         }
     }
 
     private void deletar(String colecao, Long id) {
+        validarUnidadeDoRegistro(colecao, id);
         switch (colecao) {
             case "usuarios": usuarios.deleteById(id); break;
             case "unidades": unidades.deleteById(id); break;
@@ -513,8 +649,191 @@ public class SincService {
         }
     }
 
+    private void validarUnidadeDoRegistro(String colecao, Long id) {
+        Perfil perfil = perfilAutenticado();
+        if (perfil == Perfil.ADMIN) return;
+
+        Long unidadeRegistro = switch (colecao) {
+            case "usuarios" -> usuarios.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Usuario", id))
+                    .getUnidadeId();
+            case "unidades" -> unidades.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Unidade", id))
+                    .getId();
+            case "salas" -> salas.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Sala", id))
+                    .getUnidadeId();
+            case "turmas" -> turmas.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Turma", id))
+                    .getUnidadeId();
+            case "reservas" -> reservas.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Reserva", id))
+                    .getUnidadeId();
+            case "chaves" -> chaves.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Chave", id))
+                    .getUnidadeId();
+            case "notificacoes" -> notificacoes.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Notificacao", id))
+                    .getUnidadeId();
+            case "solicitacoes" -> solicitacoes.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Solicitacao", id))
+                    .getUnidadeId();
+            default -> throw new AcessoNegadoException("Colecao nao autorizada para remocao");
+        };
+
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        Long unidadeUsuario = auth == null ? null : usuarios.findByEmailIgnoreCase(auth.getName())
+                .map(Usuario::getUnidadeId).orElse(null);
+        if (unidadeUsuario == null || !java.util.Objects.equals(unidadeUsuario, unidadeRegistro))
+            throw new AcessoNegadoException("Usuario nao pode remover registro de outra unidade");
+    }
+
+    private Long unidadeDoRegistro(String colecao, Long id) {
+        return switch (colecao) {
+            case "usuarios" -> usuarios.findById(id).map(Usuario::getUnidadeId).orElse(null);
+            case "unidades" -> unidades.findById(id).map(Unidade::getId).orElse(null);
+            case "salas" -> salas.findById(id).map(Sala::getUnidadeId).orElse(null);
+            case "turmas" -> turmas.findById(id).map(Turma::getUnidadeId).orElse(null);
+            case "reservas" -> reservas.findById(id).map(Reserva::getUnidadeId).orElse(null);
+            case "chaves" -> chaves.findById(id).map(Chave::getUnidadeId).orElse(null);
+            case "notificacoes" -> notificacoes.findById(id).map(Notificacao::getUnidadeId).orElse(null);
+            case "solicitacoes" -> solicitacoes.findById(id).map(Solicitacao::getUnidadeId).orElse(null);
+            default -> null;
+        };
+    }
+
+    private Object buscarPersistido(String colecao, Long id) {
+        return switch (colecao) {
+            case "usuarios" -> usuarios.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Usuario", id));
+            case "unidades" -> unidades.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Unidade", id));
+            case "salas" -> salas.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Sala", id));
+            case "turmas" -> turmas.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Turma", id));
+            case "reservas" -> reservas.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Reserva", id));
+            case "chaves" -> chaves.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Chave", id));
+            case "notificacoes" -> notificacoes.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Notificacao", id));
+            case "solicitacoes" -> solicitacoes.findById(id)
+                    .orElseThrow(() -> new conecta.demo.exception.RecursoNaoEncontradoException("Solicitacao", id));
+            default -> throw new AcessoNegadoException("Colecao nao autorizada para sincronizacao");
+        };
+    }
+
     private String str(Object o) {
         return o == null ? null : o.toString();
+    }
+
+    private void validarEntidade(Object entidade) {
+        Set<ConstraintViolation<Object>> violacoes = validator.validate(entidade);
+        if (!violacoes.isEmpty()) {
+            String campo = violacoes.iterator().next().getPropertyPath().toString();
+            throw new DadosInvalidosException(campo, "valor invalido");
+        }
+    }
+
+    private ReservaRequest reservaRequest(Map<String, Object> item) {
+        return new ReservaRequest(
+                longOuNull(item.get("salaId"), "reservas.salaId"),
+                longOuNull(item.get("turmaId"), "reservas.turmaId"),
+                str(item.get("turno")),
+                conjuntoDeStrings(item.get("diasSemana")),
+                dataOuNull(item.get("dataInicio"), "reservas.dataInicio"),
+                dataOuNull(item.get("dataFim"), "reservas.dataFim"),
+                str(item.get("horaInicio")),
+                str(item.get("horaFim")),
+                longOuNull(item.get("instrutorId"), "reservas.instrutorId"),
+                longOuNull(item.get("unidadeId"), "reservas.unidadeId"));
+    }
+
+    private java.time.LocalDate dataOuNull(Object valor) {
+        return dataOuNull(valor, "data");
+    }
+
+    private java.time.LocalDate dataOuNull(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank()) return null;
+        try {
+            return java.time.LocalDate.parse(valor.toString());
+        } catch (java.time.format.DateTimeParseException ex) {
+            throw new DadosInvalidosException(campo, "data deve estar no formato ISO-8601 yyyy-MM-dd");
+        }
+    }
+
+    private Long longObrigatorio(Object valor, String campo) {
+        Long resultado = longOuNull(valor, campo);
+        if (resultado == null)
+            throw new DadosInvalidosException(campo, "numero inteiro obrigatorio");
+        return resultado;
+    }
+
+    private Integer integerOuNull(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank() || "null".equals(valor.toString().trim())) return null;
+        try {
+            return Integer.valueOf(valor.toString().trim());
+        } catch (NumberFormatException ex) {
+            throw new DadosInvalidosException(campo, "numero inteiro invalido");
+        }
+    }
+
+    private Instant instantOuNull(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank() || "null".equals(valor.toString().trim())) return null;
+        try {
+            return Instant.parse(valor.toString().trim());
+        } catch (java.time.format.DateTimeParseException ex) {
+            throw new DadosInvalidosException(campo, "timestamp deve estar no formato ISO-8601");
+        }
+    }
+
+    private Perfil perfilOuNull(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank()) return null;
+        try {
+            return Perfil.from(valor.toString());
+        } catch (IllegalArgumentException ex) {
+            throw new DadosInvalidosException(campo, "perfil desconhecido");
+        }
+    }
+
+    private StatusSolicitacao statusSolicitacaoOuPadrao(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank()) return StatusSolicitacao.PENDENTE;
+        try {
+            return StatusSolicitacao.from(valor.toString());
+        } catch (IllegalArgumentException ex) {
+            throw new DadosInvalidosException(campo, "status desconhecido");
+        }
+    }
+
+    private StatusChave statusChaveOuPadrao(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank()) return StatusChave.DISPONIVEL;
+        String status = valor.toString().trim().toLowerCase(java.util.Locale.ROOT);
+        if (!"disponivel".equals(status) && !"pega".equals(status) && !"retirada".equals(status))
+            throw new DadosInvalidosException(campo, "status desconhecido");
+        return StatusChave.from(status);
+    }
+
+    private String statusReservaOuPadrao(Object valor, String campo) {
+        if (valor == null || valor.toString().isBlank()) return "ATIVA";
+        String status = valor.toString().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!"ATIVA".equals(status) && !"CANCELADA".equals(status))
+            throw new DadosInvalidosException(campo, "status desconhecido");
+        return status;
+    }
+
+    private void validarNotificacao(Notificacao notificacao) {
+        if (notificacao.getUnidadeId() != null && !unidades.existsById(notificacao.getUnidadeId()))
+            throw new RegraDeNegocioException("Unidade da notificacao nao existe");
+        if (notificacao.getParaId() != null && !usuarios.existsById(notificacao.getParaId()))
+            throw new RegraDeNegocioException("Usuario destinatario da notificacao nao existe");
+        if (notificacao.getParaId() != null && notificacao.getUnidadeId() != null) {
+            Long unidadeDoUsuario = usuarios.findById(notificacao.getParaId()).orElseThrow()
+                    .getUnidadeId();
+            if (!java.util.Objects.equals(unidadeDoUsuario, notificacao.getUnidadeId()))
+                throw new RegraDeNegocioException("Notificacao e usuario destinatario devem pertencer a mesma unidade");
+        }
     }
 
     /** Hasheia a senha com BCrypt, mantendo coerencia com o login (encoder.matches). */
@@ -549,13 +868,17 @@ public class SincService {
      * @return o valor numerico, ou {@code null} quando ausente/vazio/invalido
      */
     private Long longOuNull(Object o) {
+        return longOuNull(o, "id");
+    }
+
+    private Long longOuNull(Object o, String campo) {
         if (o == null) return null;
         String s = o.toString().trim();
         if (s.isEmpty() || "null".equals(s)) return null;
         try {
             return Long.valueOf(s);
         } catch (NumberFormatException e) {
-            return null;
+            throw new DadosInvalidosException(campo, "numero inteiro invalido");
         }
     }
 
