@@ -78,17 +78,17 @@ class SincUsuariosTest {
         //    + novo usuario COM senha (recem-criado no formulario).
         String payload = "{\"alteracoes\":{\"usuarios\":["
                 + "{\"id\":" + existenteId + ",\"nome\":\"Existente\","
-                + "\"email\":\"existente@sinc.test\",\"perfil\":\"instrutor\",\"unidadeId\":" + unidadeId + "},"
+                + "\"email\":\"existente@sinc.test\",\"perfil\":\"instrutor\",\"unidadeId\":" + unidadeId + "}"
+                + " ]},\"criados\":{\"usuarios\":["
                 + "{\"id\":99001,\"nome\":\"Novo Usuario\",\"email\":\"novo@sinc.test\","
-                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}"
-                + "]}}";
+                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}]}}";
 
         // 3) SEM a correcao isto retorna 500 (rollback); COM a correcao retorna 200.
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isOk());
 
         // 4) o novo usuario foi persistido.
-        org.assertj.core.api.Assertions.assertThat(usuarios.findById(99001L)).isPresent();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("novo@sinc.test")).isPresent();
 
         // 5) a senha do existente foi PRESERVADA (nem anulada, nem re-hasheada por engano).
         String senhaOriginal = usuarios.findById(existenteId).orElseThrow().getSenha();
@@ -143,13 +143,12 @@ class SincUsuariosTest {
         // Cliente defasado envia novo coordenador colidindo no mesmo idExistente + registro com e-mail invalido
         String payload = "{\"alteracoes\":{\"usuarios\":["
                 + "{\"id\":" + idExistente + ",\"nome\":\"Coord B Colisao\",\"email\":\"coord.b@sinc.test\","
-                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "},"
-                + "{\"id\":99099,\"nome\":\"Invalido\",\"email\":\"email.invalido@senac.\","
-                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}"
-                + "]}}";
+                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}],"
+                + "\"criados\":{\"usuarios\":[{\"id\":99099,\"nome\":\"Invalido\",\"email\":\"email.invalido@senac.\","
+                + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}]}}";
 
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
 
         org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.a@sinc.test")).isPresent();
         org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.b@sinc.test")).isEmpty();

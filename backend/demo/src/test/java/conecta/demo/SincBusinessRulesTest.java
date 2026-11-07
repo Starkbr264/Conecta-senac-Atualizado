@@ -69,19 +69,19 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaTurmaIncompleta() throws Exception {
         long unidadeId = criarUnidade("Unidade turma sinc", "71000-001");
-        String payload = "{\"alteracoes\":{\"turmas\":["
+        String payload = "{\"criados\":{\"turmas\":["
                 + "{\"id\":99101,\"nome\":\"\",\"codigo\":\"\","
                 + "\"curso\":\"\",\"turno\":\"\",\"unidadeId\":" + unidadeId + "}]}}";
 
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void sincRejeitaSenhaCurtaSemExporSenha() throws Exception {
         long unidadeId = criarUnidade("Unidade usuario sinc", "71000-006");
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"usuarios\":[{\"id\":99107,"
+                        .content("{\"criados\":{\"usuarios\":[{\"id\":99107,"
                                 + "\"nome\":\"Usuario\",\"email\":\"usuario.sinc@senac.test\","
                                 + "\"senha\":\"curta\",\"perfil\":\"instrutor\","
                                 + "\"unidadeId\":" + unidadeId + "}]}}"))
@@ -122,7 +122,7 @@ class SincBusinessRulesTest {
                 + "\"turno\":\"\",\"unidadeId\":" + unidadeId + "}]}}";
 
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
 
         org.assertj.core.api.Assertions.assertThat(turmas.findById(99103L)).isEmpty();
 
@@ -210,7 +210,7 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaDataInvalidaComResposta400() throws Exception {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"reservas\":[{\"id\":99110,\"dataInicio\":\"31-02-2026\"}]}}"))
+                        .content("{\"criados\":{\"reservas\":[{\"id\":99110,\"dataInicio\":\"31-02-2026\"}]}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("reservas.dataInicio"));
     }
@@ -218,7 +218,7 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaStatusDeSolicitacaoDesconhecidoComResposta400() throws Exception {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"solicitacoes\":[{\"id\":99111,\"status\":\"nao-existe\"}]}}"))
+                        .content("{\"criados\":{\"solicitacoes\":[{\"id\":99111,\"status\":\"nao-existe\"}]}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("solicitacoes.status"));
     }
@@ -226,7 +226,7 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaStatusDeChaveDesconhecidoComResposta400() throws Exception {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"chaves\":[{\"id\":99112,\"status\":\"quebrada\"}]}}"))
+                        .content("{\"criados\":{\"chaves\":[{\"id\":99112,\"status\":\"quebrada\"}]}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("chaves.status"));
     }
@@ -234,7 +234,7 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaNotificacaoComUnidadeInexistente() throws Exception {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"notificacoes\":[{\"id\":99113,\"tipo\":\"info\","
+                        .content("{\"criados\":{\"notificacoes\":[{\"id\":99113,\"tipo\":\"info\","
                                 + "\"titulo\":\"Aviso\",\"msg\":\"Mensagem\",\"unidadeId\":999999}]}}"))
                 .andExpect(status().isConflict());
     }
@@ -242,7 +242,7 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaTimestampInvalidoComResposta400() throws Exception {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"notificacoes\":[{\"id\":99114,\"tipo\":\"info\","
+                        .content("{\"criados\":{\"notificacoes\":[{\"id\":99114,\"tipo\":\"info\","
                                 + "\"titulo\":\"Aviso\",\"msg\":\"Mensagem\",\"criadaEm\":\"ontem\"}]}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("notificacoes.criadaEm"));
@@ -259,7 +259,7 @@ class SincBusinessRulesTest {
     @Test
     void sincRejeitaStatusDeReservaDesconhecido() throws Exception {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"alteracoes\":{\"reservas\":[{\"id\":99115,\"status\":\"invalida\"}]}}"))
+                        .content("{\"criados\":{\"reservas\":[{\"id\":99115,\"status\":\"invalida\"}]}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("reservas.status"));
     }
@@ -280,7 +280,7 @@ class SincBusinessRulesTest {
                 coordenador.getEmail(), "n/a", "ROLE_COORDENADOR"));
         try {
             assertThrows(AcessoNegadoException.class, () -> sinc.sincronizar(Map.of(
-                    "alteracoes", Map.of("notificacoes", List.of(Map.of(
+                    "criados", Map.of("notificacoes", List.of(Map.of(
                             "id", 99204L, "tipo", "info", "titulo", "Privada", "msg", "Mensagem",
                             "unidadeId", unidadeAlheia))))));
         } finally {

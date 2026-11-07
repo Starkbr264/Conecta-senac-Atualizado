@@ -17,10 +17,10 @@
  */
 
 import {
-  addUnidade,
+  addUnidadeAsync,
   addUser,
-  delUnidade,
-  delUser,
+  delUnidadeAsync,
+  delUserAsync,
   getChaves,
   getReservas,
   getSalas,
@@ -34,7 +34,8 @@ import {
   referenciasDaUnidade,
   getUsuarios,
   initDados,
-  updUnidade,
+  SincronizacaoPendenteError,
+  updUnidadeAsync,
   updUser,
 } from '../../core/storage';
 import { calcStatus, esc, fmtData, htmlStatus } from '../../core/format';
@@ -322,7 +323,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@.]+$/;
 const SENHA_MINIMA = 8;
 
 /** Persiste o usuario editado/criado. */
-export function salvarUser(): void {
+export async function salvarUser(): Promise<void> {
   const nome = byId<HTMLInputElement>('mUNome').value.trim();
   const email = byId<HTMLInputElement>('mUEmail').value.trim();
   const senha = byId<HTMLInputElement>('mUSenha').value.trim();
@@ -353,12 +354,21 @@ export function salvarUser(): void {
   };
   if (senha) dados.senha = senha;
 
-  if (editUserId) {
-    void updUser(editUserId, dados);
-    toast('Usuário atualizado!', 'ok');
-  } else {
-    void addUser(dados as Omit<Usuario, 'id'>);
-    toast('Usuário criado!', 'ok');
+  try {
+    if (editUserId) {
+      await updUser(editUserId, dados);
+      toast('Usuário atualizado!', 'ok');
+    } else {
+      await addUser(dados as Omit<Usuario, 'id'>);
+      toast('Usuário criado!', 'ok');
+    }
+  } catch (erro) {
+    if (erro instanceof SincronizacaoPendenteError && erro.exigeConexao) {
+      toast('Não foi possível enviar: esta operação exige conexão com o servidor.', 'erro');
+    } else {
+      toast('Usuário mantido localmente, aguardando sincronização.', 'aviso');
+    }
+    return;
   }
   fecharUser();
   rdUsuarios();
@@ -366,7 +376,7 @@ export function salvarUser(): void {
 }
 
 /** Redefine a senha de um usuario via `prompt`. */
-export function resetSenha(id: number): void {
+export async function resetSenha(id: number): Promise<void> {
   const u = getUserById(id);
   if (!u) return;
   const nova = prompt(`Nova senha para "${u.nome}" (mínimo de 8 caracteres):`);
@@ -380,17 +390,30 @@ export function resetSenha(id: number): void {
     toast('As senhas não conferem.', 'erro');
     return;
   }
-  void updUser(id, { senha: nova.trim() });
-  toast(`Senha de "${u.nome}" redefinida!`, 'ok');
+  try {
+    await updUser(id, { senha: nova.trim() });
+    toast(`Senha de "${u.nome}" redefinida!`, 'ok');
+  } catch (erro) {
+    if (erro instanceof SincronizacaoPendenteError && erro.exigeConexao) {
+      toast('Não foi possível enviar: redefinição de senha exige conexão.', 'erro');
+    } else {
+      toast('Redefinição de senha pendente de sincronização.', 'aviso');
+    }
+  }
 }
 
 /** Exclui um usuario apos confirmacao. */
-export function excluirUser(id: number): void {
+export async function excluirUser(id: number): Promise<void> {
   const u = getUserById(id);
   if (!u) return;
   if (!confirm(`Excluir "${u.nome}"?\nEsta ação não pode ser desfeita.`)) return;
-  void delUser(id);
-  toast('Usuário excluído.', 'aviso');
+  try {
+    await delUserAsync(id);
+    toast('Usuário excluído.', 'aviso');
+  } catch {
+    toast('Exclusão do usuário pendente de sincronização.', 'aviso');
+    return;
+  }
   rdUsuarios();
   rdDash();
 }
@@ -475,7 +498,7 @@ export function fecharUnid(): void {
  * banco. O backend rejeita nomes duplicados (409), por isso a checagem local
  * e so uma mensagem amigavel antes do request.
  */
-export function salvarUnid(): void {
+export async function salvarUnid(): Promise<void> {
   const nome = byId<HTMLInputElement>('mNNome').value.trim();
   const endereco = byId<HTMLInputElement>('mNEndereco').value.trim();
   const cepDigitado = byId<HTMLInputElement>('mNCep').value.trim();
@@ -494,18 +517,23 @@ export function salvarUnid(): void {
     return fmsg('mNMsg', 'erro', 'Já existe uma unidade com este nome.');
   }
 
-  if (editUnidId) {
-    const atual = getUnidadeById(editUnidId);
-    updUnidade(editUnidId, {
-      nome,
-      endereco,
-      cep,
-      cidade: atual?.cidade ?? '',
-    });
-    toast('Unidade atualizada!', 'ok');
-  } else {
-    addUnidade({ nome, endereco, cep, cidade: '' });
-    toast('Unidade criada!', 'ok');
+  try {
+    if (editUnidId) {
+      const atual = getUnidadeById(editUnidId);
+      await updUnidadeAsync(editUnidId, {
+        nome,
+        endereco,
+        cep,
+        cidade: atual?.cidade ?? '',
+      });
+      toast('Unidade atualizada!', 'ok');
+    } else {
+      await addUnidadeAsync({ nome, endereco, cep, cidade: '' });
+      toast('Unidade criada!', 'ok');
+    }
+  } catch {
+    toast('Unidade mantida localmente, aguardando sincronização.', 'aviso');
+    return;
   }
   fecharUnid();
   rdUnidades();
@@ -524,7 +552,7 @@ function formatarCep(valor: string): string {
  * solicitacoes apontando para uma unidade inexistente (registros orfaos,
  * invisiveis em todo filtro por unidade).
  */
-export function excluirUnid(id: number): void {
+export async function excluirUnid(id: number): Promise<void> {
   const u = getUnidadeById(id);
   if (!u) return;
   const refs = referenciasDaUnidade(id);
@@ -536,8 +564,13 @@ export function excluirUnid(id: number): void {
     return;
   }
   if (!confirm(`Excluir "${u.nome}"?`)) return;
-  delUnidade(id);
-  toast('Unidade excluída.', 'aviso');
+  try {
+    await delUnidadeAsync(id);
+    toast('Unidade excluída.', 'aviso');
+  } catch {
+    toast('Exclusão da unidade pendente de sincronização.', 'aviso');
+    return;
+  }
   rdUnidades();
   rdDash();
 }

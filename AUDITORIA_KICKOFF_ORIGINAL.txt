@@ -1,0 +1,316 @@
+https://conecta-senac-test-yw11.vercel.app/
+# AUDITORIA FINAL DE INTEGRAÇÃO — CONECTA-SENAC
+## PostgreSQL + Supabase + Render + Vercel + Testes E2E
+
+Quero que você realize uma validação completa da implementação da branch `fix/api-sinc-validacoes`.
+
+As correções de segurança, autorização, sincronização, geração de IDs e validação de dados já foram implementadas.
+
+Os testes atuais apresentam:
+- 81 testes do backend aprovados.
+- Teste de concorrência aprovado.
+- Build do frontend aprovado.
+- `git diff --check` aprovado.
+
+Entretanto, ainda precisamos comprovar que o sistema funciona corretamente com PostgreSQL real e que toda a comunicação entre frontend, backend e banco de dados funciona no ambiente integrado.
+
+**IMPORTANTE: não quero apenas uma análise estática do código. Quero testes práticos, com evidências dos resultados.**
+
+# ETAPA 1 — ENTENDER A ARQUITETURA ATUAL
+
+Antes de executar qualquer teste:
+
+1. Leia a estrutura completa do projeto.
+2. Identifique como frontend, backend e banco de dados estão conectados.
+3. Verifique as configurações do Spring Boot.
+4. Identifique a versão do PostgreSQL utilizada ou configurada.
+5. Analise as configurações de conexão do Supabase.
+6. Identifique como o Render executa o backend.
+7. Identifique como o Vercel publica o frontend.
+8. Verifique como o frontend realiza chamadas para `/api/sinc`.
+9. Confira como funciona a autenticação JWT.
+10. Identifique a branch e a worktree atuais.
+
+Não presuma que as configurações existentes continuam iguais às configurações de auditorias anteriores. Confira os arquivos atuais.
+
+# ETAPA 2 — TESTES COM POSTGRESQL REAL
+
+O objetivo desta etapa é verificar se o backend funciona corretamente com PostgreSQL verdadeiro, e não apenas com H2 em modo de compatibilidade PostgreSQL.
+
+Prefira utilizar Testcontainers com uma versão compatível com a utilizada pelo projeto.
+
+Caso não seja possível, utilize uma instância PostgreSQL local isolada.
+
+Não utilize o banco de produção do Supabase para testes destrutivos.
+
+## 2.1. Testar a estrutura do banco
+
+Verifique:
+- Criação das tabelas.
+- Mapeamentos JPA.
+- Tipos de dados.
+- Chaves primárias.
+- Chaves estrangeiras existentes.
+- Índices.
+- Restrições UNIQUE.
+- Transações.
+- Rollback.
+- Compatibilidade das consultas SQL.
+
+## 2.2. Testar a tabela id_sequences
+
+Esta verificação é especialmente importante.
+
+Analise a tabela `id_sequences` e confirme:
+
+- Sua criação no PostgreSQL.
+- Inicialização correta.
+- Compatibilidade com registros que já possuem IDs.
+- Ausência de colisões.
+- Bloqueio transacional compartilhado entre conexões.
+- Funcionamento com duas ou mais instâncias do backend.
+- Ausência de caminhos que continuem utilizando `MAX(id) + 1`.
+- Liberação correta dos bloqueios após commit ou rollback.
+
+Execute testes de concorrência com múltiplas conexões reais.
+
+Verifique se duas sincronizações simultâneas conseguem criar registros sem duplicar IDs ou perder dados.
+
+Não considere um teste sequencial equivalente a um teste de concorrência.
+
+## 2.3. Testar transações
+
+Execute cenários em que:
+
+1. Todas as entidades são válidas.
+2. Uma entidade apresenta erro no início do lote.
+3. Uma entidade apresenta erro no meio do lote.
+4. A última entidade apresenta erro.
+5. Duas sincronizações ocorrem simultaneamente.
+
+Confirme que o comportamento transacional é consistente e que um lote inválido não deixa gravações parciais.
+
+# ETAPA 3 — TESTAR AS REGRAS DE NEGÓCIO
+
+Utilize o PostgreSQL de testes para validar:
+
+### Usuários
+- Cadastro válido.
+- Senha inferior a 8 caracteres.
+- E-mail duplicado.
+- Edição de usuário.
+- Perfil ausente.
+- Perfil desconhecido.
+
+### Unidades
+- Cadastro válido.
+- Dados incompletos.
+- Duplicidade.
+- Referências inválidas.
+
+### Salas e turmas
+- Cadastro válido.
+- Capacidade inválida.
+- Turno inválido.
+- Instrutor inexistente.
+- Unidade incompatível.
+
+### Reservas
+- Cadastro válido.
+- Conflito de horário.
+- Sala inexistente.
+- Unidade incompatível.
+- Status inválido.
+
+### Chaves
+- Cadastro válido.
+- Código duplicado.
+- Sala inexistente.
+- Tentativa de utilização não autorizada.
+
+### Solicitações e notificações
+- Cadastro válido.
+- Sala inexistente.
+- Turma inexistente.
+- Instrutor de outra unidade.
+- Unidade inválida.
+- Datas e horários malformados.
+
+### Segurança e autorização
+- Tentativa de remover registro de outra unidade.
+- Tentativa de sincronizar sem perfil válido.
+- Tentativa de acessar coleções não autorizadas.
+- Tentativa de contornar validações alterando IDs no payload.
+
+Confira os códigos HTTP e o estado final dos registros no banco.
+
+# ETAPA 4 — TESTES E2E NO SITE
+
+Agora precisamos testar o funcionamento integrado da aplicação.
+
+O fluxo esperado é:
+
+FRONTEND (VERCEL)
+↓
+BACKEND (RENDER)
+↓
+POSTGRESQL (SUPABASE)
+
+O objetivo é verificar se uma operação realizada pelo navegador chega corretamente ao backend e é persistida no banco de dados.
+
+## 4.1. Preparação do ambiente
+
+Identifique se existe um ambiente de homologação com:
+
+- Frontend publicado no Vercel.
+- Backend publicado no Render.
+- Banco PostgreSQL isolado no Supabase.
+
+Dê preferência a um projeto Supabase separado para homologação.
+
+Utilize contas e registros exclusivamente de teste.
+
+Se o ambiente de homologação não existir, não crie nem publique um ambiente automaticamente. Apresente o que falta para preparar essa infraestrutura.
+
+Não realize operações de criação, edição ou exclusão na aplicação de produção sem autorização e ambiente de testes apropriado.
+
+## 4.2. Testes pelo navegador
+
+Utilize automação de navegador, Playwright ou ferramenta equivalente, caso disponível.
+
+Teste os seguintes fluxos:
+
+1. Acessar o site.
+2. Realizar login.
+3. Verificar carregamento dos dados.
+4. Criar um usuário.
+5. Editar um usuário.
+6. Criar uma unidade.
+7. Criar uma sala.
+8. Criar uma turma.
+9. Criar uma reserva.
+10. Cadastrar uma chave.
+11. Criar uma solicitação.
+12. Criar uma notificação.
+13. Executar a sincronização.
+14. Atualizar a página e verificar a persistência dos dados.
+15. Verificar se os dados continuam disponíveis após novo login.
+16. Conferir se os registros persistidos no PostgreSQL correspondem aos exibidos no frontend.
+
+Verifique também se existem erros no console do navegador e nas respostas HTTP da API.
+
+Não considere o teste aprovado apenas porque a interface exibiu uma mensagem de sucesso. Confira a resposta da API e a persistência real no banco.
+
+# ETAPA 5 — TESTAR SINCRONIZAÇÃO ENTRE DISPOSITIVOS
+
+Verifique o comportamento de sincronização entre sessões diferentes.
+
+Utilize, quando possível:
+- Uma janela normal do navegador.
+- Uma janela anônima.
+- Outro perfil de navegador.
+
+Verifique:
+
+- Se os dados carregam corretamente após autenticação.
+- Se uma criação aparece após atualizar a outra sessão.
+- Se uma edição é refletida corretamente.
+- Se exclusões são sincronizadas.
+- Se não existem dados presos apenas no armazenamento local.
+- Se o frontend não apresenta informações antigas como se fossem dados atuais.
+
+Verifique especificamente os mecanismos de armazenamento local, cache, autenticação e atualização de dados.
+
+# ETAPA 6 — VERIFICAR INFRAESTRUTURA E CONFIGURAÇÕES
+
+Analise:
+- Conexão JDBC do Render com o Supabase.
+- Configuração do pool de conexões.
+- Limites de conexões.
+- Timeouts.
+- Transações.
+- Tratamento de falhas de conexão.
+- Inicialização das tabelas.
+- Permissões de criação e atualização do esquema.
+- Configuração de CORS.
+- Comunicação entre Vercel e Render.
+- Variáveis de ambiente necessárias.
+
+Verifique especialmente `spring.jpa.hibernate.ddl-auto=update`.
+
+Avalie os riscos de alterações automáticas no esquema de produção e recomende uma estratégia de migrações controladas.
+
+Não exponha credenciais ou tokens no relatório.
+
+# ETAPA 7 — DIAGNÓSTICO E TRATAMENTO DE ERROS
+
+Durante os testes, verifique se:
+
+- Erros de validação retornam HTTP 400 ou 409 conforme o caso.
+- Problemas de autorização retornam HTTP 403.
+- Falhas de autenticação retornam HTTP 401.
+- Falhas inesperadas não expõem stack traces.
+- Erros de conexão são tratados adequadamente.
+- O frontend apresenta mensagens compreensíveis.
+- Falhas de sincronização não deixam dados inconsistentes.
+
+Se encontrar novos problemas, identifique suas causas e apresente os arquivos e métodos envolvidos.
+
+Não faça alterações amplas para corrigir problemas sem entender suas consequências.
+
+# ETAPA 8 — RELATÓRIO FINAL
+
+Ao terminar, apresente um relatório dividido em:
+
+### A. Testes PostgreSQL
+Informe todos os testes realizados e seus resultados.
+
+### B. Testes de concorrência
+Informe quantidade de conexões utilizadas, operações simultâneas e resultado da geração de IDs.
+
+### C. Testes E2E
+Apresente quais funcionalidades foram efetivamente testadas pelo navegador.
+
+### D. Integração da infraestrutura
+Informe se Vercel, Render e Supabase estão se comunicando corretamente.
+
+### E. Problemas encontrados
+Classifique cada problema como:
+- Crítico.
+- Alto.
+- Médio.
+- Baixo.
+- Nenhum problema identificado.
+
+### F. Limitações
+Informe claramente quais testes não puderam ser executados e por quê.
+
+### G. Parecer final
+Responda objetivamente:
+
+1. O backend está compatível com PostgreSQL real?
+2. A geração concorrente de IDs está segura?
+3. O mecanismo de sincronização está íntegro?
+4. O frontend consegue se comunicar corretamente com o backend?
+5. Os dados são persistidos corretamente no Supabase?
+6. A aplicação funciona em sessões e dispositivos diferentes?
+7. O sistema está pronto para integração na branch principal?
+8. O sistema está pronto para homologação?
+9. O sistema está pronto para produção?
+
+# RESTRIÇÕES FINAIS
+
+- Não modificar a branch `main-Versão-4.0`.
+- Não fazer merge.
+- Não realizar deploy.
+- Não alterar dados reais de usuários.
+- Não executar testes destrutivos no Supabase de produção.
+- Não excluir registros reais.
+- Não modificar credenciais ou variáveis de ambiente de produção.
+- Não realizar push adicional sem autorização.
+- Não fazer commit.
+- Preservar os backups existentes.
+
+Caso alguma etapa dependa de infraestrutura que não esteja disponível, não invente resultados: informe a limitação e apresente a forma correta de executar o teste.
+
+**CRITÉRIO DE CONCLUSÃO: queremos evidências de funcionamento real, não apenas um projeto que compila e passa nos testes H2.**
