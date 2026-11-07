@@ -236,6 +236,7 @@ npm run typecheck
 
 ## 12. Resultados
 
+- **Repositório:** 11 commits na branch `main-Versão-4.0` (incluindo merge das correções de segurança/sincronização).
 - Sincronização incremental e idempotente validada (reenvio da mesma
   operação não duplica registros).
 - Proteção contra sobrescrita cross-unidade verificada (403).
