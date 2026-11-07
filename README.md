@@ -23,16 +23,29 @@ autenticação por JWT e confirmação de operações pelo backend.
 
 ## 2. Problema e justificativa
 
-Nas unidades do SENAC/DF, a reserva de salas, turmas e chaves de acesso era
-realizada de forma manual ou por planilhas dispersas, o que gerava conflitos
-de agenda, perda de informações e dificuldade de rastreabilidade. Não havia
-um canal único onde coordenadores, instrutores e recepção pudessem consultar
-disponibilidade, solicitar reservas e acompanhar o status em tempo real.
+Nas unidades do SENAC/DF, a reserva de salas para instrutores era realizada de
+forma manual, o que gerava **confusão, complexidade e conflitos de horários**.
+As informações ficavam dispersas e difíceis de acompanhar, os processos eram
+demorados e propensos a erros, e não havia visualização da disponibilidade em
+tempo real, resultando em choques de horário e reservas sobrepostas, com
+impacto na rotina dos instrutores e da instituição.
 
 O Conecta-Senac foi desenvolvido para centralizar essas operações, reduzir
 conflitos de agendamento, garantir a integridade dos dados e oferecer uma
 experiência consistente entre web e mobile, com suporte a uso offline e
 sincronização posterior.
+
+### 2.1 Público-alvo
+
+Quatro perfis com permissões específicas para uma gestão segura e eficiente
+das salas:
+
+| Perfil | Responsabilidade |
+| --- | --- |
+| **Instrutor** | Visualiza as turmas que leciona e solicita salas para suas aulas |
+| **Recepção** | Consulta o mapa das salas e atribui/devolve chaves |
+| **Coordenação** | Cria e gerencia turmas e salas; aprova ou recusa solicitações |
+| **Administrador** | Cria e gerencia usuários e unidades, com controle total do sistema |
 
 ## 3. Objetivos
 
@@ -115,7 +128,10 @@ POST /api/reset
 - **Instrutor:** consulta de salas e turmas, envio de solicitações de reserva, notificações.
 - **Recepção:** atribuição e devolução de chaves, notificações.
 - **Sincronização incremental** com IDs provisórios (negativos) remapeados para IDs oficiais, `operacaoId` idempotente e fila persistente.
-- **Funcionamento offline** com recuperação de operações pendentes.
+- **Calendário interativo** para visualizar salas e horários disponíveis de
+  forma clara e atualizada.
+- **Tema claro e escuro** com preferência salva automaticamente.
+- **Múltiplas unidades** SENAC, vinculando cada usuário à sua unidade.
 - **Sessão compartilhada entre abas** com sincronização via evento `storage`.
 
 ## 8. Estrutura do projeto
@@ -230,16 +246,33 @@ npm run typecheck
 
 ## 13. Equipe
 
-| Nome | Papel |
-| --- | --- |
-| Enzo Aragão Lages | Desenvolvimento Full Stack |
-| Pedro Vinícius | Desenvolvimento Full Stack |
-| Vitor Roberto | Desenvolvimento Full Stack |
-| Lucas Fernandes | Desenvolvimento Full Stack |
+| Nome | Papel | GitHub |
+| --- | --- | --- |
+| Enzo Aragão Lages | Desenvolvimento Full Stack (Frontend) | Starkbr264 |
+| Pedro Vinícius | Desenvolvimento Full Stack (Testes) | pedrov9254-glitch |
+| Vitor Roberto | Desenvolvimento Full Stack (Backend) | vitorrobertofp-dev |
+| Lucas Fernandes | Revisão e Documentação | Lucas312918 |
 
 **Instrutora:** Rayssa Paiva Carvalho
 
-## 14. Referências
+**Gestão do projeto (Trello):** https://trello.com/invite/b/6ad284a1c417afbdeb0dad2b/ATTIece74ec6782806194aae21fd240ec8b508C17155/conecta-senac
+
+**Protótipo (Figma):** https://www.figma.com/design/7cbXoHtvJIuEe83rg06swh/Sem-t%C3%ADtulo?node-id=0-1&t=diE9zD3tskKT5eum-1
+
+## 14. Documentação
+
+- `docs/DEPLOY.md` — guia de publicação no Supabase, Render e Vercel
+- `docs/ARQUITETURA_ATUALIZADA.md` — árvore de diretórios e fluxo de inicialização
+- `docs/RELATORIO_FINAL.md` — relatório completo de todas as alterações
+- `docs/RELATORIO_REFATORACAO.md` — o que mudou na refatoração e por quê
+- `docs/CASO_DE_USO.md` — 15 casos de uso e regras de negócio
+- `docs/DOCUMENTACAO_CODIGO.md` — descrição do código original do web
+- `docs/DOCUMENTACAO_CONEXAO_WEB_MOBILE.md` — protocolo de sincronização
+- `docs/AUDITORIA_RELATORIO_FINAL.md` — relatório consolidado da auditoria de integração
+- `docs/AUDITORIA_EVIDENCIAS.md` — evidências detalhadas da auditoria
+- `docs/superpowers/plans/2026-11-07-integracao-segura-incremental.md` — plano de implementação
+
+## 15. Referências
 
 - Spring Boot Documentation — https://spring.io/projects/spring-boot
 - Vite Documentation — https://vitejs.dev
