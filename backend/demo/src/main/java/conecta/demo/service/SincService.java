@@ -15,6 +15,7 @@ import conecta.demo.dto.ReservaRequest;
 import conecta.demo.exception.AcessoNegadoException;
 import conecta.demo.exception.DadosInvalidosException;
 import conecta.demo.exception.RegraDeNegocioException;
+import conecta.demo.validation.EmailInstitucional;
 import conecta.demo.repository.ChaveRepository;
 import conecta.demo.repository.NotificacaoRepository;
 import conecta.demo.repository.ReservaRepository;
@@ -446,11 +447,14 @@ public class SincService {
                 Usuario u = persistido instanceof Usuario existente ? existente : new Usuario();
                 u.setId(id);
                 u.setNome(str(item.get("nome")));
-                u.setEmail(str(item.get("email")));
+                // Politica institucional central (mesma da API REST). Sem troca
+                // de e-mail o valor antigo e preservado; troca/criacao exige
+                // @edu.df.senac.br — lancando HTTP 400 com a mensagem da politica.
+                String emailPersistido = persistido instanceof Usuario atual ? atual.getEmail() : null;
+                u.setEmail(EmailInstitucional.aplicar(str(item.get("email")), emailPersistido));
                 u.setPerfil(perfilOuNull(item.get("perfil"), colecao + ".perfil"));
                 u.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
                 if (u.getNome() == null || u.getNome().isBlank()
-                        || !emailValido(u.getEmail())
                         || u.getPerfil() == null
                         || u.getUnidadeId() == null) {
                     throw new RegraDeNegocioException("Dados do usuario invalidos");
@@ -839,12 +843,6 @@ public class SincService {
     /** Hasheia a senha com BCrypt, mantendo coerencia com o login (encoder.matches). */
     private String hashSenha(String senha) {
         return passwordEncoder.encode(senha);
-    }
-
-    private boolean emailValido(String email) {
-        if (email == null) return false;
-        String limpo = email.trim();
-        return !limpo.isEmpty() && limpo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@.]+$");
     }
 
     private String normalizarCep(String cep) {

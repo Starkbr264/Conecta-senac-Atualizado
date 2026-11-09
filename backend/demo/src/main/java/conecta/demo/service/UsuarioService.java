@@ -7,6 +7,7 @@ import conecta.demo.exception.RecursoNaoEncontradoException;
 import conecta.demo.model.Usuario;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.repository.UsuarioRepository;
+import conecta.demo.validation.EmailInstitucional;
 import java.util.List;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,8 @@ public class UsuarioService {
     }
 
     public Usuario criar(Usuario usuario) {
+        // Nova criacao: sempre exige o e-mail institucional.
+        usuario.setEmail(EmailInstitucional.validar(usuario.getEmail()));
         validar(usuario);
         if (usuario.getSenha() == null || usuario.getSenha().isBlank())
             throw new RegraDeNegocioException("Senha e obrigatoria");
@@ -70,6 +73,9 @@ public class UsuarioService {
 
     public Usuario atualizar(Long id, Usuario entrada) {
         Usuario atual = buscar(id);
+        // Politica institucional vale para TROCA de e-mail; sem troca, o valor
+        // antigo e preservado (contas legadas continuam editaveis).
+        entrada.setEmail(EmailInstitucional.aplicar(entrada.getEmail(), atual.getEmail()));
         validar(entrada);
         usuarios.findByEmailIgnoreCase(entrada.getEmail()).filter(u -> !u.getId().equals(id)).ifPresent(u -> {
             throw new RegraDeNegocioException("E-mail ja cadastrado");

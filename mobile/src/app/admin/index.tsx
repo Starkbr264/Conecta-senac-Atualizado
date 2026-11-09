@@ -31,6 +31,21 @@ const matchBusca = (busca: string, ...valores: Array<string | number | null | un
   return valores.some(v => String(v ?? '').toLowerCase().includes(q));
 };
 
+const DOMINIO_INSTITUCIONAL = '@edu.df.senac.br';
+const TAMANHO_MAX_EMAIL_LOCAL = 16;
+const EMAIL_LOCAL_REGEX = /^[a-z0-9._+-]+$/;
+
+/** Separa o e-mail em parte editavel + verifica se esta fora do padrao. */
+function separarEmailInstitucional(email: string | undefined | null): { local: string; legado: boolean } {
+  if (!email) return { local: '', legado: false };
+  const lower = email.trim().toLowerCase();
+  if (lower.endsWith(DOMINIO_INSTITUCIONAL)) {
+    return { local: lower.slice(0, -DOMINIO_INSTITUCIONAL.length), legado: false };
+  }
+  const arroba = lower.indexOf('@');
+  return { local: arroba >= 0 ? lower.slice(0, arroba) : lower, legado: true };
+}
+
 export default function AdminPanel() {
   const { sessao, pronto } = useRequirePerfil('admin');
   const { sair } = useAuth();
@@ -187,15 +202,27 @@ function Usuarios({ onChange }: { onChange: () => void }) {
 }
 
 function ModalUsuario({ user, onClose, onDone }: { user: Usuario | null; onClose: () => void; onDone: () => void }) {
+  const separado = separarEmailInstitucional(user?.email);
   const [nome, setNome] = useState(user?.nome ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
+  const [emailLocal, setEmailLocal] = useState(separado.local);
   const [senha, setSenha] = useState('');
   const [perfil, setPerfil] = useState<Perfil>(user?.perfil ?? 'instrutor');
   const [unidadeId, setUnidadeId] = useState<number>(user?.unidadeId ?? db.getUnidades()[0]?.id ?? 0);
   const unidades = db.getUnidades();
 
   const salvar = async () => {
-    if (!nome || !email) { Alert.alert('Atencao', 'Preencha nome e e-mail.'); return; }
+    const local = emailLocal.trim().toLowerCase();
+    if (!nome) { Alert.alert('Atencao', 'Informe o nome.'); return; }
+    if (!local) { Alert.alert('Atencao', 'O e-mail institucional é obrigatório.'); return; }
+    if (local.length > TAMANHO_MAX_EMAIL_LOCAL) {
+      Alert.alert('Atencao', 'A parte do e-mail antes do domínio deve ter no máximo 16 caracteres.');
+      return;
+    }
+    if (!EMAIL_LOCAL_REGEX.test(local)) {
+      Alert.alert('Atencao', 'Utilize um e-mail institucional @edu.df.senac.br.');
+      return;
+    }
+    const email = local + DOMINIO_INSTITUCIONAL;
     if (!user && !senha) { Alert.alert('Atencao', 'Informe a senha.'); return; }
     if (user) {
       await db.updUser(user.id, { nome, email, perfil, unidadeId, ...(senha ? { senha } : {}) });
@@ -216,8 +243,27 @@ function ModalUsuario({ user, onClose, onDone }: { user: Usuario | null; onClose
           <ScrollView style={{ maxHeight: 440 }}>
             <Text style={styles.mLabel}>Nome</Text>
             <TextInput style={styles.mInput} value={nome} onChangeText={setNome} placeholderTextColor={Colors.text3} />
-            <Text style={styles.mLabel}>E-mail</Text>
-            <TextInput style={styles.mInput} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={Colors.text3} />
+            <Text style={styles.mLabel}>E-mail institucional *</Text>
+            <View style={styles.emailRow}>
+              <TextInput
+                style={[styles.mInput, styles.emailInput]}
+                value={emailLocal}
+                onChangeText={v => setEmailLocal(v.slice(0, TAMANHO_MAX_EMAIL_LOCAL))}
+                maxLength={TAMANHO_MAX_EMAIL_LOCAL}
+                autoCapitalize="none"
+                autoComplete="off"
+                keyboardType="email-address"
+                placeholder="nome.do.usuario"
+                placeholderTextColor={Colors.text3}
+              />
+              <View style={styles.emailDominio}>
+                <Text style={styles.emailDominioTxt}>{DOMINIO_INSTITUCIONAL}</Text>
+              </View>
+            </View>
+            <Text style={styles.emailDica}>Preencha somente a parte antes do domínio (máximo 16 caracteres).</Text>
+            {separado.legado && (
+              <Text style={styles.emailAviso}>Conta legada: ao salvar, o e-mail será migrado para {DOMINIO_INSTITUCIONAL}.</Text>
+            )}
             <Text style={styles.mLabel}>Senha {user ? '(deixe vazio para manter)' : ''}</Text>
             <TextInput style={styles.mInput} value={senha} onChangeText={setSenha} secureTextEntry placeholderTextColor={Colors.text3} />
             <Text style={styles.mLabel}>Perfil</Text>
@@ -466,6 +512,18 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
   mLabel: { fontSize: 12, fontWeight: '700', color: Colors.text2, marginBottom: 5, marginTop: 12 },
   mInput: { backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.text },
+  emailRow: { flexDirection: 'row', alignItems: 'stretch' },
+  emailInput: { flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0 },
+  emailDominio: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(127,127,127,0.10)',
+    borderWidth: 1, borderLeftWidth: 0, borderColor: Colors.border,
+    borderTopRightRadius: 8, borderBottomRightRadius: 8,
+    paddingHorizontal: 10,
+  },
+  emailDominioTxt: { fontSize: 13, fontWeight: '600', color: Colors.text2, fontVariant: ['tabular-nums'] },
+  emailDica: { fontSize: 11, color: Colors.text3, marginTop: 4 },
+  emailAviso: { fontSize: 11, color: '#d97706', marginTop: 4, fontWeight: '600' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.border2, backgroundColor: Colors.surface },
   chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },

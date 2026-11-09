@@ -3,7 +3,6 @@ package conecta.demo.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 @Entity
@@ -20,8 +19,11 @@ public class Usuario {
     @Column(nullable = false)
     private String nome;
 
-    @Email
-    @NotBlank
+    // E-mail institucional @edu.df.senac.br: a validacao de FORMATO e feita
+    // centralmente por conecta.demo.validation.EmailInstitucional (UsuarioService
+    // e SincService), que devolve as mensagens da politica em HTTP 400. As
+    // annotations @Email/@NotBlank da Jakarta seriam descartadas pelo handler
+    // generico ("Dados invalidos") e aceitariam dominios particulares.
     @Column(nullable = false)
     private String email;
 
