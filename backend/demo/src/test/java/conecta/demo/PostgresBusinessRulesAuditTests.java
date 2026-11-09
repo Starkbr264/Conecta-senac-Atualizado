@@ -193,7 +193,7 @@ class PostgresBusinessRulesAuditTests {
     @Test
     void usuarioCadastroValido() throws Exception {
         ResultActions ra = admin(lote("criados", "usuarios", List.of(obj(
-                "id", 97001L, "nome", "Auditor E2E", "email", "auditor.etapa3@senac.test",
+                "id", 97001L, "nome", "Auditor E2E", "email", "auditor.etapa3@edu.df.senac.br",
                 "senha", "SenhaForte123", "perfil", "ADMIN", "unidadeId", 1001L))));
         ra.andExpect(status().isOk());
 
@@ -205,38 +205,45 @@ class PostgresBusinessRulesAuditTests {
                 "SELECT senha FROM usuarios WHERE id = ?", String.class, oficial);
         assertThat(hash).matches("\\$2[aby]\\$.+");
         assertThat(contar("SELECT count(*) FROM usuarios WHERE email = ?",
-                "auditor.etapa3@senac.test")).isEqualTo(1);
+                "auditor.etapa3@edu.df.senac.br")).isEqualTo(1);
     }
 
     @Test
     void usuarioSenhaInferiorA8Caracteres() throws Exception {
         admin(lote("criados", "usuarios", List.of(obj(
-                        "id", 97002L, "nome", "Senha Curta", "email", "senha.curta@senac.test",
+                        "id", 97002L, "nome", "Senha Curta", "email", "senha.curta@edu.df.senac.br",
                         "senha", "1234567", "perfil", "ADMIN", "unidadeId", 1001L))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value("A senha deve ter pelo menos 8 caracteres"));
 
         assertThat(contar("SELECT count(*) FROM usuarios WHERE email = ?",
-                "senha.curta@senac.test")).isZero();
+                "senha.curta@edu.df.senac.br")).isZero();
     }
 
     @Test
     void usuarioEmailDuplicado() throws Exception {
+        // Primeira criacao com o e-mail institucional: aceita.
         admin(lote("criados", "usuarios", List.of(obj(
-                        "id", 97003L, "nome", "Duplicado", "email", "Senac_GDF@Hotmail.com",
+                        "id", 97013L, "nome", "Duplicado", "email", "duplicado@edu.df.senac.br",
+                        "senha", "SenhaForte123", "perfil", "ADMIN", "unidadeId", 1001L))))
+                .andExpect(status().isOk());
+
+        // Segunda criacao com o MESMO e-mail em outra capitalizacao: 409, sem duplicar.
+        admin(lote("criados", "usuarios", List.of(obj(
+                        "id", 97003L, "nome", "Duplicado", "email", "DUPLICADO@EDU.DF.SENAC.BR",
                         "senha", "SenhaForte123", "perfil", "ADMIN", "unidadeId", 1001L))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value("Ja existe um usuario com este e-mail"));
 
         // Estado final: o usuario original permanece unico.
-        assertThat(contar("SELECT count(*) FROM usuarios WHERE email = ?",
-                "Senac_GDF@Hotmail.com")).isEqualTo(1);
+        assertThat(contar("SELECT count(*) FROM usuarios WHERE lower(email) = ?",
+                "duplicado@edu.df.senac.br")).isEqualTo(1);
     }
 
     @Test
     void usuarioEdicao() throws Exception {
         ResultActions criado = admin(lote("criados", "usuarios", List.of(obj(
-                "id", 97004L, "nome", "Nome Original", "email", "edicao.etapa3@senac.test",
+                "id", 97004L, "nome", "Nome Original", "email", "edicao.etapa3@edu.df.senac.br",
                 "senha", "SenhaForte123", "perfil", "RECEPCAO", "unidadeId", 1001L))));
         criado.andExpect(status().isOk());
         Long id = idOficial(criado, "usuarios", 97004L);
@@ -244,7 +251,7 @@ class PostgresBusinessRulesAuditTests {
 
         // Edicao sem senha no payload: a senha atual deve ser preservada.
         admin(lote("alteracoes", "usuarios", List.of(obj(
-                        "id", id, "nome", "Nome Editado", "email", "edicao.etapa3@senac.test",
+                        "id", id, "nome", "Nome Editado", "email", "edicao.etapa3@edu.df.senac.br",
                         "perfil", "RECEPCAO", "unidadeId", 1001L))))
                 .andExpect(status().isOk());
 
@@ -259,25 +266,25 @@ class PostgresBusinessRulesAuditTests {
     @Test
     void usuarioPerfilAusente() throws Exception {
         admin(lote("criados", "usuarios", List.of(obj(
-                        "id", 97005L, "nome", "Sem Perfil", "email", "sem.perfil@senac.test",
+                        "id", 97005L, "nome", "Sem Perfil", "email", "sem.perfil@edu.df.senac.br",
                         "senha", "SenhaForte123", "unidadeId", 1001L))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value("Dados do usuario invalidos"));
 
         assertThat(contar("SELECT count(*) FROM usuarios WHERE email = ?",
-                "sem.perfil@senac.test")).isZero();
+                "sem.perfil@edu.df.senac.br")).isZero();
     }
 
     @Test
     void usuarioPerfilDesconhecido() throws Exception {
         admin(lote("criados", "usuarios", List.of(obj(
-                        "id", 97006L, "nome", "Perfil Errado", "email", "perfil.errado@senac.test",
+                        "id", 97006L, "nome", "Perfil Errado", "email", "perfil.errado@edu.df.senac.br",
                         "senha", "SenhaForte123", "perfil", "SUPERVISOR", "unidadeId", 1001L))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("usuarios.perfil"));
 
         assertThat(contar("SELECT count(*) FROM usuarios WHERE email = ?",
-                "perfil.errado@senac.test")).isZero();
+                "perfil.errado@edu.df.senac.br")).isZero();
     }
 
     // ==================================================================

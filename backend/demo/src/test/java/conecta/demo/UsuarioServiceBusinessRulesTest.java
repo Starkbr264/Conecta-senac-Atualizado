@@ -26,7 +26,7 @@ class UsuarioServiceBusinessRulesTest {
     void rejeitaSenhaCurtaAoCriarUsuario() {
         Usuario usuario = new Usuario();
         usuario.setNome("Teste");
-        usuario.setEmail("teste@senac.test");
+        usuario.setEmail("teste@edu.df.senac.br");
         usuario.setSenha("123");
         usuario.setPerfil(Perfil.INSTRUTOR);
         usuario.setUnidadeId(1L);

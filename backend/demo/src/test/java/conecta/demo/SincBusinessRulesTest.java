@@ -82,7 +82,7 @@ class SincBusinessRulesTest {
         long unidadeId = criarUnidade("Unidade usuario sinc", "71000-006");
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"criados\":{\"usuarios\":[{\"id\":99107,"
-                                + "\"nome\":\"Usuario\",\"email\":\"usuario.sinc@senac.test\","
+                                + "\"nome\":\"Usuario\",\"email\":\"usuario.sinc@edu.df.senac.br\","
                                 + "\"senha\":\"curta\",\"perfil\":\"instrutor\","
                                 + "\"unidadeId\":" + unidadeId + "}]}}"))
                 .andExpect(status().isConflict())

@@ -68,7 +68,7 @@ class SincUsuariosTest {
         // 1) usuario existente, criado pela API normal (senha hasheada no banco).
         String criado = mockMvc.perform(post("/api/usuarios")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Existente\",\"email\":\"existente@sinc.test\","
+                        .content("{\"nome\":\"Existente\",\"email\":\"existente@edu.df.senac.br\","
                                 + "\"senha\":\"Senha.123\",\"perfil\":\"instrutor\",\"unidadeId\":" + unidadeId + "}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -78,9 +78,9 @@ class SincUsuariosTest {
         //    + novo usuario COM senha (recem-criado no formulario).
         String payload = "{\"alteracoes\":{\"usuarios\":["
                 + "{\"id\":" + existenteId + ",\"nome\":\"Existente\","
-                + "\"email\":\"existente@sinc.test\",\"perfil\":\"instrutor\",\"unidadeId\":" + unidadeId + "}"
+                + "\"email\":\"existente@edu.df.senac.br\",\"perfil\":\"instrutor\",\"unidadeId\":" + unidadeId + "}"
                 + " ]},\"criados\":{\"usuarios\":["
-                + "{\"id\":99001,\"nome\":\"Novo Usuario\",\"email\":\"novo@sinc.test\","
+                + "{\"id\":99001,\"nome\":\"Novo Usuario\",\"email\":\"novo@edu.df.senac.br\","
                 + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}]}}";
 
         // 3) SEM a correcao isto retorna 500 (rollback); COM a correcao retorna 200.
@@ -88,7 +88,7 @@ class SincUsuariosTest {
                 .andExpect(status().isOk());
 
         // 4) o novo usuario foi persistido.
-        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("novo@sinc.test")).isPresent();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("novo@edu.df.senac.br")).isPresent();
 
         // 5) a senha do existente foi PRESERVADA (nem anulada, nem re-hasheada por engano).
         String senhaOriginal = usuarios.findById(existenteId).orElseThrow().getSenha();
@@ -109,7 +109,7 @@ class SincUsuariosTest {
                 .andReturn().getResponse().getContentAsString();
         long unidadeId = mapper.readTree(unidadeCriada).get("id").asLong();
 
-        String body = "{\"nome\":\"Duplicado\",\"email\":\"duplicado@sinc.test\","
+        String body = "{\"nome\":\"Duplicado\",\"email\":\"duplicado@edu.df.senac.br\","
                 + "\"senha\":\"Senha.123\",\"perfil\":\"instrutor\",\"unidadeId\":" + unidadeId + "}";
         mockMvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
@@ -134,7 +134,7 @@ class SincUsuariosTest {
 
         String criado = mockMvc.perform(post("/api/usuarios")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Coord A\",\"email\":\"coord.a@sinc.test\","
+                        .content("{\"nome\":\"Coord A\",\"email\":\"coord.a@edu.df.senac.br\","
                                 + "\"senha\":\"Senha.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -142,7 +142,7 @@ class SincUsuariosTest {
 
         // Cliente defasado envia novo coordenador colidindo no mesmo idExistente + registro com e-mail invalido
         String payload = "{\"alteracoes\":{\"usuarios\":["
-                + "{\"id\":" + idExistente + ",\"nome\":\"Coord B Colisao\",\"email\":\"coord.b@sinc.test\","
+                + "{\"id\":" + idExistente + ",\"nome\":\"Coord B Colisao\",\"email\":\"coord.b@edu.df.senac.br\","
                 + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}],"
                 + "\"criados\":{\"usuarios\":[{\"id\":99099,\"nome\":\"Invalido\",\"email\":\"email.invalido@senac.\","
                 + "\"senha\":\"Nova.123\",\"perfil\":\"coordenador\",\"unidadeId\":" + unidadeId + "}]}}";
@@ -150,8 +150,8 @@ class SincUsuariosTest {
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isBadRequest());
 
-        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.a@sinc.test")).isPresent();
-        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.b@sinc.test")).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.a@edu.df.senac.br")).isPresent();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("coord.b@edu.df.senac.br")).isEmpty();
         org.assertj.core.api.Assertions.assertThat(usuarios.findByEmailIgnoreCase("email.invalido@senac.")).isEmpty();
     }
 }

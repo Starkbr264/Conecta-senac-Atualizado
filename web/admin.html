@@ -216,7 +216,14 @@
     <div class="modal-title"><span id="mUTitulo"><i class="ph ph-plus"></i> Novo Usuário</span><button class="modal-close" data-action="fecharUser"><i class="ph ph-x"></i></button></div>
     <div class="fg" style="gap:12px">
       <div class="ff"><label>Nome completo *</label><input type="text" id="mUNome" placeholder="Nome completo"></div>
-      <div class="ff"><label>E-mail *</label><input type="email" id="mUEmail" placeholder="email@senac.br"></div>
+      <div class="ff"><label>E-mail institucional *</label>
+        <div class="email-institucional">
+          <input type="text" id="mUEmail" maxlength="16" placeholder="nome.do.usuario"
+                 autocomplete="off" spellcheck="false" aria-label="Parte do e-mail antes do domínio">
+          <span class="email-dominio" aria-hidden="true">@edu.df.senac.br</span>
+        </div>
+        <small style="font-size:.72rem;color:var(--text3)">Preencha somente a parte antes do domínio (máximo 16 caracteres).</small>
+      </div>
       <div class="ff"><label>Senha</label><input type="password" id="mUSenha" placeholder="Deixe vazio para não alterar"></div>
       <div class="fg g2" style="gap:12px;margin:0">
         <div class="ff"><label>Perfil *</label>
