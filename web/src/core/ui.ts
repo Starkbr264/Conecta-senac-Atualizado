@@ -78,16 +78,6 @@ export function showMsg(id: string, tipo: string, msg: unknown): void {
   el.style.display = 'block';
 }
 
-/** Oculta a mensagem `.form-msg`. */
-export function hideMsg(id: string): void {
-  const el = tryById(id);
-  if (el === null) return;
-
-  el.className = 'form-msg';
-  el.textContent = '';
-  el.style.display = 'none';
-}
-
 /** Abre um modal pela classe `.on` + `display:flex`. */
 export function modalAbrir(id: string): void {
   const el = tryById(id);

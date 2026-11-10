@@ -51,9 +51,6 @@ export type Perfil = 'admin' | 'coordenador' | 'instrutor' | 'recepcao';
  */
 export type Turno = 'Matutino' | 'Vespertino' | 'Noturno';
 
-/** Turnos aceitos como entrada livre (o seed tambem aceita minusculos). */
-export type TurnoInput = Turno | 'matutino' | 'vespertino' | 'noturno';
-
 /** Dias da semana em notacao curta, exatamente como persistidos. */
 export type DiaSemana = 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab';
 
@@ -77,12 +74,6 @@ export type StatusChave = 'disponivel' | 'pega';
  * (`@JsonValue` minusculo).
  */
 export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada';
-
-/** Nome curto usado pelo mobile; alias exato, mantido por compatibilidade. */
-export type StatusSolic = StatusSolicitacao;
-
-/** `RespostaSolicitacaoRequest.decisao` — texto livre no Java. */
-export type DecisaoSolicitacao = 'aprovar' | 'recusar';
 
 /** Tipos conhecidos de notificacao. O banco aceita qualquer string. */
 export type TipoNotificacao =
@@ -115,9 +106,6 @@ export type StatusManualSala = StatusSala;
  */
 export type ModoDataSolicitacao = 'unica' | 'periodo' | 'especificas';
 
-/** Nome curto usado pelo mobile; alias exato, mantido por compatibilidade. */
-export type ModoData = ModoDataSolicitacao;
-
 /** Tipos de toast exibidos pela camada de UI. */
 export type TipoToast = 'success' | 'error' | 'info' | 'aviso';
 
@@ -148,8 +136,8 @@ export interface Usuario {
    * Presente no banco (o projeto grava senhas em texto puro — pendencia
    * documentada em `docs/RELATORIO_REFATORACAO.md`). O Java tem
    * `@NotBlank NOT NULL`, logo nao deve vir ausente; o servidor Node sempre
-   * a preenche. Nao e devolvido por `UsuarioResponse` (login), mas volta em
-   * `GET /api/dados`.
+   * a preenche. Nao e devolvido pelo corpo de `POST /api/login` (que nao
+   * inclui a senha), mas volta em `GET /api/dados`.
    */
   senha: string;
   perfil: Perfil;
@@ -353,72 +341,13 @@ export type Atualizar<T> = Partial<Omit<T, 'id'>>;
 //
 // Nao ha `any` aqui de proposito: sao os corpos EXATOS que o Spring Boot
 // aceita nas requisicoes. Nome de campo incompativel aqui quebraria a API.
+//
+// Obs.: os corpos de requisicao (`LoginRequest`, `ReservaRequest`,
+// `SolicitacaoRequest`, `RespostaSolicitacaoRequest`, `UsuarioResponse`)
+// existiam aqui como documentacao de contrato, mas nenhum codigo web os
+// referencia — as chamadas reais usam `/api/sinc`, `/api/login` e
+// `/api/dados` com payloads montados em `core/api.ts` e `core/storage.ts`.
 // ---------------------------------------------------------------------------
-
-/** `LoginRequest` — corpo de `POST /api/login`. */
-export interface LoginRequest {
-  email: string;
-  senha: string;
-}
-
-/**
- * `ReservaRequest` — corpo de `POST /api/reservas`.
- * Nao inclui `status` nem `avulsa`: o servidor define os dois.
- */
-export interface ReservaRequest {
-  salaId: number;
-  turmaId?: number | null;
-  turno: Turno | string;
-  diasSemana: DiaSemana[];
-  dataInicio: string;
-  dataFim: string;
-  horaInicio?: string | null;
-  horaFim?: string | null;
-  instrutorId?: number | null;
-  unidadeId: number;
-}
-
-/**
- * `SolicitacaoRequest` — corpo de `POST /api/solicitacoes`.
- * Nao inclui `status`, `criadaEm`, `resposta` nem `respondidaEm`.
- */
-export interface SolicitacaoRequest {
-  salaId: number;
-  instrutorId: number;
-  turmaId?: number | null;
-  turnos: Turno[];
-  data?: string;
-  dataInicio?: string;
-  dataFim?: string;
-  diasSemana?: DiaSemana[];
-  datasEspecificas?: string[];
-  horaInicio?: string | null;
-  horaFim?: string | null;
-  modo?: ModoDataSolicitacao | string;
-  turno?: Turno | string;
-  motivo?: string;
-  unidadeId: number;
-}
-
-/** `RespostaSolicitacaoRequest` — corpo de `POST /api/solicitacoes/{id}/resposta`. */
-export interface RespostaSolicitacaoRequest {
-  decisao: DecisaoSolicitacao | string;
-  resposta?: string | null;
-}
-
-/**
- * `UsuarioResponse` — o que o login devolve.
- * `perfil` e `String` minusculo e **nao** inclui `senha` (ao contrario da
- * entidade `Usuario`, que a serializa direto e expoe a senha em texto puro —
- * pendencia registrada em `docs/RELATORIO_REFATORACAO.md`).
- */
-export interface UsuarioResponse {
-  id: number;
-  nome: string;
-  email: string;
-  perfil: Perfil | string;
-  unidadeId: number;
-}
 
 // ---------------------------------------------------------------------------
 // Formatos de rede (contrato com `server/index.js`, porta 3333)
@@ -439,13 +368,6 @@ export interface BancoDados {
   [colegaoExtra: string]: unknown;
 }
 
-/** Corpo aceito por `POST /api/sinc`. */
-export interface PayloadSinc {
-  criados?: Record<string, unknown[]>;
-  alteracoes?: Record<string, unknown[]>;
-  remocoes?: Record<string, unknown[]>;
-}
-
 /** Resposta de `POST /api/login`. */
 export interface RespostaLogin {
   ok?: boolean;
@@ -460,17 +382,6 @@ export interface RespostaLogin {
 export interface RespostaErro {
   erro: string;
 }
-
-/** Nomes das coleções conhecidas pelo servidor. */
-export type NomeColecao =
-  | 'usuarios'
-  | 'unidades'
-  | 'salas'
-  | 'turmas'
-  | 'reservas'
-  | 'chaves'
-  | 'notificacoes'
-  | 'solicitacoes';
 
 // ---------------------------------------------------------------------------
 // Globais de window

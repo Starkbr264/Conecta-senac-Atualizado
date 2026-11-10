@@ -808,13 +808,10 @@ export const getTurmas    = (): Turma[] => [...CACHE.turmas];
 export const getTurmaById = (id: number | null | undefined): Turma | null =>
   id ? (CACHE.turmas.find(t => t.id === id) ?? null) : null;
 export const getReservas  = (): Reserva[] => [...CACHE.reservas];
-export const getReservaById = (id: number | null | undefined): Reserva | null =>
-  id ? (CACHE.reservas.find(r => r.id === id) ?? null) : null;
 export const getChaves    = (): Chave[] => [...CACHE.chaves];
 export const getChaveById = (id: number): Chave | null =>
   CACHE.chaves.find(c => c.id === id) ?? null;
 export const getSolics    = (): Solicitacao[] => [...CACHE.solicitacoes];
-export const getNotifs    = (): Notificacao[] => [...CACHE.notificacoes];
 
 export function getNotifsPara(perfil: string, unidadeId: number | string | null, userId?: number): Notificacao[] {
   return CACHE.notificacoes.filter(n => {

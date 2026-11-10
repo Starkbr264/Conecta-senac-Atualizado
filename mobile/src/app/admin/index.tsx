@@ -12,7 +12,7 @@ import { Card, Badge, StatusPill, Button, EmptyState, SearchBar, StatCard } from
 import { useConfirmar } from '@/components/ConfirmProvider';
 import Calendario from '@/components/Calendario';
 import * as db from '@/services/storage';
-import { Usuario, Unidade, Perfil, Sessao, DiaSemana } from '@/types';
+import { Usuario, Unidade, Perfil, Sessao } from '@/types';
 
 const TABS = [
   { key: 'dashboard', label: 'Painel',   icon: 'grid-outline' as const },
