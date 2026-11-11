@@ -111,21 +111,6 @@ export function temAcao(nome: string): boolean {
   return REGISTRO.has(nome);
 }
 
-/** Devolve a acao ou `null`. */
-export function obterAcao(nome: string): Acao | null {
-  return REGISTRO.get(nome) ?? null;
-}
-
-/** Quantas acoes estao registradas (sanidade). */
-export function totalDeAcoes(): number {
-  return REGISTRO.size;
-}
-
-/** Nomes registrados, em ordem alfabetica (diagnostico). */
-export function nomesDasAcoes(): string[] {
-  return [...REGISTRO.keys()].sort();
-}
-
 function montarContexto(
   nome: string,
   alvo: HTMLElement,
@@ -218,10 +203,4 @@ export function instalarDelegacao(raiz: HTMLElement | Document = document): void
       },
     );
   }
-}
-
-/** Limpa o registro e o marcador de instalacao — usado apenas em teste. */
-export function limparRegistro(): void {
-  REGISTRO.clear();
-  INSTALADAS.clear();
 }

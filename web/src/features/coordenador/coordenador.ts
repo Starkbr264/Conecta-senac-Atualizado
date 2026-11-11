@@ -39,7 +39,6 @@ import {
   getReservas,
   getSalaById,
   getSalasByUnidade,
-  mesmaUnidade,
   getSolics,
   getTurmaById,
   getTurmas,

@@ -30,7 +30,6 @@
     },
     "extra": {
       "apiUrl": "https://conecta-senac-test.onrender.com",
-      "modoApi": "producao",
       "router": {
         "origin": false
       },

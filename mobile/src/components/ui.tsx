@@ -8,7 +8,6 @@
  *   Button                         -> botão com variantes (primary, ghost…)
  *   SearchBar                      -> campo de busca das listagens
  *   EmptyState                     -> estado vazio ("nada encontrado")
- *   SectionHeader                  -> título de bloco com subtítulo
  *
  * Todos os componentes usam as cores do tema (Colors), o que faz a UI
  * acompanhar o tema claro/escuro automaticamente — igual ao web.
@@ -190,19 +189,6 @@ export function EmptyState({ icon = 'file-tray-outline', text }: { icon?: keyof 
   );
 }
 
-// ---- SectionHeader ----
-export function SectionHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.sectionSub}>{subtitle}</Text> : null}
-      </View>
-      {right}
-    </View>
-  );
-}
-
 const styles = criarEstilos(() => ({
   badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, alignSelf: 'flex-start', borderWidth: 1 },
     badgeTxt: { fontSize: 11, fontWeight: '800' },
@@ -242,8 +228,5 @@ const styles = criarEstilos(() => ({
     searchInput: { flex: 1, color: Colors.text, fontSize: 14, paddingVertical: 9 },
     empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },
     emptyTxt: { color: Colors.text3, fontSize: 14, textAlign: 'center' },
-    sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
-    sectionSub: { fontSize: 13, color: Colors.text3, marginTop: 2 },
   })
 );

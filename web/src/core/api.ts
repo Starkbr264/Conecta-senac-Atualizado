@@ -15,9 +15,7 @@
  *   - GET  /api/dados   -> baixa o banco completo
  *   - POST /api/login   -> valida credenciais
  *   - POST /api/sinc    -> envia as alteracoes locais
- *   - POST /api/reset   -> recarrega os dados de exemplo
- *   - GET  /api/sessao  -> le a sessao global
- *   - POST /api/logout  -> encerra a sessao
+ *   - GET  /api/unidades -> lista as unidades publicas do login
  *
  * Nenhum endpoint, metodo ou formato de payload foi alterado. Esta camada
  * apenas isola o `fetch` e adiciona tipagem sobre os tipos reais.
@@ -27,7 +25,6 @@ import type {
   BancoDados,
   RespostaErro,
   RespostaLogin,
-  Sessao,
   Unidade,
   Usuario,
 } from '../types';
@@ -85,91 +82,6 @@ function materializar(valor: string): string {
 }
 
 /* ========================================================================
- * Modo de operacao: MOCK (server/) ou PRODUCAO (backend/ Spring Boot)
- *
- * O repositorio mantem DUAS camadas de persistencia independentes:
- *
- *   - MODO MOCK     -> `server/` (Node puro, porta 3333, persiste
- *                      `server/data/db.json`). E o que web e mobile falam hoje.
- *   - MODO PRODUCAO -> `backend/` (Spring Boot, porta 8081, Postgres/Supabase).
- *
- * Os dois expoem o MESMO contrato HTTP (`/api/dados`, `/api/sinc`, `/api/login`,
- * `/api/reset`), por isso a troca e apenas uma mudanca de base. Este bloco
- * torna o modo EXPLICITO em vez de implícito, para que um developer saiba
- * qual camada esta em uso sem ler a configuracao de build.
- *
- * Como alternar (ordem de precedencia):
- *
- *   1. `window.__CONECTA_MODO_API__ = 'mock' | 'producao'`  (runtime)
- *   2. `VITE_MODO_API=mock|producao`                        (build)
- *   3. inferencia: base em loopback -> mock; qualquer outro host -> producao
- *
- * Exemplos de build:
- *   VITE_API_BASE=http://127.0.0.1:3333 VITE_MODO_API=mock      npm run build
- *   VITE_API_BASE=https://api.exemplo.com  VITE_MODO_API=producao npm run build
- * ===================================================================== */
-
-/** Qual camada de persistencia o frontend esta usando. */
-export type ModoApi = 'mock' | 'producao';
-
-/** Modo efetivo, resolvido uma unica vez no boot do bundle. */
-export const MODO_API: ModoApi = resolverModo();
-
-/** Atalho booleano para os call-sites que so precisam de um if. */
-export const EH_MODO_MOCK: boolean = MODO_API === 'mock';
-
-/** URL do servidor Node (`server/index.js`) — modo MOCK. */
-export const URL_MOCK_PADRAO = 'http://localhost:3333';
-
-/** URL do backend Spring Boot (`backend/demo`) — modo PRODUCAO. */
-export const URL_PRODUCAO_PADRAO = 'https://conecta-senac.onrender.com';
-
-function resolverModo(): ModoApi {
-  const explicito = explicitoModo();
-  if (explicito) return explicito;
-  return ehLoopback(API_BASE) ? 'mock' : 'producao';
-}
-
-function explicitoModo(): ModoApi | null {
-  const janela = (window as unknown as { __CONECTA_MODO_API__?: string })[
-    '__CONECTA_MODO_API__'
-  ];
-  if (ehModoValido(janela)) return janela;
-
-  const env = import.meta.env?.VITE_MODO_API;
-  if (ehModoValido(env)) return env;
-
-  return null;
-}
-
-function ehModoValido(valor: unknown): valor is ModoApi {
-  return valor === 'mock' || valor === 'producao';
-}
-
-/**
- * Detecta endereco de loopback. Aceita o formato completo e tambem o
- * `localhost:porta` / `127.0.0.1:porta`, alem dos hosts de emulador mobile.
- */
-function ehLoopback(base: string): boolean {
-  let host = base;
-  try {
-    host = new URL(base, window.location.origin).hostname;
-  } catch {
-    // base relativa ou malformada: cai no recorte textual abaixo
-    host = base.replace(/^[a-z]+:\/\//i, '').split(/[/?#]/)[0].split(':')[0];
-  }
-  const normalizado = host.toLowerCase();
-  return (
-    normalizado === 'localhost' ||
-    normalizado === '127.0.0.1' ||
-    normalizado === '0.0.0.0' ||
-    normalizado === '::1' ||
-    normalizado === '10.0.2.2' ||
-    normalizado.endsWith('.local')
-  );
-}
-
-/**
  * Tempo maximo de uma requisicao, em milissegundos.
  *
  * Antes o `fetch` nao tinha limite e o `initDados()` ficava pendurado para
@@ -301,22 +213,6 @@ export function sincronizar(payload: unknown): Promise<unknown> {
 /** Autentica no servidor (`POST /api/login`). */
 export function login(email: string, senha: string): Promise<RespostaLogin> {
   return apiPost<RespostaLogin>('/api/login', { email, senha });
-}
-
-/** Le a sessao ativa (`GET /api/sessao`). */
-export function lerSessaoRemota(): Promise<Sessao | null> {
-  return apiGet<Sessao | null>('/api/sessao');
-}
-
-/** Encerra a sessao no servidor (`POST /api/logout`). */
-export function logoutRemoto(): Promise<unknown> {
-  salvarToken(null);
-  return apiPost<unknown>('/api/logout');
-}
-
-/** Restaura o banco de demonstracao (`POST /api/reset`). */
-export function resetarDados(): Promise<unknown> {
-  return apiPost<unknown>('/api/reset');
 }
 
 /** Extrai o usuario de uma resposta de login em qualquer formato aceito. */

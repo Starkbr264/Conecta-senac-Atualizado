@@ -21,8 +21,6 @@
  *   - POST /api/login   -> valida credenciais contra o servidor
  *   - POST /api/sinc    -> envia as alteracoes locais (merge por id)
  *   - POST /api/reset   -> recarrega os dados de exemplo no servidor
- *   - GET  /api/sessao  -> le a sessao global do servidor
- *   - POST /api/logout  -> encerra a sessao no servidor
  *
  * Todas as funcoes sao "best-effort": se o servidor estiver fora do ar, o
  * app continua funcionando com o cache local (AsyncStorage) e sincroniza
@@ -98,76 +96,6 @@ const apiPortaConfig = process.env.EXPO_PUBLIC_API_PORT;
 
 export const API_URL =
   apiUrlConfig || `http://${descobrirHost()}:${apiPortaConfig || API_PORTA_PADRAO}`;
-
-/* ========================================================================
- * Modo de operacao: MOCK (server/) ou PRODUCAO (backend/ Spring Boot)
- *
- * Espelha `web/src/core/api.ts`. O repositorio mantem DUAS camadas de
- * persistencia com o MESMO contrato HTTP:
- *
- *   - MODO MOCK     -> `server/` (Node puro, porta 3333, persiste
- *                      `server/data/db.json`). E o padrao do mobile.
- *   - MODO PRODUCAO -> `backend/` (Spring Boot, porta 8081, Postgres/Supabase).
- *
- * Este bloco torna o modo EXPLICITO, em vez de implícito na URL, para que
- * um developer saiba qual camada esta em uso sem abrir o app.json.
- *
- * Como alternar (ordem de precedencia):
- *
- *   1. `extra.modoApi` no `app.json`   -> "mock" | "producao"   (recomendado)
- *   2. `EXPO_PUBLIC_MODO_API` no .env do Expo (injetada no bundle)
- *   3. inferencia: base em loopback/IP privado -> mock; host publico -> producao
- *
- * Exemplo de app.json:
- *   { "expo": { "extra": {
- *       "apiUrl":  "http://192.168.0.20:3333",
- *       "modoApi": "mock" } } }
- *
- * Para apontar para o Spring Boot, troque tambem o `apiUrl`:
- *   { "extra": { "apiUrl": "http://192.168.0.20:8081", "modoApi": "producao" } }
- * ===================================================================== */
-
-/** Qual camada de persistencia o mobile esta usando. */
-export type ModoApi = 'mock' | 'producao';
-
-/** Modo efetivo, resolvido uma unica vez no boot do app. */
-export const MODO_API: ModoApi = resolverModo();
-
-/** Atalho booleano para os call-sites que so precisam de um if. */
-export const EH_MODO_MOCK: boolean = MODO_API === 'mock';
-
-function resolverModo(): ModoApi {
-  const explicito = extra?.modoApi ?? process.env.EXPO_PUBLIC_MODO_API;
-  if (explicito === 'mock' || explicito === 'producao') return explicito;
-  return ehHostPrivado(API_URL) ? 'mock' : 'producao';
-}
-
-/**
- * Detecta endereco de loopback ou de rede local. Alem dos hosts literais,
- * qualquer IPv4 privado (RFC 1918) e qualquer `.local` contam como mock.
- */
-function ehHostPrivado(base: string): boolean {
-  let host = '';
-  try {
-    host = new URL(base).hostname;
-  } catch {
-    return false;
-  }
-  const normalizado = host.toLowerCase();
-  if (
-    normalizado === 'localhost' ||
-    normalizado === '0.0.0.0' ||
-    normalizado === '::1' ||
-    normalizado.endsWith('.local')
-  ) {
-    return true;
-  }
-  const octetos = normalizado.split('.');
-  if (octetos.length !== 4) return false;
-  const n = octetos.map((o) => Number(o));
-  if (n.some((o) => Number.isNaN(o) || o < 0 || o > 255)) return false;
-  return n[0] === 10 || (n[0] === 192 && n[1] === 168) || (n[0] === 172 && n[1] >= 16 && n[1] <= 31);
-}
 
 // ---- Helpers privados ------------------------------------------------------
 
@@ -284,32 +212,5 @@ export async function resetarApi(): Promise<Record<string, unknown[]> | null> {
     return resp.banco ?? null;
   } catch {
     return null;
-  }
-}
-
-/**
- * Le a sessao global mantida pelo servidor.
- *
- * Paridade com o web (`web/src/core/api.ts` -> `lerSessaoRemota`): as duas
- * APIs expõem `GET /api/sessao` com o mesmo corpo. Retorna `null` quando nao
- * ha sessao ou quando o servidor esta fora do ar.
- */
-export async function lerSessaoRemota(): Promise<Usuario | null> {
-  try {
-    const resp = await req<{ usuario?: Usuario; sessao?: Usuario } | null>('/api/sessao');
-    if (!resp) return null;
-    return resp.usuario ?? resp.sessao ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Encerra a sessao no servidor. Espelha `logoutRemoto` do web. */
-export async function logoutRemoto(): Promise<boolean> {
-  try {
-    await req<{ ok?: boolean }>('/api/logout', { method: 'POST', body: JSON.stringify({}) });
-    return true;
-  } catch {
-    return false;
   }
 }
