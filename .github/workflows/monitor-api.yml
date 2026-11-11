@@ -47,7 +47,7 @@ jobs:
     timeout-minutes: 10
     env:
       MONITOR_URL: https://conecta-senac-test.onrender.com/health
-      MONITOR_RESULT_FILE: ${{ runner.temp }}/health-result.json
+      MONITOR_RESULT_FILE: health-result.json
       MONITOR_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
