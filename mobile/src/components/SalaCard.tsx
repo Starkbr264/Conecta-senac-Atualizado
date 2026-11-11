@@ -16,9 +16,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
-import { Sala, StatusSala } from '@/types';
+import { Sala } from '@/types';
 
-import { Periodo, SalaInfo } from '@/types/sala';
+import { SalaInfo } from '@/types/sala';
 
 // Card de sala — replica exata do .sala-card-v2 do web
 export function SalaCard({ sala, info }: { sala: Sala; info: SalaInfo }) {

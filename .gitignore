@@ -31,9 +31,13 @@ bin/
 *.log
 
 # --- Variáveis de ambiente e segredos ------------------------------------
+# NUNCA versione .env (contem credenciais). Somente o exemplo ficticio
+# (.env.example) fica versionado. A ordem importa: a excecao deve vir
+# DEPOIS do padrao para ser aplicada pelo Git.
 .env
 .env.*
 !.env.example
+!.env.*.example
 
 # --- Ferramentas / IDEs ---------------------------------------------------
 .idea/
@@ -53,18 +57,11 @@ cache/
 # ATENCAO: server/data/db.json e dado versionado do Conecta-Senac e NAO deve
 # ser ignorado. Somente volumes/artefatos de build sao descartados.
 # --------------------------------------------------------------------------
-# EXCECAO DESTE REPOSITORIO (versao de TESTE)
-#
-# Aqui o arquivo .env E versionado de proposito: e a copia de
-# desenvolvimento local (Postgres do docker-compose) e e o que permite
-# subir o stack com 'docker compose up -d --build' sem digitar
-# as credenciais na mao.
-#
-# O repositorio canonico (Conecta-Senac-Atualizado) NAO versiona o .env,
-# e as credenciais de producao (Supabase/Render) sao definidas no
-# painel de cada servico.
+# ATENCAO: o .env NAO deve ser versionado. Ele contem credenciais reais
+# (Supabase/Postgres) e, se historicamente versionado, essas credenciais
+# devem ser consideradas comprometidas e rotacionadas (ver docs).
+# As credenciais de producao (Supabase/Render) sao definidas no
+# painel de cada servico; o .env local e apenas copia de desenvolvimento.
 # --------------------------------------------------------------------------
-!.env
 
 .vercel
-.env*

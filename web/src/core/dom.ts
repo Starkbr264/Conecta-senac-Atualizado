@@ -12,8 +12,6 @@
  * altera o fluxo normal de execucao.
  */
 
-import { escapeHtml } from './format';
-
 /** Erro lancado quando um elemento obrigatorio nao existe no documento. */
 export class ElementoNaoEncontradoError extends Error {
   constructor(seletor: string) {
@@ -48,52 +46,10 @@ export function has(id: string): boolean {
   return document.getElementById(id) !== null;
 }
 
-/** Le o `.value` de um input/select/textarea, com string vazia como padrao. */
-export function valueOf(id: string): string {
-  const el = tryById<HTMLInputElement>(id);
-  return el === null ? '' : String(el.value ?? '');
-}
-
-/** Le o `.value` convertido para inteiro (`NaN` quando vazio/ilegivel). */
-export function intValueOf(id: string): number {
-  return parseInt(valueOf(id), 10);
-}
-
-/** Le o `.value` convertido para inteiro, com `null` quando vazio. */
-export function intOrNull(id: string): number | null {
-  const v = valueOf(id).trim();
-  if (v === '') return null;
-  const n = parseInt(v, 10);
-  return Number.isNaN(n) ? null : n;
-}
-
-/** Escreve `.value` (cria o elemento se necessario). */
-export function setValue(id: string, valor: string): void {
-  byId<HTMLInputElement>(id).value = valor;
-}
-
 /** Escreve `.textContent` (ignora elemento ausente). */
 export function setText(id: string, valor: string): void {
   const el = tryById(id);
   if (el !== null) el.textContent = valor;
-}
-
-/** Escreve `.innerHTML` (ignora elemento ausente). */
-export function setHtml(id: string, html: string): void {
-  const el = tryById(id);
-  if (el !== null) el.innerHTML = html;
-}
-
-/** Le `.textContent` com string vazia como padrao. */
-export function textOf(id: string): string {
-  const el = tryById(id);
-  return el === null ? '' : (el.textContent ?? '');
-}
-
-/** Le `.innerHTML` com string vazia como padrao. */
-export function htmlOf(id: string): string {
-  const el = tryById(id);
-  return el === null ? '' : el.innerHTML;
 }
 
 /** Esvazia um container (ignora elemento ausente). */
@@ -114,26 +70,6 @@ export function qsa<T extends Element = HTMLElement>(
   return Array.from(raiz.querySelectorAll(seletor)) as T[];
 }
 
-/** `querySelector` com erro explicito quando nao encontra. */
-export function qs<T extends Element = HTMLElement>(
-  seletor: string,
-  raiz: ParentNode = document,
-): T {
-  const el = raiz.querySelector(seletor);
-  if (el === null) {
-    throw new Error(`Elemento "${seletor}" nao encontrado no documento.`);
-  }
-  return el as T;
-}
-
-/** `querySelector` seguro (devolve `null`). */
-export function tryQs<T extends Element = HTMLElement>(
-  seletor: string,
-  raiz: ParentNode = document,
-): T | null {
-  return raiz.querySelector(seletor) as T | null;
-}
-
 /** Anexa um listener a um elemento por id. */
 export function on<K extends keyof HTMLElementEventMap>(
   id: string,
@@ -142,43 +78,6 @@ export function on<K extends keyof HTMLElementEventMap>(
   opcoes?: AddEventListenerOptions,
 ): void {
   byId(id).addEventListener(tipo, handler as EventListener, opcoes);
-}
-
-/** Anexa um listener a um seletor CSS (primeira occurrencia). */
-export function onQs<K extends keyof HTMLElementEventMap>(
-  seletor: string,
-  tipo: K,
-  handler: (ev: HTMLElementEventMap[K]) => void,
-  opcoes?: AddEventListenerOptions,
-): void {
-  qs(seletor).addEventListener(tipo, handler as EventListener, opcoes);
-}
-
-/** Executa o handler quando o DOM estiver pronto (ou imediatamente, se ja estiver). */
-export function onReady(handler: () => void): void {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => handler());
-  } else {
-    handler();
-  }
-}
-
-/** Cria `<option>` ja preenchida. */
-export function opcao(valor: string, texto: string): HTMLOptionElement {
-  const o = document.createElement('option');
-  o.value = valor;
-  o.textContent = texto;
-  return o;
-}
-
-/** Cria `<option>` desabilitada usada como placeholder ("— Selecione —"). */
-export function opcaoVazia(texto = '— Selecione —'): HTMLOptionElement {
-  const o = document.createElement('option');
-  o.value = '';
-  o.textContent = texto;
-  o.disabled = true;
-  o.selected = true;
-  return o;
 }
 
 /** `<div class="chip">` usado nos seletores de turno/dia. */
@@ -196,26 +95,6 @@ export function badge(texto: string, variante = 'primary'): HTMLSpanElement {
   s.className = `bdg bdg-${variante}`;
   s.textContent = texto;
   return s;
-}
-
-/** `true` quando o valor ja possui escape seguro para interpolacao em HTML. */
-export function isHtml(value: string): boolean {
-  return value === escapeHtml(value);
-}
-
-/** Alterna uma classe no elemento. */
-export function toggleClass(id: string, classe: string, ativo: boolean): void {
-  byId(id).classList.toggle(classe, ativo);
-}
-
-/** Adiciona uma classe. */
-export function addClass(id: string, classe: string): void {
-  byId(id).classList.add(classe);
-}
-
-/** Aplica (ou remove) `display` inline. */
-export function setDisplay(id: string, visivel: boolean): void {
-  byId(id).style.display = visivel ? '' : 'none';
 }
 
 // ===========================================================================
@@ -297,9 +176,4 @@ export function asInput(el: Element | null): HTMLInputElement | null {
 /** `el` como `<select>`, ou `null`. */
 export function asSelect(el: Element | null): HTMLSelectElement | null {
   return el instanceof HTMLSelectElement ? el : null;
-}
-
-/** `el` como `<a>`, ou `null`. */
-export function asAnchor(el: Element | null): HTMLAnchorElement | null {
-  return el instanceof HTMLAnchorElement ? el : null;
 }

@@ -528,10 +528,3 @@ export function calFiltrar(): void {
   estado.filtTurno = tryById<HTMLSelectElement>('calFiltTurno')?.value || '';
   rdCalendario();
 }
-
-/** Alias legado mantido por compatibilidade. */
-export const calMesAnterior = calAnterior;
-/** Alias legado mantido por compatibilidade. */
-export const calProximoMes = calProximo;
-/** Alias legado mantido por compatibilidade. */
-export const calSetVista = calVista;

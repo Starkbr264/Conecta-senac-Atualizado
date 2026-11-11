@@ -19,7 +19,6 @@ import type {
   NovaNotificacao,
   NovaReserva,
   NovaSolicitacao,
-  NovaSolicitacao as _NovaSolicitacao,
   NovoUsuario,
   NovoUnidade,
   NovoSala,
@@ -174,11 +173,6 @@ function sv(key: string, valor: unknown): void {
 function nextId(lista: Array<{ id: number }>): number {
   const menor = lista.reduce((mx, x) => Math.min(mx, Number(x.id) || 0), 0);
   return Math.min(menor, -Date.now()) - 1;
-}
-
-/** Copia ordenada por id. */
-export function sortById<T extends { id: number }>(lista: T[]): T[] {
-  return [...lista].sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
 }
 
 /** Normaliza um perfil para minusculas (como gravado no banco). */
@@ -341,11 +335,6 @@ async function confirmar(entidade: object | null): Promise<void> {
     : new Error('Operacao recusada pelo servidor.');
 }
 
-export async function sincronizarPendencias(): Promise<boolean> {
-  if (!filaSync.length) lerFilaSync();
-  return (await flushPendentes()).confirmado;
-}
-
 /**
  * Confirma a fila apos uma exclusao local: lança `SincronizacaoPendenteError`
  * quando a falha e de rede (operacao mantida) e o erro original do servidor
@@ -438,11 +427,6 @@ export function getUserById(id: number | string): Usuario | null {
 export function getUsersByPerfil(perfil: Perfil | string): Usuario[] {
   const alvo = lowerPerfil(perfil);
   return CACHE.usuarios.filter((u) => lowerPerfil(u.perfil) === alvo);
-}
-
-/** Alias historico mantido por compatibilidade. */
-export function getUsuariosByPerfil(perfil: Perfil | string): Usuario[] {
-  return getUsersByPerfil(perfil);
 }
 
 // ---------------------------------------------------------------------------
@@ -595,10 +579,6 @@ export function getChaveById(id: number | string | null | undefined): Chave | nu
 // Leitura — Notificacoes
 // ---------------------------------------------------------------------------
 
-export function getNotifs(): Notificacao[] {
-  return [...CACHE.notificacoes];
-}
-
 /**
  * Notificacoes visiveis para um perfil/unidade.
  *
@@ -690,10 +670,6 @@ export async function addUser(dados: NovoUsuario & { nome: string; email: string
   return item;
 }
 
-export async function addUsuario(dados: NovoUsuario & { nome: string; email: string; perfil: Perfil | string; unidadeId: number }): Promise<Usuario> {
-  return addUser(dados);
-}
-
 export async function updUser(id: number | string, dados: Atualizar<Usuario>): Promise<Usuario | null> {
   const idx = CACHE.usuarios.findIndex((u) => String(u.id) === String(id));
   if (idx < 0) return null;
@@ -709,17 +685,9 @@ export async function updUser(id: number | string, dados: Atualizar<Usuario>): P
   return { ...CACHE.usuarios[idx] };
 }
 
-export async function updUsuario(id: number | string, dados: Atualizar<Usuario>): Promise<Usuario | null> {
-  return updUser(id, dados);
-}
-
 export async function delUser(id: number | string): Promise<void> {
   CACHE.usuarios = CACHE.usuarios.filter((u) => String(u.id) !== String(id));
   persist('usuarios', { remocoes: { usuarios: [Number(id)] } });
-}
-
-export async function delUsuario(id: number | string): Promise<void> {
-  return delUser(id);
 }
 
 export async function delUserAsync(id: number | string): Promise<void> {
@@ -822,10 +790,6 @@ export async function updSalaAsync(id: number | string, d: Atualizar<Sala>): Pro
   return item;
 }
 
-export function updateSala(id: number | string, d: Atualizar<Sala>): Sala | null {
-  return updSala(id, d);
-}
-
 export function delSala(id: number | string): void {
   CACHE.salas = CACHE.salas.filter((s) => String(s.id) !== String(id));
   persist('salas', { remocoes: { salas: [Number(id)] } });
@@ -834,10 +798,6 @@ export function delSala(id: number | string): void {
 export async function delSalaAsync(id: number | string): Promise<void> {
   delSala(id);
   await confirmarFila();
-}
-
-export function deleteSala(id: number | string): void {
-  return delSala(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -884,10 +844,6 @@ export async function updTurmaAsync(id: number | string, d: Atualizar<Turma>): P
   return item;
 }
 
-export function updateTurma(id: number | string, d: Atualizar<Turma>): Turma | null {
-  return updTurma(id, d);
-}
-
 /**
  * Exclui uma turma e, em cascata no cliente, as reservas vinculadas.
  * (Regra do legado — ver `README.md` do frontend original.)
@@ -906,10 +862,6 @@ export function delTurma(id: number | string): void {
 export async function delTurmaAsync(id: number | string): Promise<void> {
   delTurma(id);
   await confirmarFila();
-}
-
-export function deleteTurma(id: number | string): void {
-  return delTurma(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -959,10 +911,6 @@ export async function delReservaAsync(id: number | string): Promise<void> {
   await confirmarFila();
 }
 
-export function deleteReserva(id: number | string): void {
-  return delReserva(id);
-}
-
 // ---------------------------------------------------------------------------
 // CRUD — Chaves
 // ---------------------------------------------------------------------------
@@ -1002,10 +950,6 @@ export function delChave(id: number | string): void {
 export async function delChaveAsync(id: number | string): Promise<void> {
   delChave(id);
   await confirmarFila();
-}
-
-export function deleteChave(id: number | string): void {
-  return delChave(id);
 }
 
 /** Registra a retirada de uma chave por um instrutor. */
@@ -1231,16 +1175,6 @@ export async function initDados(force = false): Promise<CacheDados> {
   );
   return CACHE;
 }
-
-/** Marca o cache como carregado sem sincronizar (uso em testes). */
-export function resetCache(): void {
-  CACHE.loaded = false;
-  CACHE.loadingPromise = null;
-  CACHE._remocoes = {};
-}
-
-/** Reexporta o tipo de sessao usado pelos módulos de pagina. */
-export type SessaoUsuario = Sessao;
 
 /** Tipos auxiliares reexportados para convenience das paginas. */
 export type { NovaChave, NovaNotificacao, NovaSolicitacao, NovoSala, NovoTurma, NovoUnidade, NovoUsuario };

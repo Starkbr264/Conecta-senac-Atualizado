@@ -26,7 +26,6 @@ import {
   getReservas,
   getSalaById,
   getSalasByUnidade,
-  mesmaUnidade,
   getTurmaById,
   getUserById,
   getUsersByPerfil,
