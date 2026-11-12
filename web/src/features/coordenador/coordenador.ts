@@ -77,6 +77,7 @@ import {
 import { byId, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
+import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
 import type {
   DiaSemana,
   Sessao,
@@ -1094,6 +1095,23 @@ interface InfoSala {
   override: OverrideSala | null;
 }
 
+let mapaStatusFiltro: MapaStatus = '';
+
+export function mapaChipStatus(btn: HTMLElement): void {
+  const status = btn.getAttribute('data-arg');
+  mapaStatusFiltro = status === 'livre' || status === 'ocupada' || status === 'iminente' ? status : '';
+  rdMapa();
+}
+
+export function mapaLimparFiltros(): void {
+  ['mapaBusca', 'mapaFiltBloco', 'mapaFiltAndar', 'mapaFiltTurno'].forEach((id) => {
+    const el = tryById<HTMLInputElement | HTMLSelectElement>(id);
+    if (el) el.value = '';
+  });
+  mapaStatusFiltro = '';
+  rdMapa();
+}
+
 /** Occupacao de uma sala; o override manual definido tem precedencia. */
 function calcSalaStatus(s: ReturnType<typeof getSalaById>, hj: string, turnoFiltro: string): InfoSala {
   if (!s) {
@@ -1215,6 +1233,10 @@ const ICONE_STATUS: Record<string, string> = {
 function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: InfoSala): string {
   const statusIcon = ICONE_STATUS[info.stat] ?? ICONE_STATUS.livre;
   const turnos = (s.turnos ?? s.turnosDisponiveis ?? []) as Turno[];
+  const statusLabel = info.stat === 'livre' ? 'Livre' : info.stat === 'ocupada' ? 'Ocupada' : 'Em breve';
+  const ocupacaoPercent = turnos.length
+    ? Math.min(100, Math.round((info.periodos.length / turnos.length) * 100))
+    : info.stat === 'livre' ? 0 : 100;
 
   const turnosHtml = turnos
     .map((t) => {
@@ -1334,6 +1356,8 @@ function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: Inf
     '<div class="sc-tipo">' +
     esc(s.tipo) +
     '</div>' +
+    '<div class="sc-status-label ' + info.stat + '"><span class="sc-status-dot ' + info.stat + '"></span>' + statusLabel + '</div>' +
+    '<div class="sc-ocupacao-bar" role="progressbar" aria-valuenow="' + ocupacaoPercent + '" aria-valuemin="0" aria-valuemax="100" aria-label="Ocupação da sala: ' + ocupacaoPercent + '%"><span style="width:' + ocupacaoPercent + '%"></span></div>' +
     '<div class="sc-meta">' +
     '<div class="sc-meta-item" title="Andar"><span class="sc-meta-icon"><i class="ph ph-buildings"></i></span>' +
     esc(s.andar || '—') +
@@ -1422,11 +1446,10 @@ export function rdMapa(): void {
   const filtTurno = tryById<HTMLSelectElement>('mapaFiltTurno')?.value ?? '';
   const filtBloco = tryById<HTMLSelectElement>('mapaFiltBloco')?.value ?? '';
   const filtAndar = tryById<HTMLSelectElement>('mapaFiltAndar')?.value ?? '';
-  const filtStatus = tryById<HTMLSelectElement>('mapaFiltStatus')?.value ?? '';
   const buscaNome =
     tryById<HTMLInputElement>('mapaBusca')?.value.toLowerCase().trim() ?? '';
 
-  let salasFiltradas = salas.filter((s) => {
+  const salasBase = salas.filter((s) => {
     if (
       buscaNome &&
       !String(s.nome).toLowerCase().includes(buscaNome) &&
@@ -1443,23 +1466,26 @@ export function rdMapa(): void {
   });
 
   const infoMap: Record<number, InfoSala> = {};
-  salasFiltradas.forEach((s) => {
+  salasBase.forEach((s) => {
     infoMap[s.id] = calcSalaStatus(s, hj, filtTurno);
   });
-  if (filtStatus) {
-    salasFiltradas = salasFiltradas.filter((s) => infoMap[s.id].stat === filtStatus);
-  }
-
+  const contadores = {
+    livre: salasBase.filter((s) => infoMap[s.id].stat === 'livre').length,
+    ocupada: salasBase.filter((s) => infoMap[s.id].stat === 'ocupada').length,
+    iminente: salasBase.filter((s) => infoMap[s.id].stat === 'iminente').length,
+  };
+  const chipsEl = tryById('mapaStatusChips');
+  if (chipsEl) chipsEl.innerHTML = renderMapaChips(contadores, mapaStatusFiltro);
+  const salasFiltradas = mapaStatusFiltro
+    ? salasBase.filter((s) => infoMap[s.id].stat === mapaStatusFiltro)
+    : salasBase;
   const total = salasFiltradas.length;
-  const livres = salasFiltradas.filter((s) => infoMap[s.id].stat === 'livre').length;
-  const ocupadas = salasFiltradas.filter((s) => infoMap[s.id].stat === 'ocupada').length;
-  const iminentes = salasFiltradas.filter((s) => infoMap[s.id].stat === 'iminente').length;
   const legEl = tryById('mapaLegenda');
   if (legEl !== null) {
     legEl.innerHTML =
-      `<span class="leg-item livre"><span class="ic-dot ic-livre"></span> Livre: ${livres}</span>` +
-      `<span class="leg-item ocupada"><span class="ic-dot ic-ocupada"></span> Ocupada: ${ocupadas}</span>` +
-      `<span class="leg-item iminente"><span class="ic-dot ic-iminente"></span> Em breve: ${iminentes}</span>` +
+      `<span class="leg-item livre"><span class="ic-dot ic-livre"></span> Livre: ${contadores.livre}</span>` +
+      `<span class="leg-item ocupada"><span class="ic-dot ic-ocupada"></span> Ocupada: ${contadores.ocupada}</span>` +
+      `<span class="leg-item iminente"><span class="ic-dot ic-iminente"></span> Em breve: ${contadores.iminente}</span>` +
       `<span class="leg-total">Total: ${total} sala(s)</span>`;
   }
 

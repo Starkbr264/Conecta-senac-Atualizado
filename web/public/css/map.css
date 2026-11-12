@@ -291,6 +291,74 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ── Novo mapa: escopo visual restrito às páginas autorizadas ─────────── */
+#pg-mapa .mapa-header { align-items: center; }
+#pg-mapa .mapa-subtitulo { margin-top: 4px; color: var(--text3); font-size: .8rem; }
+#pg-mapa .mapa-filtros-novos {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(145px, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 18px 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+#pg-mapa .mapa-filtro { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#pg-mapa .mapa-filtro > label {
+  color: var(--text3); font-size: .7rem; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+}
+#pg-mapa .mapa-filtro-busca { min-width: 0; }
+#pg-mapa .mapa-busca-wrap { max-width: none; width: 100%; min-height: 38px; box-sizing: border-box; }
+#pg-mapa .mapa-busca-wrap .search-input { min-width: 0; }
+#pg-mapa .mapa-status-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 14px 0 8px; flex-wrap: wrap;
+}
+#pg-mapa .mapa-status-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+#pg-mapa .mapa-status-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--bg2);
+  color: var(--text2); cursor: pointer; font: inherit; font-size: .78rem; transition: var(--t);
+}
+#pg-mapa .mapa-status-chip:hover { border-color: var(--primary); color: var(--text1); transform: translateY(-1px); }
+#pg-mapa .mapa-status-chip.selecionado { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 22%, transparent); }
+#pg-mapa .mapa-status-chip strong { font-size: .72rem; opacity: .9; }
+#pg-mapa .mapa-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+#pg-mapa .mapa-status-chip.livre .mapa-chip-dot { background: var(--green); }
+#pg-mapa .mapa-status-chip.ocupada .mapa-chip-dot { background: var(--red); }
+#pg-mapa .mapa-status-chip.iminente .mapa-chip-dot { background: var(--amber); }
+#pg-mapa .mapa-status-chip.selecionado .mapa-chip-dot { background: currentColor; }
+#pg-mapa .mapa-limpar { border: 0; background: transparent; color: var(--text3); cursor: pointer; font: inherit; font-size: .78rem; padding: 6px 0; }
+#pg-mapa .mapa-limpar:hover { color: var(--primary); }
+#pg-mapa .mapa-legenda { margin: 0 0 12px; gap: 14px; }
+#pg-mapa .sc-status-label { display: flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 700; }
+#pg-mapa .sc-status-label.livre { color: var(--green); }
+#pg-mapa .sc-status-label.ocupada { color: var(--red); }
+#pg-mapa .sc-status-label.iminente { color: var(--amber); }
+#pg-mapa .sc-status-label .sc-status-dot { width: 7px; height: 7px; margin: 0; }
+#pg-mapa .sc-ocupacao-bar { height: 5px; background: var(--bg3); border-radius: 999px; overflow: hidden; margin: 2px 0 3px; }
+#pg-mapa .sc-ocupacao-bar span { display: block; height: 100%; border-radius: inherit; transition: width .2s ease; }
+#pg-mapa .sala-card-v2.livre .sc-ocupacao-bar span { background: var(--green); }
+#pg-mapa .sala-card-v2.ocupada .sc-ocupacao-bar span { background: var(--red); }
+#pg-mapa .sala-card-v2.iminente .sc-ocupacao-bar span { background: var(--amber); }
+#pg-mapa .mapa-andar-grid { grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); gap: 14px; }
+#pg-mapa .sala-card-v2 { border-width: 1px; box-shadow: 0 1px 2px rgb(15 23 42 / 4%); }
+#pg-mapa .sala-card-v2:hover { box-shadow: var(--shadow-md); }
+
+@media (max-width: 860px) {
+  #pg-mapa .mapa-filtros-novos { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
+  #pg-mapa .mapa-filtro-busca { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  #pg-mapa .mapa-header { align-items: flex-start; gap: 10px; }
+  #pg-mapa .mapa-header .btn-refresh { white-space: nowrap; }
+  #pg-mapa .mapa-filtros-novos { grid-template-columns: 1fr; gap: 10px; }
+  #pg-mapa .mapa-filtro-busca { grid-column: auto; }
+  #pg-mapa .mapa-status-row { align-items: flex-start; flex-direction: column; }
+  #pg-mapa .mapa-limpar { padding-top: 0; }
+  #pg-mapa .mapa-andar-grid { grid-template-columns: 1fr; }
+}
 .mapa-spinner {
   display: inline-block;
   width: 18px;

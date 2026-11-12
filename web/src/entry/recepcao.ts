@@ -27,6 +27,8 @@ registrarAcoes({
 
   // --- Alvos dos botoes `data-action="atualizarSecao"` ---
   rdMapa: recepcao.rdMapa,
+  mapaChipStatus: ({ alvo }) => recepcao.mapaChipStatus(alvo),
+  mapaLimparFiltros: recepcao.mapaLimparFiltros,
   rdChaves: recepcao.rdChaves,
   rdNotifs: recepcao.rdNotifs,
 });
