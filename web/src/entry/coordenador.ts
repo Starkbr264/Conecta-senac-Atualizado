@@ -39,6 +39,8 @@ registrarAcoes({
   abrirAtrib: ({ num }) => coordenador.abrirAtrib(num ?? 0),
   salvarAtrib: () => void coordenador.salvarAtrib(),
   ovClick: ({ alvo }) => coordenador.ovClick(alvo as HTMLElement),
+  mapaChipStatus: ({ alvo }) => coordenador.mapaChipStatus(alvo),
+  mapaLimparFiltros: coordenador.mapaLimparFiltros,
 
   // --- Solicitações e notificacoes ---
   // `data-arg` carrega o id da solicitacao e `data-arg2` a decisao. O HTML e o

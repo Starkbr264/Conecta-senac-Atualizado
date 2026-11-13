@@ -127,32 +127,27 @@
     
     <div class="pg" id="pg-mapa">
       <div class="card">
-        <div class="card-head">
+        <div class="card-head mapa-header">
           <div>
             <div class="card-title">Mapa de Salas — Hoje</div>
-            <div id="mapaLegenda" class="mapa-legenda"></div>
+            <div class="mapa-subtitulo">Ocupação das salas — hoje</div>
           </div>
           <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdMapa"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>
         </div>
-        
-        <div class="mapa-filtros">
-          <div class="mapa-busca-wrap">
-            <span class="search-icon"><i class="ph ph-magnifying-glass"></i></span>
-            <input type="text" id="mapaBusca" class="search-input" placeholder="Pesquisar sala…" data-input="rdMapa">
+        <div class="mapa-filtros mapa-filtros-novos">
+          <div class="mapa-filtro mapa-filtro-busca">
+            <label for="mapaBusca">Busca de salas</label>
+            <div class="mapa-busca-wrap">
+              <span class="search-icon"><i class="ph ph-magnifying-glass"></i></span>
+              <input type="text" id="mapaBusca" class="search-input" placeholder="Nome ou tipo da sala…" data-input="rdMapa">
+            </div>
           </div>
-          <select id="mapaFiltBloco"  class="filter-select" data-change="rdMapa" style="min-width:140px"><option value="">Todos os blocos</option></select>
-          <select id="mapaFiltAndar"  class="filter-select" data-change="rdMapa" style="min-width:140px"><option value="">Todos os andares</option></select>
-          <select id="mapaFiltTurno"  class="filter-select" data-change="rdMapa" style="min-width:130px">
-            <option value="">Todos os turnos</option>
-            <option>Matutino</option><option>Vespertino</option><option>Noturno</option>
-          </select>
-          <select id="mapaFiltStatus" class="filter-select" data-change="rdMapa" style="min-width:130px">
-            <option value="">Todos os status</option>
-            <option value="livre"><span class="ic-dot ic-livre"></span> Livre</option>
-            <option value="ocupada"><span class="ic-dot ic-ocupada"></span> Ocupada</option>
-            <option value="iminente"><span class="ic-dot ic-iminente"></span> Em breve</option>
-          </select>
+          <div class="mapa-filtro"><label for="mapaFiltBloco">Bloco</label><select id="mapaFiltBloco" class="filter-select" data-change="rdMapa"><option value="">Todos os blocos</option></select></div>
+          <div class="mapa-filtro"><label for="mapaFiltAndar">Andar</label><select id="mapaFiltAndar" class="filter-select" data-change="rdMapa"><option value="">Todos os andares</option></select></div>
+          <div class="mapa-filtro"><label for="mapaFiltTurno">Turno</label><select id="mapaFiltTurno" class="filter-select" data-change="rdMapa"><option value="">Todos os turnos</option><option>Matutino</option><option>Vespertino</option><option>Noturno</option></select></div>
         </div>
+        <div class="mapa-status-row"><div id="mapaStatusChips" class="mapa-status-chips"></div><button type="button" class="mapa-limpar" data-action="mapaLimparFiltros"><i class="ph ph-x"></i> Limpar filtros</button></div>
+        <div id="mapaLegenda" class="mapa-legenda" aria-live="polite"></div>
         <div id="mapaSalas" style="margin-top:8px"></div>
       </div>
       <div class="card">
