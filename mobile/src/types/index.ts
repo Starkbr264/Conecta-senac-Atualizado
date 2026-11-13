@@ -34,17 +34,11 @@
  */
 export type Perfil = 'admin' | 'coordenador' | 'instrutor' | 'recepcao';
 
-/** Alias herdado do mobile. Mantido para nao quebrar importacoes existentes. */
-export type StatusSolic = StatusSolicitacao;
-
 /**
  * Espelha `backend/.../model/StatusSolicitacao.java` (`PENDENTE, APROVADA,
  * RECUSADA`), `@JsonValue` minusculo -> `'pendente' | 'aprovada' | 'recusada'`.
  */
 export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada';
-
-/** Decisao aceita por `RespostaSolicitacaoRequest.decisao` (texto livre). */
-export type DecisaoSolicitacao = 'aprovar' | 'recusar';
 
 /**
  * Espelha `backend/.../model/StatusChave.java` (`DISPONIVEL, RETIRADA`).
@@ -64,9 +58,6 @@ export type StatusReserva = 'ATIVA' | 'CANCELADA';
  * No servidor Node apenas estes tres valores sao emitidos.
  */
 export type Turno = 'Matutino' | 'Vespertino' | 'Noturno';
-
-/** Aceita tambem a versao minuscula, que o formulario do web legado grava. */
-export type TurnoInput = Turno | 'matutino' | 'vespertino' | 'noturno';
 
 /** `Reserva.diasSemana` / `Solicitacao.diasSemana` (tabelas de juncao). */
 export type DiaSemana = 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab';
@@ -278,78 +269,6 @@ export interface EstadoCalendario {
 }
 
 // ---------------------------------------------------------------------------
-// DTOs do backend Java
-// ---------------------------------------------------------------------------
-
-/** Espelha `backend/.../dto/LoginRequest.java`. */
-export interface LoginRequest {
-  email: string;
-  senha: string;
-}
-
-/**
- * Espelha `backend/.../dto/UsuarioResponse.java`.
- *
- * `perfil` vem como `String` minusculo (`user.getPerfil().name().toLowerCase()`).
- * **Nao inclui `senha`** — ao contrario da entidade `Usuario`.
- */
-export interface UsuarioResponse {
-  id: number;
-  nome: string;
-  email: string;
-  perfil: string;
-  unidadeId: number;
-}
-
-/**
- * Espelha `backend/.../dto/ReservaRequest.java`.
- *
- * Nao inclui `status` nem `avulsa`: o servidor define esses valores.
- */
-export interface ReservaRequest {
-  salaId: number;
-  turmaId?: number | null;
-  turno: string;
-  diasSemana: string[];
-  dataInicio: string;
-  dataFim: string;
-  horaInicio?: string;
-  horaFim?: string;
-  instrutorId?: number | null;
-  unidadeId: number;
-}
-
-/**
- * Espelha `backend/.../dto/SolicitacaoRequest.java`.
- *
- * Nao inclui `status`, `criadaEm`, `resposta` nem `respondidaEm`: o servidor
- * define esses valores.
- */
-export interface SolicitacaoRequest {
-  salaId: number;
-  instrutorId: number;
-  turmaId?: number | null;
-  turnos: string[];
-  data?: string;
-  dataInicio?: string;
-  dataFim?: string;
-  diasSemana?: string[];
-  datasEspecificas?: string[];
-  horaInicio?: string;
-  horaFim?: string;
-  modo?: string;
-  turno?: string;
-  motivo?: string;
-  unidadeId: number;
-}
-
-/** Espelha `backend/.../dto/RespostaSolicitacaoRequest.java`. */
-export interface RespostaSolicitacaoRequest {
-  decisao: string;
-  resposta?: string;
-}
-
-// ---------------------------------------------------------------------------
 // Formas de CRUD
 // ---------------------------------------------------------------------------
 
@@ -368,51 +287,10 @@ export type Atualizar<T> = Partial<Omit<T, 'id'>>;
 
 // ---------------------------------------------------------------------------
 // Formatos de rede
+//
+// Obs.: os tipos de contrato (`BancoDados`, `PayloadSinc`, `RespostaLogin`,
+// `RespostaErro`, `NomeColecao`) existiam aqui como documentacao, mas nenhum
+// codigo mobile os referencia — `services/api.ts` monta e le os payloads
+// diretamente (ver `buscarDados`, `loginApi`, `enviarAlteracoes`). Os corpos
+// exatos espelham os DTOs em `backend/demo/.../dto/`.
 // ---------------------------------------------------------------------------
-
-/** Corpo de `GET /api/dados` — as 8 colecoes do banco. */
-export interface BancoDados {
-  usuarios: Usuario[];
-  unidades: Unidade[];
-  salas: Sala[];
-  turmas: Turma[];
-  reservas: Reserva[];
-  chaves: Chave[];
-  notificacoes: Notificacao[];
-  solicitacoes: Solicitacao[];
-  sessao?: Sessao | null;
-  ultimaSinc?: number | string | null;
-  [colecaoExtra: string]: unknown;
-}
-
-/** Corpo de `POST /api/sinc`. */
-export interface PayloadSinc {
-  criados?: Record<string, unknown[]>;
-  alteracoes?: Record<string, unknown[]>;
-  remocoes?: Record<string, unknown[]>;
-}
-
-/** Corpo de `POST /api/login`. */
-export interface RespostaLogin {
-  ok?: boolean;
-  usuario?: Usuario | null;
-  sessao?: Sessao | null;
-  erro?: string;
-  [campo: string]: unknown;
-}
-
-/** Corpo de erro padrao (`ApiExceptionHandler`). */
-export interface RespostaErro {
-  erro: string;
-}
-
-/** Colecoes que o CRUD generico do servidor Node conhece. */
-export type NomeColecao =
-  | 'usuarios'
-  | 'unidades'
-  | 'salas'
-  | 'turmas'
-  | 'reservas'
-  | 'chaves'
-  | 'notificacoes'
-  | 'solicitacoes';

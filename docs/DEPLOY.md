@@ -175,6 +175,20 @@ curl https://conectasenac-api.onrender.com/api/dados
 Deve devolver as 8 colecoes. A primeira requisicao pode demorar ~1 min
 (free tier hiberna); a subsequente e instantanea.
 
+> **Divergencia de host (auditoria 2026-11-09 — nao resolvida por suposicao):**
+> Este documento usa `conectasenac-api.onrender.com` (nome do servico em
+> `render.yaml`), mas o fallback em `web/src/core/api.ts` e
+> `conecta-senac.onrender.com`. Sonde os dois antes de publicar:
+>
+> | Host | Observacao em 2026-11-09 |
+> |---|---|
+> | `conectasenac-api.onrender.com` | HTTP 404 em `/` e `/api/dados` |
+> | `conecta-senac.onrender.com` | HTTP 503 (servico fora do ar/hibernado) |
+>
+> Nao escolha um dos dois por suposição: confirme no painel do Render qual
+> servico esta ativo e alinhe `render.yaml`, `web/src/core/api.ts` e este
+> documento ao mesmo host.
+
 ---
 
 ## 4. Vercel — frontend (opcional, mas recomendado)

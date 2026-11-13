@@ -22,7 +22,10 @@ services:
     dockerContext: .
     plan: starter
     autoDeploy: true
-    healthCheckPath: /api/dados
+    # /api/** exige JWT (401 sem token), entao o health check usa o endpoint
+    # publico GET /health, que responde 200 com {"status":"UP"} sem expor
+    # credenciais, detalhes de conexao ou dados de usuarios.
+    healthCheckPath: /health
     envVars:
       # NAO defina "PORT" aqui.
       #

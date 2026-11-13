@@ -295,7 +295,8 @@ export function abrirUser(id: number | null = null): void {
   const u = id ? getUserById(id) : null;
   setTextSafe('mUTitulo', id ? 'Editar Usuário' : 'Novo Usuário');
   byId<HTMLInputElement>('mUNome').value = u ? u.nome : '';
-  byId<HTMLInputElement>('mUEmail').value = u ? u.email : '';
+  const separado = separarEmailInstitucional(u?.email);
+  byId<HTMLInputElement>('mUEmail').value = separado.local;
   byId<HTMLInputElement>('mUSenha').value = '';
   if (u) byId<HTMLSelectElement>('mUPerfil').value = u.perfil;
 
@@ -310,6 +311,9 @@ export function abrirUser(id: number | null = null): void {
   });
 
   fmsgHide('mUMsg');
+  if (u && separado.legado) {
+    fmsg('mUMsg', 'aviso', 'Conta legada: ao salvar, o e-mail será migrado para @edu.df.senac.br.');
+  }
   modalAbrir('modalUser');
 }
 
@@ -319,20 +323,42 @@ export function fecharUser(): void {
   editUserId = null;
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@.]+$/;
+const DOMINIO_INSTITUCIONAL = '@edu.df.senac.br';
+const TAMANHO_MAX_EMAIL_LOCAL = 16;
+const EMAIL_LOCAL_REGEX = /^[a-z0-9._+-]+$/;
 const SENHA_MINIMA = 8;
+
+/** Separa o e-mail em parte editavel + verifica se esta fora do padrao. */
+function separarEmailInstitucional(email: string | undefined | null): {
+  local: string;
+  legado: boolean;
+} {
+  if (!email) return { local: '', legado: false };
+  const lower = email.trim().toLowerCase();
+  if (lower.endsWith(DOMINIO_INSTITUCIONAL)) {
+    return { local: lower.slice(0, -DOMINIO_INSTITUCIONAL.length), legado: false };
+  }
+  const arroba = lower.indexOf('@');
+  return { local: arroba >= 0 ? lower.slice(0, arroba) : lower, legado: true };
+}
 
 /** Persiste o usuario editado/criado. */
 export async function salvarUser(): Promise<void> {
   const nome = byId<HTMLInputElement>('mUNome').value.trim();
-  const email = byId<HTMLInputElement>('mUEmail').value.trim();
+  const local = byId<HTMLInputElement>('mUEmail').value.trim().toLowerCase();
   const senha = byId<HTMLInputElement>('mUSenha').value.trim();
   const perfil = byId<HTMLSelectElement>('mUPerfil').value;
   const unidadeId = parseInt(byId<HTMLSelectElement>('mUUnidade').value, 10) || null;
 
   if (!nome) return fmsg('mUMsg', 'erro', 'Informe o nome.');
-  if (!email) return fmsg('mUMsg', 'erro', 'Informe o e-mail.');
-  if (!EMAIL_REGEX.test(email)) return fmsg('mUMsg', 'erro', 'Informe um e-mail válido.');
+  if (!local) return fmsg('mUMsg', 'erro', 'O e-mail institucional é obrigatório.');
+  if (local.length > TAMANHO_MAX_EMAIL_LOCAL) {
+    return fmsg('mUMsg', 'erro', 'A parte do e-mail antes do domínio deve ter no máximo 16 caracteres.');
+  }
+  if (!EMAIL_LOCAL_REGEX.test(local)) {
+    return fmsg('mUMsg', 'erro', 'Utilize um e-mail institucional @edu.df.senac.br.');
+  }
+  const email = local + DOMINIO_INSTITUCIONAL;
   if (!perfil) return fmsg('mUMsg', 'erro', 'Selecione o perfil.');
   if (!unidadeId) return fmsg('mUMsg', 'erro', 'Selecione a unidade.');
   if (!editUserId && !senha) return fmsg('mUMsg', 'erro', 'Defina uma senha.');

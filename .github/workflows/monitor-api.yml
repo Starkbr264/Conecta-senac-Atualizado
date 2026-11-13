@@ -1,0 +1,123 @@
+# Monitora continuamente a saude da API Conecta-Senac apos deploy.
+# - Verifica GET /health a cada 15 minutos (e manualmente via workflow_dispatch).
+# - Exige HTTP 200 **e** JSON com "status":"UP" (nao basta 200).
+# - Registra data, horario, duracao e resultado de cada verificacao.
+# - Notifica por GitHub Issues: 1 issue por falha (sem repeticao) e
+#   comentario + fecho na recuperacao. Nenhum segredo e necessario.
+name: Monitor API Health
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitor-api-health
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Testes unitarios do monitor (node:test, sem dependencias)
+  # ---------------------------------------------------------------------------
+  teste:
+    name: Testes do monitor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Testes unitarios
+        run: node --test scripts/monitor/check-health.test.mjs
+
+  # ---------------------------------------------------------------------------
+  # Verificacao ao vivo + registro + notificacao
+  # ---------------------------------------------------------------------------
+  monitorar:
+    name: Verificar /health
+    needs: teste
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MONITOR_URL: https://conecta-senac-test.onrender.com/health
+      MONITOR_RESULT_FILE: health-result.json
+      MONITOR_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verifica o endpoint /health
+        id: check
+        continue-on-error: true
+        run: node scripts/monitor/check-health.mjs
+
+      - name: Registra data, horario, duracao e resultado
+        if: always()
+        run: node scripts/monitor/check-health.mjs --resumo
+
+      - name: Publica o resultado como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-result
+          path: ${{ env.MONITOR_RESULT_FILE }}
+          retention-days: 30
+
+      - name: Notifica via GitHub Issues (dedup por issue aberta)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh label create monitoramento \
+            --color D93F0B \
+            --description "Monitoramento pos-deploy da API (saude do /health)" \
+            --force
+          ISSUE=$(gh issue list --label monitoramento --state open --json number --jq '.[0].number // empty')
+          export MONITOR_ISSUE_ABERTA="$ISSUE"
+          DECISAO=$(node scripts/monitor/check-health.mjs --decidir)
+          echo "decisao=$DECISAO issue_aberta=${ISSUE:-nenhuma}"
+          case "$DECISAO" in
+            criar)
+              node scripts/monitor/check-health.mjs --corpo > "$RUNNER_TEMP/corpo-issue.md"
+              gh issue create \
+                --title "API indisponível — verificação de /health falhou" \
+                --label monitoramento \
+                --body-file "$RUNNER_TEMP/corpo-issue.md"
+              ;;
+            atualizar)
+              # Mesma falha continua: atualiza a issue em silencio (sem nova notificacao).
+              node scripts/monitor/check-health.mjs --corpo > "$RUNNER_TEMP/corpo-issue.md"
+              gh issue edit "$ISSUE" --body-file "$RUNNER_TEMP/corpo-issue.md"
+              ;;
+            recuperar)
+              TS=$(jq -r '.timestampLocal' "$MONITOR_RESULT_FILE")
+              DUR=$(jq -r '.duracaoTotalMs' "$MONITOR_RESULT_FILE")
+              gh issue comment "$ISSUE" \
+                --body "API recuperada — \`/health\` voltou a responder UP em ${TS} (duração da verificação: ${DUR} ms)."
+              gh issue close "$ISSUE" --reason completed
+              ;;
+            nenhuma)
+              ;;
+            *)
+              echo "decisao desconhecida: $DECISAO" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Falha o job se a verificacao nao passou
+        if: always() && steps.check.outcome != 'success'
+        run: |
+          echo "Verificacao falhou (outcome=${{ steps.check.outcome }})."
+          exit 1

@@ -1,7 +1,7 @@
 # Arquitetura Atualizada — Conecta-Senac
 
 > Documento de referência técnica. Substitui as referências a caminhos antigos
-> que existiam em `README.md` e `DOCUMENTACAO_CONEXAO_WEB_MOBILE.txt`.
+> que existiam em `README.md` e `DOCUMENTACAO_CONEXAO_WEB_MOBILE.md`.
 > Última atualização: reorganização do monorepo + migração do web para
 > TypeScript + refatoração estrutural do backend Spring Boot.
 
@@ -9,16 +9,18 @@
 
 ## 1. Visão geral
 
-O repositório é um monorepo com **quatro** componentes independentes. Nenhum
-frontend consome as rotas do backend Spring Boot: web e mobile falam com o
-servidor Node (`server/`), que é a fonte da verdade em desenvolvimento.
+O repositório é um monorepo com **quatro** componentes independentes. A
+**fonte única de verdade dos dados** é o backend Spring Boot
+(`backend/demo/`, Postgres/Supabase). O servidor Node (`server/`) é o
+**mock legado**: só sobe com o perfil `mock` do Docker Compose, serve para
+desenvolvimento offline e não deve rodar junto da API real.
 
 ```
 conecta-senac/
 ├── backend/demo/          API Spring Boot 4 + JPA -> Postgres/Supabase
 ├── mobile/                Expo 51 / React Native 0.74 (TypeScript)
-├── server/                Servidor de dados Node (CommonJS, sem deps)
-│   └── data/db.json       Persistencia (fonte da verdade em dev)
+├── server/                Mock legado: servidor de dados Node (CommonJS)
+│   └── data/db.json       Persistencia local (apenas perfil "mock")
 ├── web/                   Frontend web (TypeScript + Vite)
 ├── docs/                  Este documento e os casos de uso
 ├── Dockerfile             Imagem unica: Spring Boot servindo o frontend
@@ -179,15 +181,21 @@ refatoracao. `ApiExceptionHandler` continua traduzindo
 ## 5. Modo Mock vs Modo Producao
 
 O repositorio mantem **duas** camadas de persistencia com o **mesmo** contrato
-HTTP. A selecao agora e explicita, nao implicita na URL.
+HTTP. Hoje o frontend (web e mobile) fala sempre com a API; a escolha da base
+e feita por `VITE_API_BASE` / `extra.apiUrl`, sem variavel de "modo".
 
-| | Modo MOCK | Modo PRODUCAO |
+| | Mock legado | Producao (fonte da verdade) |
 |---|---|---|
 | Componente | `server/` (Node puro) | `backend/` (Spring Boot) |
 | Persistencia | `server/data/db.json` | Postgres / Supabase |
 | Porta | 3333 | 8081 |
-| Consumidores | web + mobile | nenhum frontend hoje |
+| Como sobe | `docker compose --profile mock up -d server` | `docker compose up -d` / Render |
+| Consumidores | apenas dev offline pontual | web + mobile |
 | Padrao do web | nao | `https://conecta-senac.onrender.com` |
+
+> O mock e **legado** e sobe apenas pelo profile `mock` do `compose.yaml`.
+> Nao rode mock e API juntos sobre o mesmo cliente: sao bases separadas
+> (JSON x Postgres) e uma sincronizacao entre as duas corrompe os dados.
 
 ### Web — `web/src/core/api.ts`
 
@@ -197,18 +205,9 @@ Ordem de resolucao da base:
 2. `VITE_API_BASE` do build — token `same-origin` = mesma origem
 3. host de producao
 
-Resolucao do modo (`MODO_API: 'mock' | 'producao'`):
-
-1. `window.__CONECTA_MODO_API__` (runtime)
-2. `VITE_MODO_API=mock|producao` (build)
-3. inferencia: base em loopback -> `mock`; host publico -> `producao`
-
 ```bash
-# Modo MOCK
-VITE_API_BASE=http://127.0.0.1:3333 VITE_MODO_API=mock npm run build
-
-# Modo PRODUCAO
-VITE_API_BASE=https://api.exemplo.com VITE_MODO_API=producao npm run build
+# Apontar para um servidor local so muda a base (API em 8081, mock em 3333):
+VITE_API_BASE=http://127.0.0.1:8081 npm run build
 
 # Mesmo backend, sem digitar a URL (imagem Docker)
 VITE_API_BASE=same-origin npm run build
@@ -220,18 +219,14 @@ VITE_API_BASE=same-origin npm run build
 ### Mobile — `mobile/src/services/api.ts`
 
 Resolucao da base: `extra.apiUrl` do `app.json`, senao o IP do host Metro +
-`:3333`.
-
-Resolucao do modo: `extra.modoApi` do `app.json`; senao inferido por host
-loopback ou IP privado (RFC 1918) -> `mock`, host publico -> `producao`.
+`:8081`.
 
 ```jsonc
 // app.json
 {
   "expo": {
     "extra": {
-      "apiUrl":  "http://192.168.0.20:3333",
-      "modoApi": "mock"
+      "apiUrl": "http://192.168.0.20:8081"
     }
   }
 }
@@ -249,8 +244,9 @@ escrita atomica), nunca o `.json`.
 ## 6. Como executar
 
 ```bash
-# 1. Servidor de dados (obrigatorio para web e mobile em dev)
-node server/index.js                      # :3333
+# 1. (Opcional) Mock legado para desenvolvimento offline — profile "mock"
+docker compose --profile mock up -d server # :3333
+#    NAO rode mock e API sobre o mesmo cliente (bases divergentes).
 
 # 2. Frontend web
 cd web && npm install && npm run dev      # :5173
@@ -332,5 +328,5 @@ nao exige autenticacao — item 3).
 | `docs/CASO_DE_USO.md` | 15 casos de uso e regras de negocio |
 | `docs/RELATORIO_REFATORACAO.md` | O que mudou na migracao e por que |
 | `docs/DOCUMENTACAO_CODIGO.md` | Estrutura do codigo legado original |
-| `docs/DOCUMENTACAO_CONEXAO_WEB_MOBILE.txt` | Protocolo de sincronizacao |
+| `docs/DOCUMENTACAO_CONEXAO_WEB_MOBILE.md` | Protocolo de sincronizacao |
 | `README.md` (raiz) | Quick start |

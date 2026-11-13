@@ -31,11 +31,6 @@ export function iniciais(nome: unknown): string {
   );
 }
 
-/** Id numerico unico para registros criados no cliente. */
-export function newId(): number {
-  return Date.now() + Math.floor(Math.random() * 9999);
-}
-
 /** Data de hoje em ISO curto (`YYYY-MM-DD`). */
 export function hojeISO(): string {
   return new Date().toISOString().split('T')[0];

@@ -29,10 +29,3 @@
 .notif-item.tipo-erro     { border-left-color: #dc2626; }
 .notif-item.nao-lida      { background: var(--primary-light, #e8f0fe); font-weight: 500; }
 .notif-item.nao-lida .ni-title { font-weight: 700; }
-
-/* Botão "Marcar todas como lidas" */
-.notifs-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
-}
