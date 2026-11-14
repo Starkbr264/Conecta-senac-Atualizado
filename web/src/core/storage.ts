@@ -1119,7 +1119,9 @@ export function setOverride(
     statusManual: status,
     motivoManual: status ? motivo || '' : '',
     manualPor: status ? por || '' : '',
-    manualCriadaEm: status ? new Date().toISOString().slice(0, 19) : null,
+    // Preserve the trailing `Z`: the backend parses this field with
+    // `Instant.parse`, which requires a complete ISO-8601 instant.
+    manualCriadaEm: status ? new Date().toISOString() : null,
     unidadeId: unidadeId ? Number(unidadeId) : undefined,
   });
 }

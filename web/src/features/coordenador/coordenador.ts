@@ -67,6 +67,7 @@ import {
 import { fmsg, fmsgHide, modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
+import { ErroApi } from '../../core/api';
 import {
   filtrarLista,
   lerFiltros,
@@ -1404,8 +1405,12 @@ function aplicarOverride(salaId: number, unidadeId: number, status: StatusManual
     s ? s.nome : '—',
   )
     .then(() => rdMapa())
-    .catch(() => {
-      toast('Alteração mantida localmente, aguardando sincronização.', 'aviso');
+    .catch((erro: unknown) => {
+      if (erro instanceof ErroApi && [400, 403, 404, 409, 422].includes(erro.status)) {
+        toast(`Alteração recusada pelo servidor (${erro.status}): ${erro.message}`, 'erro');
+      } else {
+        toast('Alteração mantida localmente, aguardando sincronização.', 'aviso');
+      }
       rdMapa();
     });
 }
