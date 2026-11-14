@@ -212,34 +212,46 @@
 
 
 <div class="modal-overlay" id="modalUser" style="display:none">
-  <div class="modal-box" style="max-width:460px">
-    <div class="modal-title"><span id="mUTitulo"><i class="ph ph-plus"></i> Novo Usuário</span><button class="modal-close" data-action="fecharUser"><i class="ph ph-x"></i></button></div>
-    <div class="fg" style="gap:12px">
-      <div class="ff"><label>Nome completo *</label><input type="text" id="mUNome" placeholder="Nome completo"></div>
-      <div class="ff"><label>E-mail institucional *</label>
+  <div class="modal-box">
+    <div class="modal-title"><span id="mUTitulo">Novo Usuário</span><button class="modal-close" data-action="fecharUser" aria-label="Fechar"><i class="ph ph-x"></i></button></div>
+    <div class="fg">
+      <div class="ff"><label for="mUNome">Nome completo <span class="req">*</span></label><input type="text" id="mUNome" placeholder="Maria da Silva Souza"></div>
+      <div class="ff"><label for="mUEmail">E-mail institucional <span class="req">*</span></label>
         <div class="email-institucional">
           <input type="text" id="mUEmail" maxlength="16" placeholder="nome.do.usuario"
-                 autocomplete="off" spellcheck="false" aria-label="Parte do e-mail antes do domínio">
+                 autocomplete="off" spellcheck="false" aria-label="Parte do e-mail antes do domínio"
+                 data-input="contarEmailLocal">
           <span class="email-dominio" aria-hidden="true">@edu.df.senac.br</span>
         </div>
-        <small style="font-size:.72rem;color:var(--text3)">Preencha somente a parte antes do domínio (máximo 16 caracteres).</small>
+        <div class="mu-ajuda"><span>Digite só a parte antes do @.</span><span class="mu-contador" id="mUEmailContador">0/16</span></div>
       </div>
-      <div class="ff"><label>Senha</label><input type="password" id="mUSenha" placeholder="Deixe vazio para não alterar"></div>
-      <div class="fg g2" style="gap:12px;margin:0">
-        <div class="ff"><label>Perfil *</label>
+      <div class="ff"><label for="mUSenha">Senha inicial <span class="req">*</span></label>
+        <div class="mu-senha" id="mUSenhaWrap">
+          <input type="password" id="mUSenha" placeholder="Crie uma senha" autocomplete="new-password">
+          <button type="button" class="mu-olho" data-action="alternarVisibilidadeSenha"
+                  aria-label="Mostrar ou ocultar a senha" title="Mostrar ou ocultar a senha">
+            <svg class="mu-ico mu-ico-ver" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="mu-ico mu-ico-ocult" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 6.1A9.9 9.9 0 0 1 12 6c7 0 10.5 6 10.5 6a18.6 18.6 0 0 1-3.2 3.9M6.2 7.3A18.4 18.4 0 0 0 1.5 12S5 18 12 18a10.7 10.7 0 0 0 4.3-.9"/><path d="M3 3l18 18"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+          </button>
+        </div>
+        <small class="mu-dica">Mínimo de 8 caracteres.</small>
+      </div>
+      <div class="fg g2">
+        <div class="ff"><label for="mUPerfil">Perfil <span class="req">*</span></label>
           <select id="mUPerfil">
+            <option value="">Selecione o perfil</option>
             <option value="coordenador">Coordenador</option>
             <option value="instrutor">Instrutor</option>
             <option value="recepcao">Recepção</option>
           </select>
         </div>
-        <div class="ff"><label>Unidade *</label><select id="mUUnidade"><option value="">— Selecione —</option></select></div>
+        <div class="ff"><label for="mUUnidade">Unidade <span class="req">*</span></label><select id="mUUnidade"><option value="">Selecione a unidade</option></select></div>
       </div>
     </div>
     <div id="mUMsg" class="fmsg"></div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" data-action="fecharUser"><i class="ph ph-x"></i> Cancelar</button>
-      <button class="btn btn-primary" data-action="salvarUser"><i class="ph ph-check"></i> Salvar</button>
+      <button class="btn btn-ghost" data-action="fecharUser">Cancelar</button>
+      <button class="btn btn-primary" id="mUBotao" data-action="salvarUser">Criar usuário</button>
     </div>
   </div>
 </div>

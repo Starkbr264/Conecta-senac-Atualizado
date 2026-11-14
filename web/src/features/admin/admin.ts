@@ -293,15 +293,22 @@ function renderTbUsuarios(): void {
 export function abrirUser(id: number | null = null): void {
   editUserId = id ?? null;
   const u = id ? getUserById(id) : null;
-  setTextSafe('mUTitulo', id ? 'Editar Usuário' : 'Novo Usuário');
+  setTextSafe('mUTitulo', id ? 'Editar usuário' : 'Novo usuário');
   byId<HTMLInputElement>('mUNome').value = u ? u.nome : '';
   const separado = separarEmailInstitucional(u?.email);
   byId<HTMLInputElement>('mUEmail').value = separado.local;
-  byId<HTMLInputElement>('mUSenha').value = '';
-  if (u) byId<HTMLSelectElement>('mUPerfil').value = u.perfil;
+  atualizarContadorEmail();
+  const senha = byId<HTMLInputElement>('mUSenha');
+  senha.value = '';
+  senha.type = 'password';
+  // Placeholders distintos por modo (aparência apenas; validações inalteradas).
+  senha.placeholder = id ? 'Deixe vazio para não alterar' : 'Crie uma senha';
+  byId('mUSenhaWrap').classList.remove('mostrando');
+  byId<HTMLSelectElement>('mUPerfil').value = u ? u.perfil : '';
+  byId<HTMLElement>('mUBotao').textContent = id ? 'Salvar' : 'Criar usuário';
 
   const sel = byId<HTMLSelectElement>('mUUnidade');
-  sel.innerHTML = '<option value="">— Selecione a unidade —</option>';
+  sel.innerHTML = '<option value="">Selecione a unidade</option>';
   getUnidades().forEach((un) => {
     const o = document.createElement('option');
     o.value = String(un.id);
@@ -322,6 +329,27 @@ export function abrirUser(id: number | null = null): void {
 export function fecharUser(): void {
   modalFechar('modalUser');
   editUserId = null;
+}
+
+/**
+ * Atualiza o contador de caracteres do e-mail institucional (formato `0/16`).
+ * Puramente visual — não interfere em nenhuma validação.
+ */
+export function atualizarContadorEmail(): void {
+  const local = byId<HTMLInputElement>('mUEmail').value;
+  const contador = tryById('mUEmailContador');
+  if (contador) contador.textContent = `${local.length}/${TAMANHO_MAX_EMAIL_LOCAL}`;
+}
+
+/**
+ * Alterna a visibilidade da senha no modal (ícone de olho).
+ * Troca apenas o tipo do input e a classe visual do wrapper.
+ */
+export function alternarVisibilidadeSenha(): void {
+  const input = byId<HTMLInputElement>('mUSenha');
+  const mostrando = input.type === 'text';
+  input.type = mostrando ? 'password' : 'text';
+  byId('mUSenhaWrap').classList.toggle('mostrando', !mostrando);
 }
 
 const DOMINIO_INSTITUCIONAL = '@edu.df.senac.br';

@@ -18,6 +18,9 @@ registrarAcoes({
   abrirUser: ({ num }) => admin.abrirUser(num),
   fecharUser: admin.fecharUser,
   salvarUser: () => void admin.salvarUser(),
+  // --- Detalhes visuais do modal de usuario ---
+  alternarVisibilidadeSenha: admin.alternarVisibilidadeSenha,
+  contarEmailLocal: admin.atualizarContadorEmail,
   resetSenha: ({ num }) => admin.resetSenha(num ?? 0),
   excluirUser: ({ num }) => admin.excluirUser(num ?? 0),
 

@@ -70,3 +70,140 @@
   margin-top: 18px;
   flex-wrap: wrap;
 }
+
+/* ================================================================
+   Modal de usuário (#modalUser) — redesign visual
+   Layout conforme referência "Novo usuário"; cores as do tema
+   do site (branco no modo claro / grafite no escuro), como antes.
+   Escopo estrito: SOMENTE #modalUser — os demais modais
+   (modalUnid, modais de edição/exclusão, etc.) não são afetados.
+   ================================================================ */
+
+/* Largura e respiro internos (~690px em telas grandes) */
+#modalUser .modal-box {
+  max-width: 690px;
+  padding: 26px 30px 24px;
+}
+
+/* Cores: as mesmas do tema do site (branco no claro / grafite no escuro),
+   como era antes — apenas o layout foi redesenhado. */
+
+/* Cabeçalho: título maior + separação discreta do formulário */
+#modalUser .modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border2);
+}
+#modalUser .modal-close {
+  color: var(--text2);
+  font-size: 1.3rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+#modalUser .modal-close:hover { background: var(--surface2); color: var(--text); }
+
+/* Campos */
+#modalUser .fg { gap: 18px; }
+#modalUser .ff { gap: 8px; }
+#modalUser .ff label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+#modalUser .ff label .req { color: #ef4444; font-weight: 700; }
+#modalUser .ff input,
+#modalUser .ff select {
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 46px;
+  box-sizing: border-box;
+  font-size: .95rem;
+  color: var(--text);
+}
+#modalUser .ff input::placeholder,
+#modalUser .ff select:invalid { color: var(--text3); }
+
+/* E-mail institucional: domínio fixo + linha auxiliar com contador 0/16 */
+#modalUser .email-institucional {
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+}
+#modalUser .email-institucional .email-dominio {
+  font-family: inherit;
+  font-size: .95rem;
+  color: var(--text2);
+  background: rgba(127, 127, 127, .10);
+  border-left: 1.5px solid var(--border2);
+  padding: 0 16px;
+}
+#modalUser .mu-ajuda {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: .78rem;
+  color: var(--text3);
+}
+#modalUser .mu-contador {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text3);
+}
+#modalUser .mu-dica {
+  font-size: .78rem;
+  color: var(--text3);
+}
+
+/* Senha: campo com ícone de olho embutido */
+#modalUser .mu-senha { position: relative; }
+#modalUser .mu-senha input { padding-right: 46px; }
+#modalUser .mu-olho {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+  color: var(--text3);
+  cursor: pointer;
+  transition: var(--t);
+}
+#modalUser .mu-olho:hover { color: var(--text); background: var(--surface2); }
+#modalUser .mu-ico-ocult { display: none; }
+#modalUser .mu-senha.mostrando .mu-ico-ver { display: none; }
+#modalUser .mu-senha.mostrando .mu-ico-ocult { display: inline; }
+
+/* Rodapé: linha de separação + Cancelar discreto / Criar usuário destacado */
+#modalUser .modal-foot {
+  border-top: 1px solid var(--border2);
+  margin-top: 24px;
+  padding-top: 18px;
+  gap: 10px;
+}
+#modalUser .modal-foot .btn { font-size: .9rem; padding: 11px 22px; border-radius: 10px; }
+
+/* Responsividade: adaptar espaçamentos em telas menores */
+@media (max-width: 600px) {
+  #modalUser .modal-box { padding: 22px 18px 20px; }
+  #modalUser .fg { gap: 14px; }
+  #modalUser .modal-title { font-size: 1.1rem; margin-bottom: 16px; padding-bottom: 12px; }
+  #modalUser .modal-foot { flex-direction: column-reverse; }
+  #modalUser .modal-foot .btn { width: 100%; justify-content: center; }
+}
+@media (max-width: 400px) {
+  #modalUser .mu-ajuda { flex-direction: column; gap: 2px; }
+  #modalUser .mu-contador { align-self: flex-end; }
+}
