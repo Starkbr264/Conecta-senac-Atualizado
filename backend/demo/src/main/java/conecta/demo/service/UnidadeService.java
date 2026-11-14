@@ -120,9 +120,12 @@ public class UnidadeService {
     public void excluir(Long id) {
         Unidade unidade = buscar(id);
         List<String> pendencias = referenciasPendentes(id);
-        if (!pendencias.isEmpty())
-            throw new RegraDeNegocioException(
-                    "Unidade possui registros vinculados: " + String.join(", ", pendencias));
+        if (!pendencias.isEmpty()) {
+            String mensagem = "Unidade possui registros vinculados: " + String.join(", ", pendencias);
+            if (pendencias.contains("usuarios"))
+                mensagem += ". Transfira os usuarios para outra unidade antes de excluir";
+            throw new RegraDeNegocioException(mensagem);
+        }
         unidades.delete(unidade);
     }
 

@@ -437,8 +437,16 @@ public class SincService {
                 throw new AcessoNegadoException("Registro fora da unidade do usuario autenticado");
             }
             // A unidade de um registro existente vem do banco, nunca do cache
-            // filtrado nem de um payload adulterado.
-            if (unidadeReal != null) item.put("unidadeId", unidadeReal);
+            // filtrado nem de um payload adulterado — EXCETO quando um ADMIN
+            // transfere um usuario para outra unidade via /api/sinc (o valor
+            // recebido passa a valer; a existencia da unidade destino e
+            // validada em usuarioService.validarParaSincronizacao).
+            boolean transferenciaAdminDeUsuario = "usuarios".equals(colecao)
+                    && perfilAutenticado() == Perfil.ADMIN
+                    && unidadeRecebida != null;
+            if (unidadeReal != null && !transferenciaAdminDeUsuario) {
+                item.put("unidadeId", unidadeReal);
+            }
         } else {
             validarUnidadeDoPayload(colecao, item);
         }
@@ -642,7 +650,10 @@ public class SincService {
         validarUnidadeDoRegistro(colecao, id);
         switch (colecao) {
             case "usuarios": usuarios.deleteById(id); break;
-            case "unidades": unidades.deleteById(id); break;
+            // Exclusao de unidade passa pela regra de negocio (bloqueia quando
+            // ha usuarios/salas/turmas/... vinculados) em vez de deleteById
+            // cego, que deixava usuarios orfaos apontando para unidade inexistente.
+            case "unidades": unidadeService.excluir(id); break;
             case "salas": salas.deleteById(id); break;
             case "turmas": turmas.deleteById(id); break;
             case "reservas": reservas.deleteById(id); break;

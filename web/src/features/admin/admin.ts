@@ -274,7 +274,7 @@ function renderTbUsuarios(): void {
         esc(u.perfil) +
         '</span></td>' +
         '<td>' +
-        esc(unid ? unid.nome : '—') +
+        esc(unid ? (unid.cep ? `${unid.nome} — ${unid.cep}` : unid.nome) : '—') +
         '</td>' +
         '<td><div class="td-actions">' +
         '<button class="btn btn-ghost btn-sm" data-action="abrirUser" data-arg="' +
@@ -305,7 +305,8 @@ export function abrirUser(id: number | null = null): void {
   getUnidades().forEach((un) => {
     const o = document.createElement('option');
     o.value = String(un.id);
-    o.textContent = un.nome;
+    // Nome + CEP para o admin identificar a unidade correta no seletor.
+    o.textContent = un.cep ? `${un.nome} — CEP: ${un.cep}` : un.nome;
     if (u && u.unidadeId === un.id) o.selected = true;
     sel.appendChild(o);
   });
@@ -583,8 +584,11 @@ export async function excluirUnid(id: number): Promise<void> {
   if (!u) return;
   const refs = referenciasDaUnidade(id);
   if (refs.length > 0) {
+    const transferir = refs.includes('usuarios')
+      ? ' Transfira os usuários para outra unidade antes de excluir.'
+      : '';
     toast(
-      `Não é possível excluir: ${refs.join(', ')} vinculado(s) a esta unidade.`,
+      `Não é possível excluir: ${refs.join(', ')} vinculado(s) a esta unidade.${transferir}`,
       'erro',
     );
     return;
