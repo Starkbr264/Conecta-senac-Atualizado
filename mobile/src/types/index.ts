@@ -75,7 +75,12 @@ export type TipoNotificacao = 'info' | 'ok' | 'sucesso' | 'aviso' | 'erro';
  * Status de ocupacao de sala. O Java NAO tem este enum — ele e calculado no
  * cliente a partir de `Reserva` + `Sala.statusManual` + `Turma`.
  */
-export type StatusSala = 'livre' | 'ocupada' | 'iminente';
+export type StatusSala =
+  | 'livre'
+  | 'ocupada'
+  | 'iminente'
+  | 'manutencao'
+  | 'indisponivel';
 
 /** `Sala.statusManual` — mesmo dominio de `StatusSala`, redundante de proposito. */
 export type StatusManualSala = StatusSala;

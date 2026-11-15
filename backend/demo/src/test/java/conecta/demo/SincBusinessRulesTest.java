@@ -1,6 +1,7 @@
 package conecta.demo;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,17 +19,28 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import conecta.demo.repository.TurmaRepository;
 import conecta.demo.repository.SalaRepository;
+import conecta.demo.repository.ReservaRepository;
+import conecta.demo.repository.SolicitacaoRepository;
 import conecta.demo.repository.UsuarioRepository;
 import conecta.demo.repository.UnidadeRepository;
 import conecta.demo.model.Sala;
 import conecta.demo.model.Usuario;
 import conecta.demo.model.Perfil;
 import conecta.demo.service.SincService;
+import conecta.demo.service.SolicitacaoService;
+import conecta.demo.dto.RespostaSolicitacaoRequest;
 import conecta.demo.exception.AcessoNegadoException;
+import conecta.demo.exception.RegraDeNegocioException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.time.LocalDate;
+import conecta.demo.model.Reserva;
+import conecta.demo.model.Solicitacao;
+import conecta.demo.model.StatusSolicitacao;
 
 /** Regras de negocio que devem ser respeitadas também pelo lote de sincronizacao. */
 @SpringBootTest
@@ -58,6 +70,12 @@ class SincBusinessRulesTest {
     private SalaRepository salas;
 
     @Autowired
+    private ReservaRepository reservas;
+
+    @Autowired
+    private SolicitacaoRepository solicitacoes;
+
+    @Autowired
     private UsuarioRepository usuarios;
 
     @Autowired
@@ -65,6 +83,9 @@ class SincBusinessRulesTest {
 
     @Autowired
     private SincService sinc;
+
+    @Autowired
+    private SolicitacaoService solicitacaoService;
 
     @Test
     void sincRejeitaTurmaIncompleta() throws Exception {
@@ -110,6 +131,221 @@ class SincBusinessRulesTest {
                 + reserva.substring(1) + "]}}";
         mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON).content(lote))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void sincRejeitaNovaReservaEmSalaBloqueada() throws Exception {
+        long unidadeId = criarUnidade("Unidade reserva bloqueada", "71000-013");
+        String sala = mockMvc.perform(post("/api/salas").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Sala manutencao sinc\",\"tipo\":\"Sala\",\"capacidade\":20,"
+                                + "\"unidadeId\":" + unidadeId + ",\"statusManual\":\"manutencao\","
+                                + "\"turnosDisponiveis\":[\"manha\"],\"turnos\":[\"manha\"]}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long salaId = new tools.jackson.databind.ObjectMapper().readTree(sala).get("id").asLong();
+
+        String reserva = "{\"id\":99116,\"salaId\":" + salaId + ",\"turno\":\"manha\","
+                + "\"diasSemana\":[\"SEG\"],\"dataInicio\":\"2026-02-02\","
+                + "\"dataFim\":\"2026-02-27\",\"unidadeId\":" + unidadeId + "}";
+        mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"criados\":{\"reservas\":[" + reserva + "]}}"))
+                .andExpect(status().isConflict());
+        assertThat(reservas.findAll().stream().noneMatch(r -> r.getUnidadeId() == unidadeId)).isTrue();
+    }
+
+    @Test
+    void aprovacaoNaoCriaReservaEmSalaBloqueadaNemAlteraSolicitacao() throws Exception {
+        long unidadeId = criarUnidade("Unidade aprovacao bloqueada", "71000-014");
+        String sala = mockMvc.perform(post("/api/salas").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Sala indisponivel aprovacao\",\"tipo\":\"Sala\",\"capacidade\":20,"
+                                + "\"unidadeId\":" + unidadeId + ",\"statusManual\":\"indisponivel\","
+                                + "\"turnosDisponiveis\":[\"manha\"],\"turnos\":[\"manha\"]}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long salaId = new tools.jackson.databind.ObjectMapper().readTree(sala).get("id").asLong();
+
+        Usuario instrutor = new Usuario();
+        instrutor.setId(99117L);
+        instrutor.setNome("Instrutor aprovacao bloqueada");
+        instrutor.setEmail("instrutor.aprovacao.bloqueada@senac.test");
+        instrutor.setSenha("$2a$10$hash");
+        instrutor.setPerfil(Perfil.INSTRUTOR);
+        instrutor.setUnidadeId(unidadeId);
+        usuarios.saveAndFlush(instrutor);
+
+        Solicitacao solicitacao = new Solicitacao();
+        solicitacao.setId(99118L);
+        solicitacao.setSalaId(salaId);
+        solicitacao.setInstrutorId(instrutor.getId());
+        solicitacao.setUnidadeId(unidadeId);
+        solicitacao.setStatus(StatusSolicitacao.PENDENTE);
+        solicitacao.setTurnos(Set.of("manha"));
+        solicitacao.setDiasSemana(Set.of("SEG"));
+        solicitacao.setData(LocalDate.of(2026, 2, 2));
+        solicitacao.setDataInicio(LocalDate.of(2026, 2, 2));
+        solicitacao.setDataFim(LocalDate.of(2026, 2, 27));
+        solicitacoes.saveAndFlush(solicitacao);
+
+        assertThrows(RegraDeNegocioException.class, () -> solicitacaoService.responder(
+                solicitacao.getId(), new RespostaSolicitacaoRequest("aprovar", "Aprovada")));
+
+        assertThat(solicitacoes.findById(solicitacao.getId()).orElseThrow().getStatus())
+                .isEqualTo(StatusSolicitacao.PENDENTE);
+        assertThat(reservas.findAll().stream().noneMatch(r -> r.getSalaId() == salaId)).isTrue();
+    }
+
+    @Test
+    void sincIdempotentePreservaReservaExistenteEmSalaBloqueada() throws Exception {
+        long unidadeId = criarUnidade("Unidade preservacao reserva", "71000-015");
+        String sala = mockMvc.perform(post("/api/salas").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Sala preservada\",\"tipo\":\"Sala\",\"capacidade\":20,"
+                                + "\"unidadeId\":" + unidadeId
+                                + ",\"turnosDisponiveis\":[\"manha\"],\"turnos\":[\"manha\"]}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long salaId = new tools.jackson.databind.ObjectMapper().readTree(sala).get("id").asLong();
+        String reservaJson = "{\"salaId\":" + salaId + ",\"turno\":\"manha\","
+                + "\"diasSemana\":[\"SEG\"],\"dataInicio\":\"2026-03-02\","
+                + "\"dataFim\":\"2026-03-27\",\"unidadeId\":" + unidadeId + "}";
+        String reserva = mockMvc.perform(post("/api/reservas").contentType(MediaType.APPLICATION_JSON)
+                        .content(reservaJson))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long reservaId = new tools.jackson.databind.ObjectMapper().readTree(reserva).get("id").asLong();
+
+        Sala salaPersistida = salas.findById(salaId).orElseThrow();
+        salaPersistida.setStatusManual("indisponivel");
+        salas.saveAndFlush(salaPersistida);
+
+        Map<String, Object> registro = new LinkedHashMap<>(Map.of(
+                "id", reservaId,
+                "salaId", salaId,
+                "turno", "manha",
+                "diasSemana", List.of("SEG"),
+                "dataInicio", "2026-03-02",
+                "dataFim", "2026-03-27",
+                "unidadeId", unidadeId,
+                "status", "ATIVA"));
+
+        sinc.sincronizar(Map.of("alteracoes", Map.of("reservas", List.of(registro))));
+        sinc.sincronizar(Map.of("alteracoes", Map.of("reservas", List.of(registro))));
+
+        Reserva preservada = reservas.findById(reservaId).orElseThrow();
+        assertThat(preservada.getStatus()).isEqualTo("ATIVA");
+        assertThat(preservada.getSalaId()).isEqualTo(salaId);
+        assertThat(preservada.getDataInicio()).isEqualTo(LocalDate.of(2026, 3, 2));
+        assertThat(reservas.findAll().stream().filter(r -> r.getSalaId() == salaId).count()).isEqualTo(1);
+    }
+
+    @Test
+    void sincPreservaMetadadosDoOverrideEAutoLimpaIntervencao() throws Exception {
+        long unidadeId = criarUnidade("Unidade metadados override", "71000-018");
+        String sala = mockMvc.perform(post("/api/salas").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Sala metadados\",\"tipo\":\"Sala\",\"capacidade\":20,"
+                                + "\"unidadeId\":" + unidadeId
+                                + ",\"turnosDisponiveis\":[\"manha\"],\"turnos\":[\"manha\"]}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long salaId = new tools.jackson.databind.ObjectMapper().readTree(sala).get("id").asLong();
+
+        String override = "{\"id\":" + salaId + ",\"nome\":\"Sala metadados\",\"tipo\":\"Sala\","
+                + "\"capacidade\":20,\"unidadeId\":" + unidadeId
+                + ",\"statusManual\":\"manutencao\",\"motivoManual\":\"Preparacao de evento\","
+                + "\"manualPor\":\"Coordenador\",\"manualCriadaEm\":\"2026-11-15T12:30:00Z\","
+                + "\"turnosDisponiveis\":[\"manha\"],\"turnos\":[\"manha\"]}";
+        mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"operacaoId\":\"override-metadados-1\",\"alteracoes\":{\"salas\":["
+                                + override + "]}}"))
+                .andExpect(status().isOk());
+
+        Sala persistida = salas.findById(salaId).orElseThrow();
+        assertThat(persistida.getStatusManual()).isEqualTo("manutencao");
+        assertThat(persistida.getMotivoManual()).isEqualTo("Preparacao de evento");
+        assertThat(persistida.getManualPor()).isEqualTo("Coordenador");
+        assertThat(persistida.getManualCriadaEm().toString()).isEqualTo("2026-11-15T12:30:00Z");
+
+        String auto = "{\"id\":" + salaId + ",\"nome\":\"Sala metadados\",\"tipo\":\"Sala\","
+                + "\"capacidade\":20,\"unidadeId\":" + unidadeId
+                + ",\"statusManual\":null,\"motivoManual\":\"\",\"manualPor\":\"\","
+                + "\"manualCriadaEm\":null,\"turnosDisponiveis\":[\"manha\"],\"turnos\":[\"manha\"]}";
+        mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"operacaoId\":\"override-metadados-2\",\"alteracoes\":{\"salas\":["
+                                + auto + "]}}"))
+                .andExpect(status().isOk());
+
+        Sala autoPersistida = salas.findById(salaId).orElseThrow();
+        assertThat(autoPersistida.getStatusManual()).isNull();
+        assertThat(autoPersistida.getMotivoManual()).isEmpty();
+        assertThat(autoPersistida.getManualPor()).isEmpty();
+        assertThat(autoPersistida.getManualCriadaEm()).isNull();
+    }
+
+    @Test
+    void sincReagendamentoDeReservaExistenteEmSalaBloqueadaNaoAlteraRegistro() throws Exception {
+        long unidadeId = criarUnidade("Unidade reagendamento bloqueado", "71000-016");
+        Sala sala = new Sala();
+        sala.setId(99119L);
+        sala.setNome("Sala reagendamento");
+        sala.setTipo("Sala");
+        sala.setCapacidade(20);
+        sala.setUnidadeId(unidadeId);
+        sala.setTurnos(List.of("manha"));
+        sala.setTurnosDisponiveis(List.of("manha"));
+        sala.setStatusManual("manutencao");
+        salas.saveAndFlush(sala);
+
+        Reserva reserva = new Reserva();
+        reserva.setId(99120L);
+        reserva.setSalaId(sala.getId());
+        reserva.setTurno("manha");
+        reserva.setDiasSemana(Set.of("SEG"));
+        reserva.setDataInicio(LocalDate.of(2026, 4, 6));
+        reserva.setDataFim(LocalDate.of(2026, 4, 30));
+        reserva.setUnidadeId(unidadeId);
+        reservas.saveAndFlush(reserva);
+
+        Map<String, Object> reagendamento = new LinkedHashMap<>(Map.of(
+                "id", reserva.getId(),
+                "salaId", sala.getId(),
+                "turno", "manha",
+                "diasSemana", List.of("TER"),
+                "dataInicio", "2026-04-07",
+                "dataFim", "2026-04-30",
+                "unidadeId", unidadeId,
+                "status", "ATIVA"));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> sinc.sincronizar(Map.of("alteracoes", Map.of("reservas", List.of(reagendamento)))));
+
+        Reserva preservada = reservas.findById(reserva.getId()).orElseThrow();
+        assertThat(preservada.getDataInicio()).isEqualTo(LocalDate.of(2026, 4, 6));
+        assertThat(preservada.getDiasSemana()).containsExactly("SEG");
+    }
+
+    @Test
+    void cancelamentoDeReservaExistenteEmSalaBloqueadaContinuaPermitido() throws Exception {
+        long unidadeId = criarUnidade("Unidade cancelamento bloqueado", "71000-017");
+        Sala sala = new Sala();
+        sala.setId(99121L);
+        sala.setNome("Sala cancelamento");
+        sala.setTipo("Sala");
+        sala.setCapacidade(20);
+        sala.setUnidadeId(unidadeId);
+        sala.setTurnos(List.of("manha"));
+        sala.setTurnosDisponiveis(List.of("manha"));
+        sala.setStatusManual("indisponivel");
+        salas.saveAndFlush(sala);
+
+        Reserva reserva = new Reserva();
+        reserva.setId(99122L);
+        reserva.setSalaId(sala.getId());
+        reserva.setTurno("manha");
+        reserva.setDiasSemana(Set.of("SEG"));
+        reserva.setDataInicio(LocalDate.of(2026, 5, 4));
+        reserva.setDataFim(LocalDate.of(2026, 5, 29));
+        reserva.setUnidadeId(unidadeId);
+        reservas.saveAndFlush(reserva);
+
+        mockMvc.perform(delete("/api/reservas/" + reserva.getId()))
+                .andExpect(status().isNoContent());
+
+        assertThat(reservas.findById(reserva.getId()).orElseThrow().getStatus())
+                .isEqualTo("CANCELADA");
     }
 
     @Test
@@ -262,6 +498,35 @@ class SincBusinessRulesTest {
                         .content("{\"criados\":{\"reservas\":[{\"id\":99115,\"status\":\"invalida\"}]}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campo").value("reservas.status"));
+    }
+
+    @Test
+    void sincAceitaNovosStatusManuaisDeSala() throws Exception {
+        long unidadeId = criarUnidade("Unidade status manual valido", "71000-011");
+
+        for (String statusManual : List.of("manutencao", "indisponivel")) {
+            mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"criados\":{\"salas\":[{\"id\":99120,"
+                                    + "\"nome\":\"Sala " + statusManual + "\",\"tipo\":\"Sala\","
+                                    + "\"capacidade\":20,\"unidadeId\":" + unidadeId
+                                    + ",\"turnos\":[\"manha\"],\"turnosDisponiveis\":[\"manha\"],"
+                                    + "\"statusManual\":\"" + statusManual + "\"}]}}"))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    void sincRejeitaStatusManualDeSalaDesconhecido() throws Exception {
+        long unidadeId = criarUnidade("Unidade status manual invalido", "71000-012");
+
+        mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"criados\":{\"salas\":[{\"id\":99122,"
+                                + "\"nome\":\"Sala invalida\",\"tipo\":\"Sala\","
+                                + "\"capacidade\":20,\"unidadeId\":" + unidadeId
+                                + ",\"turnos\":[\"manha\"],\"turnosDisponiveis\":[\"manha\"],"
+                                + "\"statusManual\":\"bloqueada\"}]}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campo").value("salas.statusManual"));
     }
 
     @Test

@@ -534,7 +534,7 @@ public class SincService {
                 // "perda de dados no POST /api/sinc" do relatorio de arquitetura).
                 s.setTurnosDisponiveis(listaDeStrings(item.get("turnosDisponiveis")));
                 s.setTurnos(listaDeStrings(item.get("turnos")));
-                s.setStatusManual(str(item.get("statusManual")));
+                s.setStatusManual(statusManualOuNull(item.get("statusManual"), colecao + ".statusManual"));
                 s.setMotivoManual(str(item.get("motivoManual")));
                 s.setManualPor(str(item.get("manualPor")));
                 s.setManualCriadaEm(instantOuNull(item.get("manualCriadaEm"), colecao + ".manualCriadaEm"));
@@ -557,6 +557,9 @@ public class SincService {
                 turmaService.validarParaSincronizacao(t, t.getId());
                 return turmas.save(t).getId();
             case "reservas":
+                String statusReserva = statusReservaOuPadrao(item.get("status"), colecao + ".status");
+                ReservaRequest reservaRecebida = reservaRequest(item);
+                reservaService.validarParaSincronizacao(reservaRecebida, id, statusReserva);
                 Reserva r = persistido instanceof Reserva existente ? existente : new Reserva();
                 r.setId(id);
                 r.setSalaId(longOuNull(item.get("salaId"), colecao + ".salaId"));
@@ -568,11 +571,10 @@ public class SincService {
                 r.setHoraFim(str(item.get("horaFim")));
                 r.setInstrutorId(longOuNull(item.get("instrutorId"), colecao + ".instrutorId"));
                 r.setUnidadeId(longOuNull(item.get("unidadeId"), colecao + ".unidadeId"));
-                r.setStatus(statusReservaOuPadrao(item.get("status"), colecao + ".status"));
+                r.setStatus(statusReserva);
                 r.setAvulsa(item.get("avulsa") != null && Boolean.parseBoolean(item.get("avulsa").toString()));
                 r.setDiasSemana(conjuntoDeStrings(item.get("diasSemana")));
                 validarEntidade(r);
-                reservaService.validarParaSincronizacao(reservaRequest(item), r.getId());
                 return reservas.save(r).getId();
             case "chaves":
                 Chave c = persistido instanceof Chave existente ? existente : new Chave();
@@ -835,6 +837,14 @@ public class SincService {
         String status = valor.toString().trim().toUpperCase(java.util.Locale.ROOT);
         if (!"ATIVA".equals(status) && !"CANCELADA".equals(status))
             throw new DadosInvalidosException(campo, "status desconhecido");
+        return status;
+    }
+
+    private String statusManualOuNull(Object valor, String campo) {
+        if (valor == null) return null;
+        String status = valor.toString().trim();
+        if (!Set.of("livre", "ocupada", "iminente", "manutencao", "indisponivel").contains(status))
+            throw new DadosInvalidosException(campo, "status manual desconhecido");
         return status;
     }
 

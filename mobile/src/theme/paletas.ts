@@ -43,6 +43,8 @@ export type Paleta = {
     livre: { bg: string; text: string; dot: string; border: string };
     ocupada: { bg: string; text: string; dot: string; border: string };
     iminente: { bg: string; text: string; dot: string; border: string };
+    manutencao: { bg: string; text: string; dot: string; border: string };
+    indisponivel: { bg: string; text: string; dot: string; border: string };
   };
   turmaStatus: {
     ativa: { bg: string; text: string; border: string };
@@ -96,6 +98,8 @@ export const paletaClara: Paleta = {
     livre: { bg: '#d1fae5', text: '#065f46', dot: '#059669', border: '#6ee7b7' },
     ocupada: { bg: '#fee2e2', text: '#991b1b', dot: '#dc2626', border: '#fca5a5' },
     iminente: { bg: '#fef3c7', text: '#92400e', dot: '#d97706', border: '#fcd34d' },
+    manutencao: { bg: '#ede9fe', text: '#5b21b6', dot: '#7c3aed', border: '#c4b5fd' },
+    indisponivel: { bg: '#e2e8f0', text: '#334155', dot: '#64748b', border: '#94a3b8' },
   },
   turmaStatus: {
     ativa: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
@@ -149,6 +153,8 @@ export const paletaEscura: Paleta = {
     livre: { bg: 'rgba(5,150,105,0.18)', text: '#6ee7b7', dot: '#10b981', border: 'rgba(16,185,129,0.5)' },
     ocupada: { bg: 'rgba(220,38,38,0.18)', text: '#fca5a5', dot: '#f87171', border: 'rgba(248,113,113,0.5)' },
     iminente: { bg: 'rgba(217,119,6,0.18)', text: '#fcd34d', dot: '#fbbf24', border: 'rgba(251,191,36,0.5)' },
+    manutencao: { bg: 'rgba(167,139,250,0.18)', text: '#c4b5fd', dot: '#a78bfa', border: 'rgba(167,139,250,0.5)' },
+    indisponivel: { bg: 'rgba(148,163,184,0.16)', text: '#cbd5e1', dot: '#94a3b8', border: 'rgba(148,163,184,0.5)' },
   },
   turmaStatus: {
     ativa: { bg: 'rgba(5,150,105,0.18)', text: '#6ee7b7', border: 'rgba(16,185,129,0.4)' },

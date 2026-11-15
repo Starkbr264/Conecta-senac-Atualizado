@@ -43,6 +43,8 @@
 .leg-item.livre    { color: var(--green); }
 .leg-item.ocupada  { color: var(--red);   }
 .leg-item.iminente { color: var(--amber); }
+.leg-item.manutencao { color: var(--purple); }
+.leg-item.indisponivel { color: var(--gray-status); }
 .leg-total         { color: var(--text2); font-weight: 400; }
 
 
@@ -98,6 +100,8 @@
 .sala-card-v2.livre    { border-color: var(--green); background: var(--green-l); }
 .sala-card-v2.ocupada  { border-color: var(--red);   background: var(--red-l);   }
 .sala-card-v2.iminente { border-color: var(--amber); background: var(--amber-l); }
+.sala-card-v2.manutencao { border-color: var(--purple); background: var(--purple-l); }
+.sala-card-v2.indisponivel { border-color: var(--gray-status); background: var(--gray-status-l); }
 
 /* Header do card */
 .sc-header {
@@ -121,6 +125,8 @@
 .sc-status-dot.livre    { background: var(--green); }
 .sc-status-dot.ocupada  { background: var(--red);   }
 .sc-status-dot.iminente { background: var(--amber); }
+.sc-status-dot.manutencao { background: var(--purple); }
+.sc-status-dot.indisponivel { background: var(--gray-status); }
 
 .sc-tipo { font-size: .72rem; color: var(--text3); line-height: 1.3; }
 
@@ -303,6 +309,8 @@
 #pg-mapa .mapa-status-chip.livre .mapa-chip-dot { background: var(--green); }
 #pg-mapa .mapa-status-chip.ocupada .mapa-chip-dot { background: var(--red); }
 #pg-mapa .mapa-status-chip.iminente .mapa-chip-dot { background: var(--amber); }
+#pg-mapa .mapa-status-chip.manutencao .mapa-chip-dot { background: var(--purple); }
+#pg-mapa .mapa-status-chip.indisponivel .mapa-chip-dot { background: var(--gray-status); }
 #pg-mapa .mapa-status-chip.selecionado .mapa-chip-dot { background: currentColor; }
 #pg-mapa .mapa-limpar { border: 0; background: transparent; color: var(--text3); cursor: pointer; font: inherit; font-size: .78rem; padding: 6px 0; }
 #pg-mapa .mapa-limpar:hover { color: var(--primary); }
@@ -311,12 +319,16 @@
 #pg-mapa .sc-status-label.livre { color: var(--green); }
 #pg-mapa .sc-status-label.ocupada { color: var(--red); }
 #pg-mapa .sc-status-label.iminente { color: var(--amber); }
+#pg-mapa .sc-status-label.manutencao { color: var(--purple); }
+#pg-mapa .sc-status-label.indisponivel { color: var(--gray-status); }
 #pg-mapa .sc-status-label .sc-status-dot { width: 7px; height: 7px; margin: 0; }
 #pg-mapa .sc-ocupacao-bar { height: 5px; background: var(--bg3); border-radius: 999px; overflow: hidden; margin: 2px 0 3px; }
 #pg-mapa .sc-ocupacao-bar span { display: block; height: 100%; border-radius: inherit; transition: width .2s ease; }
 #pg-mapa .sala-card-v2.livre .sc-ocupacao-bar span { background: var(--green); }
 #pg-mapa .sala-card-v2.ocupada .sc-ocupacao-bar span { background: var(--red); }
 #pg-mapa .sala-card-v2.iminente .sc-ocupacao-bar span { background: var(--amber); }
+#pg-mapa .sala-card-v2.manutencao .sc-ocupacao-bar span { background: var(--purple); }
+#pg-mapa .sala-card-v2.indisponivel .sc-ocupacao-bar span { background: var(--gray-status); }
 #pg-mapa .mapa-andar-grid { grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); gap: 14px; }
 #pg-mapa .sala-card-v2 { border-width: 1px; box-shadow: 0 1px 2px rgb(15 23 42 / 4%); }
 #pg-mapa .sala-card-v2:hover { box-shadow: var(--shadow-md); }

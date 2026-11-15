@@ -22,7 +22,6 @@ import {
   getChaveById,
   getChaves,
   getNotifsPara,
-  getOverride,
   getReservas,
   getSalaById,
   getSalasByUnidade,
@@ -37,7 +36,7 @@ import {
   type NovaChave,
   type OverrideSala,
 } from '../../core/storage';
-import { calcStatus, esc, fmtData, fmtDateTime, hojeISO } from '../../core/format';
+import { calcStatus, esc, fmtData, fmtDateTime, hojeISO, labelSalaStatus } from '../../core/format';
 import { modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
@@ -50,7 +49,8 @@ import {
 import { byId, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
-import type { Chave, DiaSemana, Sala, Sessao, Turno } from '../../types';
+import { calcularStatusSala } from '../mapa/sala-status';
+import type { Chave, DiaSemana, Sala, Sessao, StatusSala, Turno } from '../../types';
 
 let sess: Sessao | null = null;
 
@@ -120,12 +120,13 @@ function setText(id: string, valor: string): void {
 interface PeriodoMapa {
   turno: string;
   turmaNome: string;
-  instNome: string;
-  stat: string;
+  instNome: string | null;
+  stat: 'ocupada' | 'iminente';
+  hora?: string;
 }
 
 interface InfoSala {
-  stat: string;
+  stat: StatusSala;
   override: OverrideSala | null;
   periodos: PeriodoMapa[];
   turnosOcupados: string[];
@@ -138,7 +139,9 @@ let mapaStatusFiltro: MapaStatus = '';
 
 export function mapaChipStatus(btn: HTMLElement): void {
   const status = btn.getAttribute('data-arg');
-  mapaStatusFiltro = status === 'livre' || status === 'ocupada' || status === 'iminente' ? status : '';
+  mapaStatusFiltro = ['livre', 'ocupada', 'iminente', 'manutencao', 'indisponivel'].includes(status ?? '')
+    ? (status as MapaStatus)
+    : '';
   rdMapa();
 }
 
@@ -151,79 +154,18 @@ export function mapaLimparFiltros(): void {
   rdMapa();
 }
 
-/**
- * Calcula a ocupacao de uma sala na data informada.
- * `statusManual` definido pelo coordenador tem precedencia sobre o calculo.
- */
-function calcSalaStatus(s: Sala, hj: string): InfoSala {
-  const ov = getOverride(s.id, s.unidadeId);
-  if (ov) {
-    const manual = ov.status !== 'livre';
-    return {
-      stat: ov.status,
-      override: ov,
-      periodos: manual
-        ? [
-            {
-              turno: 'Manual',
-              turmaNome: ov.motivo || 'Status manual',
-              instNome: ov.por || '',
-              stat: ov.status,
-            },
-          ]
-        : [],
-      turnosOcupados: manual ? ['Manual'] : [],
-      turnoAtivo: manual ? 'Manual' : '',
-      turmaNome: ov.motivo || '',
-      instNome: ov.por || '',
-    };
-  }
-
-  const rs = getReservas().filter(
-    (r) => r.salaId === s.id && r.dataInicio <= hj && r.dataFim >= hj,
-  );
-  const p = hj.split('-').map(Number);
-  const dia = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'][
-    new Date(p[0], p[1] - 1, p[2]).getDay()
-  ];
-
-  const periodos: PeriodoMapa[] = [];
-  const turnosOcupados: string[] = [];
-  rs.forEach((r) => {
-    if (!(r.diasSemana ?? []).includes(dia as DiaSemana)) return;
-    let pStat: string;
-    let pTurma: string;
-    let pInst: string;
-    if (r.avulsa || !r.turmaId) {
-      pStat = 'ocupada';
-      pTurma = 'Sem turma';
-      const iA = r.instrutorId ? getUserById(r.instrutorId) : null;
-      pInst = iA ? iA.nome : '—';
-    } else {
-      const t = getTurmaById(r.turmaId);
-      const cst = t ? calcStatus(t) : 'encerrada';
-      if (cst === 'encerrada') return;
-      pStat = cst === 'ativa' ? 'ocupada' : 'iminente';
-      pTurma = t ? t.nome : '—';
-      const inst = t && t.instrutorId ? getUserById(t.instrutorId) : null;
-      pInst = inst ? inst.nome : '';
-    }
-    periodos.push({ turno: r.turno, turmaNome: pTurma, instNome: pInst, stat: pStat });
-    if (!turnosOcupados.includes(r.turno)) turnosOcupados.push(r.turno);
-  });
-
-  let stat = 'livre';
-  if (periodos.some((x) => x.stat === 'ocupada')) stat = 'ocupada';
-  else if (periodos.length > 0) stat = 'iminente';
-
+/** Cálculo comum do mapa, sem qualquer controle de alteração manual. */
+function calcSalaStatus(s: Sala, hj: string, turnoFiltro: string): InfoSala {
+  const info = calcularStatusSala(s, hj, turnoFiltro);
+  const turnosOcupados = info.override
+    ? info.stat === 'livre' ? [] : ['Manual']
+    : info.periodos.map((periodo) => periodo.turno).filter((turno, i, list) => list.indexOf(turno) === i);
   return {
-    stat,
-    periodos,
+    ...info,
     turnosOcupados,
-    override: null,
-    turnoAtivo: periodos.length ? periodos[0].turno : '',
-    turmaNome: periodos.length ? periodos[0].turmaNome : '',
-    instNome: periodos.length ? periodos[0].instNome : '',
+    turnoAtivo: info.periodos[0]?.turno ?? '',
+    turmaNome: info.periodos[0]?.turmaNome ?? '',
+    instNome: info.periodos[0]?.instNome ?? '',
   };
 }
 
@@ -231,15 +173,20 @@ const ICONE_STATUS: Record<string, string> = {
   livre: '<span class="ic-dot ic-livre"></span>',
   ocupada: '<span class="ic-dot ic-ocupada"></span>',
   iminente: '<span class="ic-dot ic-iminente"></span>',
+  manutencao: '<span class="ic-dot ic-manutencao"></span>',
+  indisponivel: '<span class="ic-dot ic-indisponivel"></span>',
 };
 
 function buildSalaCard(s: Sala, info: InfoSala): string {
   const statusIcon = ICONE_STATUS[info.stat] ?? ICONE_STATUS.livre;
   const turnos = s.turnos ?? s.turnosDisponiveis ?? [];
-  const statusLabel = info.stat === 'livre' ? 'Livre' : info.stat === 'ocupada' ? 'Ocupada' : 'Em breve';
-  const ocupacaoPercent = turnos.length
-    ? Math.min(100, Math.round((info.periodos.length / turnos.length) * 100))
-    : info.stat === 'livre' ? 0 : 100;
+  const statusLabel = labelSalaStatus(info.stat);
+  const bloqueada = info.stat === 'manutencao' || info.stat === 'indisponivel';
+  const ocupacaoPercent = bloqueada
+    ? 100
+    : turnos.length
+      ? Math.min(100, Math.round((info.periodos.length / turnos.length) * 100))
+      : info.stat === 'livre' ? 0 : 100;
 
   const turnosHtml = turnos
     .map((t) => {
@@ -303,6 +250,14 @@ function buildSalaCard(s: Sala, info: InfoSala): string {
       });
     }
     ocupHtml += '</div>';
+  } else if (info.override) {
+    ocupHtml =
+      '<div class="sc-ocupacao sc-override">' +
+      '<div class="sc-periodo"><span class="sc-periodo-turno">' +
+      statusIcon + ' ' + statusLabel +
+      '</span><div class="sc-turma">' +
+      esc(info.override.motivo || 'Status manual') +
+      '</div><div class="sc-inst">por ' + esc(info.override.por) + '</div></div></div>';
   } else {
     ocupHtml = '<div class="sc-livre-label">' + statusIcon + ' Disponível</div>';
   }
@@ -418,12 +373,14 @@ export function rdMapa(): void {
 
   const infoMap: Record<number, InfoSala> = {};
   salasBase.forEach((s) => {
-    infoMap[s.id] = calcSalaStatus(s, hj);
+    infoMap[s.id] = calcSalaStatus(s, hj, filtTurno);
   });
   const contadores = {
     livre: salasBase.filter((s) => infoMap[s.id].stat === 'livre').length,
     ocupada: salasBase.filter((s) => infoMap[s.id].stat === 'ocupada').length,
     iminente: salasBase.filter((s) => infoMap[s.id].stat === 'iminente').length,
+    manutencao: salasBase.filter((s) => infoMap[s.id].stat === 'manutencao').length,
+    indisponivel: salasBase.filter((s) => infoMap[s.id].stat === 'indisponivel').length,
   };
   const chipsEl = tryById('mapaRecStatusChips');
   if (chipsEl) chipsEl.innerHTML = renderMapaChips(contadores, mapaStatusFiltro);
@@ -445,6 +402,12 @@ export function rdMapa(): void {
       '</span>' +
       '<span class="leg-item iminente"><span class="ic-dot ic-iminente"></span> Em breve: ' +
       iminentes +
+      '</span>' +
+      '<span class="leg-item manutencao"><span class="ic-dot ic-manutencao"></span> Em manutenção: ' +
+      contadores.manutencao +
+      '</span>' +
+      '<span class="leg-item indisponivel"><span class="ic-dot ic-indisponivel"></span> Indisponível: ' +
+      contadores.indisponivel +
       '</span>' +
       '<span class="leg-total">Total: ' +
       total +

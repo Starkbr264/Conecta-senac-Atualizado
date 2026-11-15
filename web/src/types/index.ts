@@ -95,7 +95,12 @@ export type StatusTurma = 'ativa' | 'iminente' | 'posterior' | 'encerrada';
  * nao distingue os dois casos e as duas unions garantiam divergencia-free
  * apenas por luck.
  */
-export type StatusSala = 'livre' | 'ocupada' | 'iminente';
+export type StatusSala =
+  | 'livre'
+  | 'ocupada'
+  | 'iminente'
+  | 'manutencao'
+  | 'indisponivel';
 
 /** Alias legado de {@link StatusSala} (nome usado por `salas.status_manual`). */
 export type StatusManualSala = StatusSala;

@@ -1134,10 +1134,23 @@ export async function setOverrideAsync(
   motivo?: string,
   por?: string,
 ): Promise<Sala | null> {
+  const indice = CACHE.salas.findIndex((s) => String(s.id) === String(salaId));
+  const anterior = indice >= 0 ? { ...CACHE.salas[indice] } : null;
   const item = setOverride(salaId, unidadeId, status, motivo, por);
   if (!item) return null;
-  await confirmar(CACHE.salas.find((s) => String(s.id) === String(salaId)) ?? null);
-  return item;
+  try {
+    await confirmar(CACHE.salas.find((s) => String(s.id) === String(salaId)) ?? null);
+    return item;
+  } catch (erro) {
+    // Rejeicoes definitivas ja foram removidas da fila por flushPendentes().
+    // Desfaz tambem o espelho otimista para nao deixar no navegador uma sala
+    // que o servidor recusou, incluindo todos os metadados do override.
+    if (erro instanceof ErroApi && REJEICOES_DEFINITIVAS.has(erro.status) && anterior && indice >= 0) {
+      CACHE.salas[indice] = anterior;
+      sv(K.salas, CACHE.salas);
+    }
+    throw erro;
+  }
 }
 
 // ---------------------------------------------------------------------------

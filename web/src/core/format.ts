@@ -5,7 +5,20 @@
  * tipagem dos parametros.
  */
 
-import type { StatusTurma, Turma } from '../types';
+import type { StatusSala, StatusTurma, Turma } from '../types';
+
+/** Rótulos canônicos dos estados de sala persistidos e calculados. */
+export const STATUS_SALA_LABELS: Record<StatusSala, string> = {
+  livre: 'Livre',
+  ocupada: 'Ocupada',
+  iminente: 'Em breve',
+  manutencao: 'Em manutenção',
+  indisponivel: 'Indisponível',
+};
+
+export function labelSalaStatus(status: StatusSala): string {
+  return STATUS_SALA_LABELS[status];
+}
 
 /** Escapa HTML. Mesma ordem de substituicao do codigo legado. */
 export function escapeHtml(s: unknown): string {
@@ -74,7 +87,8 @@ export function labelStatus(st: unknown): string {
     ocupada: 'Ocupada',
     livre: 'Livre',
   };
-  return mapa[String(st ?? '')] || String(st ?? '');
+  const valor = String(st ?? '');
+  return mapa[valor] || valor;
 }
 
 /**

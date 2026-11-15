@@ -34,7 +34,6 @@ import {
   delSalaAsync,
   delTurmaAsync,
   getNotifsPara,
-  getOverride,
   getReservaById,
   getReservas,
   getSalaById,
@@ -47,6 +46,7 @@ import {
   initDados,
   marcarTodasLidas,
   setOverrideAsync,
+  SincronizacaoPendenteError,
   updReservaAsync,
   updSalaAsync,
   updSolicAsync,
@@ -62,6 +62,7 @@ import {
   fmtDateTime,
   hojeISO,
   htmlStatus,
+  labelSalaStatus,
   labelStatus,
 } from '../../core/format';
 import { fmsg, fmsgHide, modalAbrir, modalFechar, toast } from '../../core/ui';
@@ -78,11 +79,13 @@ import { byId, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
+import { calcularStatusSala } from '../mapa/sala-status';
 import type {
   DiaSemana,
   Sessao,
   Solicitacao,
   StatusManualSala,
+  StatusSala,
   StatusSolicitacao,
   Turno,
 } from '../../types';
@@ -103,11 +106,26 @@ let editSalaId: number | null = null;
 let editTurmaId: number | null = null;
 let editReservaId: number | null = null;
 
+const MOTIVO_MAX = 120;
+const STATUS_COM_MOTIVO: StatusManualSala[] = ['ocupada', 'iminente', 'manutencao', 'indisponivel'];
+
+interface ModalMotivoSalaState {
+  salaId: number;
+  unidadeId: number;
+  status: StatusManualSala;
+  acionador: HTMLElement | null;
+  salvando: boolean;
+  pendente: boolean;
+}
+
+let modalMotivoSalaState: ModalMotivoSalaState | null = null;
+
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initCoordenador(): Promise<void> {
   await initDados();
   requirePerfil('coordenador');
   sess = getSessao();
+  initModalMotivoSala();
   initSidebar();
   initLogo();
   ir('dashboard');
@@ -1080,13 +1098,13 @@ export async function salvarAtrib(): Promise<void> {
 interface PeriodoMapa {
   turno: string;
   turmaNome: string;
-  instNome: string;
-  stat: string;
-  hora: string;
+  instNome: string | null;
+  stat: 'ocupada' | 'iminente';
+  hora?: string;
 }
 
 interface InfoSala {
-  stat: string;
+  stat: StatusSala;
   periodos: PeriodoMapa[];
   turnosOcupados: string[];
   turnoAtivo: string;
@@ -1099,7 +1117,9 @@ let mapaStatusFiltro: MapaStatus = '';
 
 export function mapaChipStatus(btn: HTMLElement): void {
   const status = btn.getAttribute('data-arg');
-  mapaStatusFiltro = status === 'livre' || status === 'ocupada' || status === 'iminente' ? status : '';
+  mapaStatusFiltro = ['livre', 'ocupada', 'iminente', 'manutencao', 'indisponivel'].includes(status ?? '')
+    ? (status as MapaStatus)
+    : '';
   rdMapa();
 }
 
@@ -1112,114 +1132,21 @@ export function mapaLimparFiltros(): void {
   rdMapa();
 }
 
-/** Occupacao de uma sala; o override manual definido tem precedencia. */
+/** Adapta o cálculo comum aos metadados usados pelo card do coordenador. */
 function calcSalaStatus(s: ReturnType<typeof getSalaById>, hj: string, turnoFiltro: string): InfoSala {
   if (!s) {
-    return {
-      stat: 'livre',
-      periodos: [],
-      turnosOcupados: [],
-      turnoAtivo: '',
-      turmaNome: '',
-      instNome: '',
-      override: null,
-    };
+    return { stat: 'livre', periodos: [], turnosOcupados: [], turnoAtivo: '', turmaNome: '', instNome: '', override: null };
   }
-  const ov = getOverride(s.id, s.unidadeId);
-  if (ov) {
-    return {
-      stat: ov.status,
-      periodos:
-        ov.status !== 'livre'
-          ? [
-              {
-                turno: 'Manual',
-                turmaNome: ov.motivo || 'Status manual',
-                instNome: ov.por || '',
-                stat: ov.status,
-                hora: '',
-              },
-            ]
-          : [],
-      turnosOcupados: ov.status !== 'livre' ? ['Manual'] : [],
-      turnoAtivo: ov.status !== 'livre' ? 'Manual' : '',
-      turmaNome: ov.motivo || '',
-      instNome: ov.por || '',
-      override: ov,
-    };
-  }
-
-  const rs = getReservas().filter(
-    (r) =>
-      r.salaId === s.id &&
-      r.unidadeId === s.unidadeId &&
-      r.dataInicio !== undefined &&
-      r.dataFim !== undefined &&
-      r.dataInicio <= hj &&
-      r.dataFim >= hj &&
-      r.status !== 'CANCELADA',
-  );
-  const p = hj.split('-').map(Number);
-  const diaSem = (['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as DiaSemana[])[
-    new Date(p[0], p[1] - 1, p[2]).getDay()
-  ];
-
-  const periodos: PeriodoMapa[] = [];
-  const turnosOcupados: string[] = [];
-  rs.forEach((r) => {
-    if (turnoFiltro && r.turno !== turnoFiltro) return;
-    const temDatasEspecificas =
-      Array.isArray(r.datasEspecificas) && r.datasEspecificas.length > 0;
-    if (temDatasEspecificas) {
-      if ((r.datasEspecificas as string[]).indexOf(hj) === -1) return;
-    } else if (!Array.isArray(r.diasSemana) || !r.diasSemana.includes(diaSem)) {
-      return;
-    }
-
-    let pStat: string;
-    let pTurma: string;
-    let pInst: string;
-    if (r.avulsa || !r.turmaId) {
-      pStat = 'ocupada';
-      pTurma = 'Sem turma';
-      const iA = r.instrutorId ? getUserById(r.instrutorId) : null;
-      pInst = iA ? iA.nome : '—';
-    } else {
-      const turma = getTurmaById(r.turmaId);
-      const cst = turma ? calcStatus(turma) : 'encerrada';
-      if (cst === 'encerrada') return;
-      pStat = cst === 'ativa' ? 'ocupada' : 'iminente';
-      pTurma = turma ? turma.nome : '—';
-      const iT = r.instrutorId
-        ? getUserById(r.instrutorId)
-        : turma && turma.instrutorId
-          ? getUserById(turma.instrutorId)
-          : null;
-      pInst = iT ? iT.nome : '';
-    }
-    const pHora = r.horaInicio && r.horaFim ? r.horaInicio + ' – ' + r.horaFim : '';
-
-    const jaExiste = periodos.some(
-      (x) => x.turno === r.turno && x.turmaNome === pTurma && x.instNome === pInst,
-    );
-    if (!jaExiste) {
-      periodos.push({ turno: r.turno, turmaNome: pTurma, instNome: pInst, stat: pStat, hora: pHora });
-    }
-    if (!turnosOcupados.includes(String(r.turno))) turnosOcupados.push(String(r.turno));
-  });
-
-  let stat = 'livre';
-  if (periodos.some((x) => x.stat === 'ocupada')) stat = 'ocupada';
-  else if (periodos.length > 0) stat = 'iminente';
-
+  const info = calcularStatusSala(s, hj, turnoFiltro);
+  const turnosOcupados = info.override
+    ? info.stat === 'livre' ? [] : ['Manual']
+    : info.periodos.map((periodo) => periodo.turno).filter((turno, i, list) => list.indexOf(turno) === i);
   return {
-    stat,
-    periodos,
+    ...info,
     turnosOcupados,
-    turnoAtivo: periodos.length ? periodos[0].turno : '',
-    turmaNome: periodos.length ? periodos[0].turmaNome : '',
-    instNome: periodos.length ? periodos[0].instNome : '',
-    override: null,
+    turnoAtivo: info.periodos[0]?.turno ?? '',
+    turmaNome: info.periodos[0]?.turmaNome ?? '',
+    instNome: info.periodos[0]?.instNome ?? '',
   };
 }
 
@@ -1227,16 +1154,21 @@ const ICONE_STATUS: Record<string, string> = {
   livre: '<span class="ic-dot ic-livre"></span>',
   ocupada: '<span class="ic-dot ic-ocupada"></span>',
   iminente: '<span class="ic-dot ic-iminente"></span>',
+  manutencao: '<span class="ic-dot ic-manutencao"></span>',
+  indisponivel: '<span class="ic-dot ic-indisponivel"></span>',
 };
 
 /** Card visual de uma sala no mapa, com a barra de override manual. */
 function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: InfoSala): string {
   const statusIcon = ICONE_STATUS[info.stat] ?? ICONE_STATUS.livre;
   const turnos = (s.turnos ?? s.turnosDisponiveis ?? []) as Turno[];
-  const statusLabel = info.stat === 'livre' ? 'Livre' : info.stat === 'ocupada' ? 'Ocupada' : 'Em breve';
-  const ocupacaoPercent = turnos.length
-    ? Math.min(100, Math.round((info.periodos.length / turnos.length) * 100))
-    : info.stat === 'livre' ? 0 : 100;
+  const statusLabel = labelSalaStatus(info.stat);
+  const bloqueada = info.stat === 'manutencao' || info.stat === 'indisponivel';
+  const ocupacaoPercent = bloqueada
+    ? 100
+    : turnos.length
+      ? Math.min(100, Math.round((info.periodos.length / turnos.length) * 100))
+      : info.stat === 'livre' ? 0 : 100;
 
   const turnosHtml = turnos
     .map((t) => {
@@ -1298,6 +1230,14 @@ function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: Inf
       });
     }
     ocupHtml += '</div>';
+  } else if (info.override) {
+    ocupHtml =
+      '<div class="sc-ocupacao sc-override">' +
+      '<div class="sc-periodo"><span class="sc-periodo-turno">' +
+      statusIcon + ' ' + statusLabel +
+      '</span><div class="sc-turma">' +
+      esc(info.override.motivo || 'Status manual') +
+      '</div><div class="sc-inst">por ' + esc(info.override.por) + '</div></div></div>';
   } else {
     ocupHtml = `<div class="sc-livre-label">${statusIcon} Disponível</div>`;
   }
@@ -1306,6 +1246,8 @@ function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: Inf
   const ovU = s.unidadeId || uid();
   const ovOcup = info.stat === 'ocupada' ? 'ov-active' : '';
   const ovIminn = info.stat === 'iminente' ? 'ov-active' : '';
+  const ovManutencao = info.stat === 'manutencao' ? 'ov-active' : '';
+  const ovIndisponivel = info.stat === 'indisponivel' ? 'ov-active' : '';
   const ovLivre = info.stat === 'livre' && !info.override ? 'ov-active' : '';
   const ovBtn =
     '<div class="sc-override-bar">' +
@@ -1319,10 +1261,24 @@ function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: Inf
     '<button class="sc-ov-btn ' +
     ovIminn +
     '" data-sid="' +
+     sid +
+     '" data-uid="' +
+     ovU +
+     '" data-st="iminente" data-action="ovClick" title="Marcar como Em Breve"><span class="ic-dot ic-iminente"></span></button>' +
+    '<button class="sc-ov-btn ' +
+    ovManutencao +
+    '" data-sid="' +
     sid +
     '" data-uid="' +
     ovU +
-    '" data-st="iminente" data-action="ovClick" title="Marcar como Em Breve"><span class="ic-dot ic-iminente"></span></button>' +
+    '" data-st="manutencao" data-action="ovClick" title="Marcar como Em manutenção"><span class="ic-dot ic-manutencao"></span></button>' +
+    '<button class="sc-ov-btn ' +
+    ovIndisponivel +
+    '" data-sid="' +
+    sid +
+    '" data-uid="' +
+    ovU +
+    '" data-st="indisponivel" data-action="ovClick" title="Marcar como Indisponível"><span class="ic-dot ic-indisponivel"></span></button>' +
     '<button class="sc-ov-btn ' +
     ovLivre +
     '" data-sid="' +
@@ -1382,36 +1338,219 @@ function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: Inf
 export function ovClick(btn: HTMLElement): void {
   const salaId = parseInt(btn.getAttribute('data-sid') || '', 10);
   const unidadeId = parseInt(btn.getAttribute('data-uid') || '', 10);
-  const status = btn.getAttribute('data-st') || '';
-  aplicarOverride(salaId, unidadeId, status as StatusManualSala | 'auto');
+  const bruto = btn.getAttribute('data-st') || '';
+
+  if (!Number.isFinite(salaId) || !Number.isFinite(unidadeId)) return;
+  if (bruto === 'auto') {
+    aplicarOverride(salaId, unidadeId, null, '', btn);
+    return;
+  }
+
+  const status = bruto as StatusManualSala;
+  if (status === 'livre') {
+    aplicarOverride(salaId, unidadeId, status, '', btn);
+  } else if (STATUS_COM_MOTIVO.includes(status)) {
+    abrirModalMotivoSala(salaId, unidadeId, status, btn);
+  }
 }
 
-function aplicarOverride(salaId: number, unidadeId: number, status: StatusManualSala | 'auto'): void {
-  let motivo = '';
-  if (status === 'ocupada' || status === 'iminente') {
-    const resposta = prompt(
-      status === 'ocupada' ? 'Motivo da ocupação manual:' : 'Motivo para "Em Breve":',
-      status === 'ocupada' ? 'Em uso — fora do horário regular' : 'Preparação de evento',
-    );
-    if (resposta === null) return;
-    motivo = resposta;
+function initModalMotivoSala(): void {
+  const overlay = tryById<HTMLDivElement>('modal-motivo-sala');
+  const motivo = tryById<HTMLTextAreaElement>('motivo');
+  if (!overlay || !motivo || overlay.dataset.inicializado === 'true') return;
+
+  overlay.dataset.inicializado = 'true';
+  motivo.addEventListener('input', () => {
+    if (!modalMotivoSalaState?.salvando) setModalErroSala('');
+    atualizarModalMotivoSala();
+  });
+  overlay.addEventListener('click', (evento) => {
+    if (evento.target === overlay) fecharModalMotivoSala();
+  });
+  document.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Escape' && modalMotivoSalaState && !modalMotivoSalaState.salvando) {
+      fecharModalMotivoSala();
+    }
+  });
+}
+
+function abrirModalMotivoSala(
+  salaId: number,
+  unidadeId: number,
+  status: StatusManualSala,
+  acionador: HTMLElement,
+): void {
+  const sala = getSalaById(salaId);
+  const overlay = tryById<HTMLDivElement>('modal-motivo-sala');
+  const motivo = tryById<HTMLTextAreaElement>('motivo');
+  if (!sala || !overlay || !motivo) return;
+
+  const conflitos = getReservas().filter(
+    (reserva) =>
+      reserva.salaId === salaId && reserva.unidadeId === unidadeId && reserva.status === 'ATIVA',
+  ).length;
+
+  modalMotivoSalaState = { salaId, unidadeId, status, acionador, salvando: false, pendente: false };
+  const titulo = tryById('titulo-motivo-sala');
+  const novoEstado = tryById('novo-estado-motivo-sala');
+  const aviso = tryById<HTMLDivElement>('aviso-reservas-motivo-sala');
+  if (titulo) titulo.textContent = `Alteração manual — ${sala.nome}`;
+  if (novoEstado) novoEstado.textContent = labelSalaStatus(status);
+  if (aviso) {
+    aviso.hidden = !(status === 'manutencao' || status === 'indisponivel') || conflitos === 0;
+    aviso.innerHTML = aviso.hidden
+      ? ''
+      : `<strong>${conflitos} reserva(s) ativa(s) encontrada(s).</strong> As reservas existentes serão preservadas. O bloqueio impedirá novas reservas nesta sala.`;
   }
-  const s = getSessao();
-  void setOverrideAsync(
-    salaId,
-    unidadeId,
-    status === 'auto' ? null : status,
-    motivo,
-    s ? s.nome : '—',
-  )
-    .then(() => rdMapa())
-    .catch((erro: unknown) => {
-      if (erro instanceof ErroApi && [400, 403, 404, 409, 422].includes(erro.status)) {
-        toast(`Alteração recusada pelo servidor (${erro.status}): ${erro.message}`, 'erro');
-      } else {
-        toast('Alteração mantida localmente, aguardando sincronização.', 'aviso');
-      }
+  motivo.value = '';
+  setModalErroSala('');
+  modalAbrir('modal-motivo-sala');
+  overlay.setAttribute('aria-hidden', 'false');
+  overlay.setAttribute('aria-busy', 'false');
+  atualizarModalMotivoSala();
+  requestAnimationFrame(() => motivo.focus());
+}
+
+function atualizarModalMotivoSala(): void {
+  const motivo = tryById<HTMLTextAreaElement>('motivo');
+  const contador = tryById('contador-motivo-sala');
+  const confirmar = tryById<HTMLButtonElement>('confirmar-motivo-sala');
+  if (!motivo || !confirmar) return;
+  const tamanho = motivo.value.length;
+  if (contador) contador.textContent = `${tamanho}/${MOTIVO_MAX}`;
+  confirmar.disabled = Boolean(modalMotivoSalaState?.salvando || modalMotivoSalaState?.pendente)
+    || !motivo.value.trim() || tamanho > MOTIVO_MAX;
+}
+
+function sugerirMotivoSala(motivoSugerido: string): void {
+  const campo = tryById<HTMLTextAreaElement>('motivo');
+  if (!campo || modalMotivoSalaState?.salvando) return;
+  campo.value = motivoSugerido.slice(0, MOTIVO_MAX);
+  campo.focus();
+  atualizarModalMotivoSala();
+}
+
+function setModalErroSala(mensagem: string): void {
+  const erro = tryById<HTMLDivElement>('erro-motivo-sala');
+  if (!erro) return;
+  erro.textContent = mensagem;
+  erro.style.display = mensagem ? 'block' : 'none';
+  erro.className = mensagem ? 'fmsg erro' : 'fmsg';
+}
+
+function setModalSalvando(salvando: boolean): void {
+  const overlay = tryById<HTMLDivElement>('modal-motivo-sala');
+  const confirmar = tryById<HTMLButtonElement>('confirmar-motivo-sala');
+  const motivo = tryById<HTMLTextAreaElement>('motivo');
+  const carregando = document.querySelector<HTMLElement>('[data-testid="carregando-motivo-sala"]');
+  const label = document.querySelector<HTMLElement>('.modal-motivo-confirmar-label');
+  const cancelar = tryById<HTMLButtonElement>('cancelar-motivo-sala');
+  const fechar = tryById<HTMLButtonElement>('fechar-motivo-sala');
+  if (!overlay || !confirmar || !motivo || !carregando || !label || !cancelar || !fechar) return;
+
+  overlay.setAttribute('aria-busy', String(salvando));
+  motivo.disabled = salvando;
+  confirmar.disabled = salvando;
+  cancelar.disabled = salvando;
+  fechar.disabled = salvando;
+  overlay.querySelectorAll<HTMLButtonElement>('.modal-motivo-sugestao').forEach((chip) => {
+    chip.disabled = salvando;
+  });
+  carregando.hidden = !salvando;
+  label.hidden = salvando;
+}
+
+function fecharModalMotivoSala(forcar = false): void {
+  if (modalMotivoSalaState?.salvando && !forcar) return;
+  const acionador = modalMotivoSalaState?.acionador;
+  const overlay = tryById<HTMLDivElement>('modal-motivo-sala');
+  modalFechar('modal-motivo-sala');
+  overlay?.setAttribute('aria-hidden', 'true');
+  overlay?.setAttribute('aria-busy', 'false');
+  modalMotivoSalaState = null;
+  requestAnimationFrame(() => {
+    if (acionador?.isConnected) acionador.focus();
+  });
+}
+
+export function cancelarMotivoSala(): void {
+  fecharModalMotivoSala();
+}
+
+export function sugerirMotivoSalaAcao(motivoSugerido: string): void {
+  sugerirMotivoSala(motivoSugerido);
+}
+
+function mensagemErroOverride(erro: unknown): string {
+  if (erro instanceof ErroApi && [400, 403, 404, 409, 422].includes(erro.status)) {
+    return `Alteração recusada pelo servidor (${erro.status}): ${erro.message}`;
+  }
+  if (erro instanceof SincronizacaoPendenteError) {
+    return 'Alteração mantida localmente e aguardando sincronização.';
+  }
+  return 'Não foi possível concluir a alteração. Tente novamente.';
+}
+
+export async function confirmarMotivoSala(): Promise<void> {
+  const state = modalMotivoSalaState;
+  const motivoCampo = tryById<HTMLTextAreaElement>('motivo');
+  if (!state || state.salvando || state.pendente || !motivoCampo) return;
+
+  const motivo = motivoCampo.value.trim();
+  if (!motivo || motivoCampo.value.length > MOTIVO_MAX) {
+    setModalErroSala('Informe um motivo com até 120 caracteres.');
+    atualizarModalMotivoSala();
+    return;
+  }
+
+  state.salvando = true;
+  setModalSalvando(true);
+  const sessao = getSessao();
+  try {
+    await setOverrideAsync(state.salaId, state.unidadeId, state.status, motivo, sessao?.nome ?? '—');
+    const salaId = state.salaId;
+    const status = state.status;
+    fecharModalMotivoSala(true);
+    rdMapa();
+    requestAnimationFrame(() => {
+      const novoAcionador = document.querySelector<HTMLElement>(
+        `button[data-sid="${salaId}"][data-st="${status}"]`,
+      );
+      novoAcionador?.focus();
+    });
+    toast('Estado manual da sala atualizado.', 'ok');
+  } catch (erro: unknown) {
+    state.salvando = false;
+    state.pendente = erro instanceof SincronizacaoPendenteError;
+    setModalSalvando(false);
+    setModalErroSala(mensagemErroOverride(erro));
+    rdMapa();
+    atualizarModalMotivoSala();
+  }
+}
+
+function aplicarOverride(
+  salaId: number,
+  unidadeId: number,
+  status: StatusManualSala | null,
+  motivo: string,
+  acionador: HTMLElement,
+): void {
+  const sessao = getSessao();
+  void setOverrideAsync(salaId, unidadeId, status, motivo, sessao?.nome ?? '—')
+    .then(() => {
       rdMapa();
+      requestAnimationFrame(() => {
+        const novoAcionador = document.querySelector<HTMLElement>(
+          `button[data-sid="${salaId}"][data-st="${status ?? 'auto'}"]`,
+        );
+        (novoAcionador ?? acionador).focus();
+      });
+    })
+    .catch((erro: unknown) => {
+      const mensagem = mensagemErroOverride(erro);
+      rdMapa();
+      toast(mensagem, erro instanceof SincronizacaoPendenteError ? 'aviso' : 'erro');
     });
 }
 
@@ -1477,6 +1616,8 @@ export function rdMapa(): void {
     livre: salasBase.filter((s) => infoMap[s.id].stat === 'livre').length,
     ocupada: salasBase.filter((s) => infoMap[s.id].stat === 'ocupada').length,
     iminente: salasBase.filter((s) => infoMap[s.id].stat === 'iminente').length,
+    manutencao: salasBase.filter((s) => infoMap[s.id].stat === 'manutencao').length,
+    indisponivel: salasBase.filter((s) => infoMap[s.id].stat === 'indisponivel').length,
   };
   const chipsEl = tryById('mapaStatusChips');
   if (chipsEl) chipsEl.innerHTML = renderMapaChips(contadores, mapaStatusFiltro);
@@ -1490,6 +1631,8 @@ export function rdMapa(): void {
       `<span class="leg-item livre"><span class="ic-dot ic-livre"></span> Livre: ${contadores.livre}</span>` +
       `<span class="leg-item ocupada"><span class="ic-dot ic-ocupada"></span> Ocupada: ${contadores.ocupada}</span>` +
       `<span class="leg-item iminente"><span class="ic-dot ic-iminente"></span> Em breve: ${contadores.iminente}</span>` +
+      `<span class="leg-item manutencao"><span class="ic-dot ic-manutencao"></span> Em manutenção: ${contadores.manutencao}</span>` +
+      `<span class="leg-item indisponivel"><span class="ic-dot ic-indisponivel"></span> Indisponível: ${contadores.indisponivel}</span>` +
       `<span class="leg-total">Total: ${total} sala(s)</span>`;
   }
 

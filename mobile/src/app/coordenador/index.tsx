@@ -544,6 +544,8 @@ function Mapa({ uid }: { uid: number | null }) {
   const livres = infos.filter(i => i.info.stat === 'livre').length;
   const ocupadas = infos.filter(i => i.info.stat === 'ocupada').length;
   const iminentes = infos.filter(i => i.info.stat === 'iminente').length;
+  const manutencao = infos.filter(i => i.info.stat === 'manutencao').length;
+  const indisponiveis = infos.filter(i => i.info.stat === 'indisponivel').length;
 
   const proximas = useMemo(() => {
     const fim = new Date();
@@ -611,12 +613,14 @@ function Mapa({ uid }: { uid: number | null }) {
       {renderFiltro('bloco', blocos, 'Bloco')}
       {renderFiltro('andar', andares, 'Andar')}
       {renderFiltro('turno', ['Matutino', 'Vespertino', 'Noturno'], 'Turno')}
-      {renderFiltro('status', ['livre', 'ocupada', 'iminente'], 'Status')}
+      {renderFiltro('status', ['livre', 'ocupada', 'iminente', 'manutencao', 'indisponivel'], 'Status')}
 
       <View style={styles.legenda}>
         <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.green }]} /><Text style={styles.legTxt}>Livre: {livres}</Text></View>
         <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.red }]} /><Text style={styles.legTxt}>Ocupada: {ocupadas}</Text></View>
         <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.amber }]} /><Text style={styles.legTxt}>Em breve: {iminentes}</Text></View>
+        <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.status.manutencao.dot }]} /><Text style={styles.legTxt}>Em manutenção: {manutencao}</Text></View>
+        <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.status.indisponivel.dot }]} /><Text style={styles.legTxt}>Indisponível: {indisponiveis}</Text></View>
         <View style={styles.legItem}><Text style={styles.legTotal}>{infos.length} salas</Text></View>
       </View>
 

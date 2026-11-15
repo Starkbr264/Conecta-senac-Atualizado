@@ -71,6 +71,66 @@
   flex-wrap: wrap;
 }
 
+/* Modal de justificativa do estado manual do mapa. */
+.modal-motivo-sala-box { max-width: 560px; }
+.modal-motivo-status {
+  margin: -8px 0 18px;
+  color: var(--text2);
+  font-size: .88rem;
+}
+.modal-motivo-status strong { color: var(--primary); }
+.modal-motivo-sala-box textarea {
+  width: 100%;
+  min-height: 104px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.modal-motivo-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  color: var(--text3);
+  font-size: .74rem;
+}
+.modal-motivo-sugestoes { margin-top: 14px; }
+.modal-motivo-sugestoes-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text3);
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.modal-motivo-sugestoes-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.modal-motivo-sugestao { cursor: pointer; }
+.modal-motivo-sugestao:hover,
+.modal-motivo-sugestao:focus-visible { border-color: var(--primary); color: var(--primary); }
+.modal-motivo-aviso {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--amber) 38%, transparent);
+  border-radius: var(--r);
+  background: var(--amber-l);
+  color: var(--amber);
+  font-size: .84rem;
+  line-height: 1.45;
+}
+.modal-motivo-aviso strong { font-weight: 700; }
+.modal-motivo-sala-box .fmsg {
+  min-height: 0;
+  margin-top: 12px;
+}
+.modal-motivo-sala-box .fmsg:empty { display: none; }
+.modal-motivo-sala-box button:disabled,
+.modal-motivo-sala-box textarea:disabled { cursor: not-allowed; opacity: .65; }
+.modal-motivo-loading[hidden] { display: none; }
+
+@media (max-width: 480px) {
+  .modal-motivo-sala-box .modal-foot { flex-direction: column-reverse; }
+  .modal-motivo-sala-box .modal-foot .btn { width: 100%; justify-content: center; }
+}
+
 /* ================================================================
    Modal de usuário (#modalUser) — redesign visual
    Layout conforme referência "Novo usuário"; cores as do tema

@@ -1,11 +1,15 @@
 /** Elementos visuais compartilhados pelo mapa de salas dos perfis autorizados. */
 
-export type MapaStatus = '' | 'livre' | 'ocupada' | 'iminente';
+import type { StatusSala } from '../../types';
+
+export type MapaStatus = '' | StatusSala;
 
 export interface MapaContadores {
   livre: number;
   ocupada: number;
   iminente: number;
+  manutencao: number;
+  indisponivel: number;
 }
 
 export function renderMapaChips(
@@ -13,10 +17,12 @@ export function renderMapaChips(
   selecionado: MapaStatus,
 ): string {
   const chips = [
-    { status: '', label: 'Todas', count: contadores.livre + contadores.ocupada + contadores.iminente, cls: 'todas' },
+    { status: '', label: 'Todas', count: contadores.livre + contadores.ocupada + contadores.iminente + contadores.manutencao + contadores.indisponivel, cls: 'todas' },
     { status: 'livre', label: 'Livre', count: contadores.livre, cls: 'livre' },
     { status: 'ocupada', label: 'Ocupada', count: contadores.ocupada, cls: 'ocupada' },
     { status: 'iminente', label: 'Em breve', count: contadores.iminente, cls: 'iminente' },
+    { status: 'manutencao', label: 'Em manutenção', count: contadores.manutencao, cls: 'manutencao' },
+    { status: 'indisponivel', label: 'Indisponível', count: contadores.indisponivel, cls: 'indisponivel' },
   ];
 
   return chips

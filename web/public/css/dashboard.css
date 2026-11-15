@@ -196,3 +196,5 @@
 /* ── Misc ─────────────────────────────────────────────────── */
 .code-text  { font-family: 'DM Mono', monospace; font-size: .82rem; }
 .disp-result{ padding: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); font-size: .9rem; color: var(--text2); }
+.disp-result.manutencao { border-color: var(--purple); color: var(--purple); background: var(--purple-l); }
+.disp-result.indisponivel { border-color: var(--gray-status); color: var(--gray-status); background: var(--gray-status-l); }

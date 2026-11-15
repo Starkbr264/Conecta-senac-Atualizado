@@ -88,6 +88,8 @@ function Mapa({ uid }: { uid: number }) {
   const livres = infos.filter(i => i.info.stat === 'livre').length;
   const ocupadas = infos.filter(i => i.info.stat === 'ocupada').length;
   const iminentes = infos.filter(i => i.info.stat === 'iminente').length;
+  const manutencao = infos.filter(i => i.info.stat === 'manutencao').length;
+  const indisponiveis = infos.filter(i => i.info.stat === 'indisponivel').length;
 
   return (
     <View>
@@ -96,6 +98,8 @@ function Mapa({ uid }: { uid: number }) {
         <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.green }]} /><Text style={styles.legTxt}>Livre: {livres}</Text></View>
         <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.red }]} /><Text style={styles.legTxt}>Ocupada: {ocupadas}</Text></View>
         <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.amber }]} /><Text style={styles.legTxt}>Em breve: {iminentes}</Text></View>
+        <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.status.manutencao.dot }]} /><Text style={styles.legTxt}>Em manutenção: {manutencao}</Text></View>
+        <View style={styles.legItem}><View style={[styles.legDot, { backgroundColor: Colors.status.indisponivel.dot }]} /><Text style={styles.legTxt}>Indisponível: {indisponiveis}</Text></View>
       </View>
       {infos.map(({ sala, info }) => <SalaCard key={sala.id} sala={sala} info={info} />)}
       {!salas.length && <EmptyState icon="map-outline" text="Nenhuma sala cadastrada." />}

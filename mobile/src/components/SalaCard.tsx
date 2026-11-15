@@ -19,6 +19,7 @@ import { Colors } from '@/constants/colors';
 import { Sala } from '@/types';
 
 import { SalaInfo } from '@/types/sala';
+import { salaStatusLabel } from '@/utils/salaStatus';
 
 // Card de sala — replica exata do .sala-card-v2 do web
 export function SalaCard({ sala, info }: { sala: Sala; info: SalaInfo }) {
@@ -33,6 +34,10 @@ export function SalaCard({ sala, info }: { sala: Sala; info: SalaInfo }) {
         <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
       </View>
       <Text style={styles.tipo}>{sala.tipo}</Text>
+      <View style={styles.statusRow}>
+        <View style={[styles.statusDotSmall, { backgroundColor: sc.dot }]} />
+        <Text style={[styles.statusTxt, { color: sc.text }]}>{salaStatusLabel(info.stat)}</Text>
+      </View>
 
       {/* Meta: andar, bloco, capacidade */}
       <View style={styles.meta}>
@@ -113,8 +118,8 @@ export function SalaCard({ sala, info }: { sala: Sala; info: SalaInfo }) {
         </View>
       ) : (
         <View style={styles.livreRow}>
-          <View style={[styles.dot, { backgroundColor: Colors.green }]} />
-          <Text style={styles.livreTxt}>Disponivel</Text>
+          <View style={[styles.dot, { backgroundColor: sc.dot }]} />
+          <Text style={[styles.livreTxt, { color: sc.text }]}>{salaStatusLabel(info.stat)}</Text>
         </View>
       )}
     </View>
@@ -127,6 +132,9 @@ const styles = StyleSheet.create({
   nome: { fontSize: 15, fontWeight: '800', color: Colors.text, flex: 1 },
   statusDot: { width: 12, height: 12, borderRadius: 6 },
   tipo: { fontSize: 12, color: Colors.text3, marginTop: 2, marginBottom: 10 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  statusDotSmall: { width: 8, height: 8, borderRadius: 4 },
+  statusTxt: { fontSize: 12, fontWeight: '700' },
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   metaItem: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
@@ -153,5 +161,5 @@ const styles = StyleSheet.create({
   semTurmaBadge: { backgroundColor: Colors.turno.SemTurma.bg, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, marginTop: 2 },
   semTurmaTxt: { fontSize: 10, fontWeight: '700', color: Colors.turno.SemTurma.text },
   livreRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  livreTxt: { fontSize: 13, fontWeight: '600', color: '#065f46' },
+  livreTxt: { fontSize: 13, fontWeight: '600' },
 });

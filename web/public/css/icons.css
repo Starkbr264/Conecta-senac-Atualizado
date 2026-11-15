@@ -36,6 +36,8 @@
 .ic-livre    { background: var(--green);  box-shadow: 0 0 0 2px rgba(5,150,105,.18); }
 .ic-ocupada  { background: var(--red);    box-shadow: 0 0 0 2px rgba(220,38,38,.18); }
 .ic-iminente { background: var(--amber);  box-shadow: 0 0 0 2px rgba(217,119,6,.18); }
+.ic-manutencao { background: var(--purple); box-shadow: 0 0 0 2px var(--purple-d); }
+.ic-indisponivel { background: var(--gray-status); box-shadow: 0 0 0 2px var(--gray-status-d); }
 
 /* ── Ícone alinhado com texto (em parágrafos, labels) ─────── */
 .with-icon {

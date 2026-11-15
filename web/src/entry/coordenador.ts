@@ -39,6 +39,9 @@ registrarAcoes({
   abrirAtrib: ({ num }) => coordenador.abrirAtrib(num ?? 0),
   salvarAtrib: () => void coordenador.salvarAtrib(),
   ovClick: ({ alvo }) => coordenador.ovClick(alvo as HTMLElement),
+  confirmarMotivoSala: () => void coordenador.confirmarMotivoSala(),
+  cancelarMotivoSala: coordenador.cancelarMotivoSala,
+  sugerirMotivoSala: ({ arg }) => coordenador.sugerirMotivoSalaAcao(arg ?? ''),
   mapaChipStatus: ({ alvo }) => coordenador.mapaChipStatus(alvo),
   mapaLimparFiltros: coordenador.mapaLimparFiltros,
 

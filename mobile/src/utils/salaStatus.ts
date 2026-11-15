@@ -7,8 +7,8 @@
  * passo:
  *
  *   1. `Sala.statusManual` tem precedencia absoluta (override do coordenador).
- *      Vale `'livre'`, `'ocupada'` ou `'iminente'`; qualquer outro valor cai
- *      em `'livre'`.
+ *      Os cinco estados visuais persistidos sao respeitados; `null` devolve o
+ *      controle ao calculo automatico.
  *   2. Senao, considera apenas reservas com `status === 'ATIVA'` (uma reserva
  *      `CANCELADA` NAO ocupa sala), cujo periodo (`dataInicio`..`dataFim`)
  *      contem a data consultada e cujo `diasSemana` inclui o dia da semana.
@@ -31,7 +31,7 @@
  * Usado pelo mapa de salas (coordenador e recepção) e pelo SalaCard.
  */
 
-import { Sala, Reserva } from '@/types';
+import { Sala, Reserva, StatusSala } from '@/types';
 import { SalaInfo, Periodo } from '@/types/sala';
 import * as db from '@/services/storage';
 
@@ -42,7 +42,11 @@ import * as db from '@/services/storage';
 function classificarReserva(r: Reserva, hoje: string, dia: string): Periodo | null {
   if (r.status !== 'ATIVA') return null;
   if ((r.dataInicio ?? '') > hoje || (r.dataFim ?? '') < hoje) return null;
-  if (!(r.diasSemana ?? []).includes(dia as never)) return null;
+  if (r.datasEspecificas?.length) {
+    if (!r.datasEspecificas.includes(hoje)) return null;
+  } else if (!(r.diasSemana ?? []).includes(dia as never)) {
+    return null;
+  }
 
   let pStat: 'ocupada' | 'iminente';
   let pTurma: string;
@@ -69,14 +73,30 @@ function classificarReserva(r: Reserva, hoje: string, dia: string): Periodo | nu
   return { turno: r.turno, turmaNome: pTurma, instNome: pInst, stat: pStat, hora };
 }
 
-// Calcula o status de ocupacao de uma sala hoje (espelha statusDaSala do web)
+export const SALA_STATUS_LABELS: Record<StatusSala, string> = {
+  livre: 'Livre',
+  ocupada: 'Ocupada',
+  iminente: 'Em breve',
+  manutencao: 'Em manutenção',
+  indisponivel: 'Indisponível',
+};
+
+export function salaStatusLabel(status: StatusSala): string {
+  return SALA_STATUS_LABELS[status];
+}
+
+// Calcula o status de ocupacao de uma sala hoje (espelha o calculo web)
 export function calcSalaInfo(sala: Sala, hoje: string): SalaInfo {
-  // 1. Override manual tem prioridade (espelha getOverride do web)
+  // 1. Override manual tem prioridade.
   if (sala.statusManual) {
     const bruto = sala.statusManual;
-    const manualStat = bruto === 'ocupada' || bruto === 'iminente' ? bruto : 'livre';
+    const manualStat: StatusSala =
+      bruto === 'livre' || bruto === 'ocupada' || bruto === 'iminente' || bruto === 'manutencao' || bruto === 'indisponivel'
+        ? bruto
+        : 'livre';
     const periodos = manualStat !== 'livre'
-      ? [{ turno: 'Manual', turmaNome: sala.motivoManual || 'Status manual', instNome: sala.manualPor || '', stat: manualStat as 'ocupada' | 'iminente' }]
+      && (manualStat === 'ocupada' || manualStat === 'iminente')
+      ? [{ turno: 'Manual', turmaNome: sala.motivoManual || 'Status manual', instNome: sala.manualPor || '', stat: manualStat }]
       : [];
     return { stat: manualStat, periodos };
   }
