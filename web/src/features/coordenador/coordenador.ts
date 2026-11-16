@@ -68,7 +68,7 @@ import {
 import { fmsg, fmsgHide, modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
-import { ErroApi } from '../../core/api';
+import { ErroApi, buscarStatusSalas, type SalaStatusRemoto } from '../../core/api';
 import {
   filtrarLista,
   lerFiltros,
@@ -79,7 +79,7 @@ import { byId, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
-import { calcularStatusSala } from '../mapa/sala-status';
+import { calcularStatusSala, STATUS_UI } from '../mapa/sala-status';
 import type {
   DiaSemana,
   Sessao,
@@ -1133,11 +1133,25 @@ export function mapaLimparFiltros(): void {
 }
 
 /** Adapta o cálculo comum aos metadados usados pelo card do coordenador. */
-function calcSalaStatus(s: ReturnType<typeof getSalaById>, hj: string, turnoFiltro: string): InfoSala {
+function calcSalaStatus(s: ReturnType<typeof getSalaById>, hj: string, turnoFiltro: string, remoto?: SalaStatusRemoto): InfoSala {
   if (!s) {
     return { stat: 'livre', periodos: [], turnosOcupados: [], turnoAtivo: '', turmaNome: '', instNome: '', override: null };
   }
-  const info = calcularStatusSala(s, hj, turnoFiltro);
+  const info = remoto
+    ? {
+        stat: remoto.status,
+        periodos: remoto.turma || remoto.inicio || remoto.fim
+          ? [{
+              turno: turnoFiltro || 'Status',
+              turmaNome: remoto.reason || remoto.turma || 'Status da sala',
+              instNome: null,
+              stat: remoto.status === 'ocupada' ? 'ocupada' as const : 'iminente' as const,
+              hora: remoto.inicio && remoto.fim ? `${remoto.inicio} - ${remoto.fim}` : undefined,
+            }]
+          : [],
+        override: null,
+      }
+    : calcularStatusSala(s, hj, turnoFiltro);
   const turnosOcupados = info.override
     ? info.stat === 'livre' ? [] : ['Manual']
     : info.periodos.map((periodo) => periodo.turno).filter((turno, i, list) => list.indexOf(turno) === i);
@@ -1150,13 +1164,12 @@ function calcSalaStatus(s: ReturnType<typeof getSalaById>, hj: string, turnoFilt
   };
 }
 
-const ICONE_STATUS: Record<string, string> = {
-  livre: '<span class="ic-dot ic-livre"></span>',
-  ocupada: '<span class="ic-dot ic-ocupada"></span>',
-  iminente: '<span class="ic-dot ic-iminente"></span>',
-  manutencao: '<span class="ic-dot ic-manutencao"></span>',
-  indisponivel: '<span class="ic-dot ic-indisponivel"></span>',
-};
+const ICONE_STATUS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_UI).map(([status, ui]) => [
+    status,
+    `<span class="ic-dot ic-${ui.classe}"></span>`,
+  ]),
+);
 
 /** Card visual de uma sala no mapa, com a barra de override manual. */
 function buildSalaCard(s: NonNullable<ReturnType<typeof getSalaById>>, info: InfoSala): string {
@@ -1575,7 +1588,7 @@ function checarConflito(
 }
 
 /** Renderiza os cards do mapa de salas agrupados por bloco e andar. */
-export function rdMapa(): void {
+export async function rdMapa(): Promise<void> {
   const salas = getSalasByUnidade(uid() as number);
   const cont = tryById('mapaSalas');
   if (cont === null) return;
@@ -1608,9 +1621,16 @@ export function rdMapa(): void {
     return true;
   });
 
+  let statusRemoto = new Map<number, SalaStatusRemoto>();
+  try {
+    const estados = await buscarStatusSalas({ unidadeId: uid() ?? undefined, inicio: hj, fim: hj });
+    statusRemoto = new Map(estados.map((estado) => [estado.id, estado]));
+  } catch {
+    // O cache local continua sendo usado quando a API estiver temporariamente offline.
+  }
   const infoMap: Record<number, InfoSala> = {};
   salasBase.forEach((s) => {
-    infoMap[s.id] = calcSalaStatus(s, hj, filtTurno);
+    infoMap[s.id] = calcSalaStatus(s, hj, filtTurno, statusRemoto.get(s.id));
   });
   const contadores = {
     livre: salasBase.filter((s) => infoMap[s.id].stat === 'livre').length,

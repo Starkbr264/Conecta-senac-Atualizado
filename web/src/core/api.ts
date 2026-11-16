@@ -205,6 +205,32 @@ export function buscarUnidadesPublicas(): Promise<Unidade[]> {
   return apiGet<Unidade[]>('/api/unidades');
 }
 
+export interface SalaStatusRemoto {
+  id: number;
+  nome: string;
+  status: 'livre' | 'ocupada' | 'iminente' | 'manutencao' | 'indisponivel';
+  reason: string | null;
+  inicio: string | null;
+  fim: string | null;
+  turma: string | null;
+  statusAtual: 'livre' | 'ocupada' | 'iminente' | 'manutencao' | 'indisponivel';
+}
+
+export function buscarStatusSalas(params: {
+  unidadeId?: number;
+  inicio?: string;
+  fim?: string;
+  horaInicio?: string;
+  horaFim?: string;
+  turno?: string;
+} = {}): Promise<SalaStatusRemoto[]> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') query.set(key, String(value));
+  });
+  return apiGet<SalaStatusRemoto[]>(`/api/salas/status${query.size ? `?${query}` : ''}`);
+}
+
 /** Envia o lote de sincronizacao (`POST /api/sinc`). */
 export function sincronizar(payload: unknown): Promise<unknown> {
   return apiPost<unknown>('/api/sinc', payload);

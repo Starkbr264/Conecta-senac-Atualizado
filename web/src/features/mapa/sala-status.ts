@@ -24,6 +24,15 @@ export interface SalaStatusInfo {
   override: OverrideSala | null;
 }
 
+/** Identidade compartilhada dos cinco estados de sala. */
+export const STATUS_UI = {
+  livre: { label: 'Livre', icon: 'ph-check-circle', classe: 'livre' },
+  ocupada: { label: 'Ocupada', icon: 'ph-x-circle', classe: 'ocupada' },
+  iminente: { label: 'Em breve', icon: 'ph-clock', classe: 'iminente' },
+  manutencao: { label: 'Em manutenção', icon: 'ph-wrench', classe: 'manutencao' },
+  indisponivel: { label: 'Indisponível', icon: 'ph-prohibit', classe: 'indisponivel' },
+} as const;
+
 const DIA_MAP: DiaSemana[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
 
 export function diaDaSemanaDe(data: string): DiaSemana {

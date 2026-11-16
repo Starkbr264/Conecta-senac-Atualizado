@@ -84,6 +84,15 @@ public class SolicitacaoService {
         Usuario instrutor = usuarios.findById(r.instrutorId()).orElseThrow(() -> new RecursoNaoEncontradoException("Instrutor", r.instrutorId()));
         if (!instrutor.getUnidadeId().equals(r.unidadeId()) || !sala.getUnidadeId().equals(r.unidadeId()))
             throw new RegraDeNegocioException("Solicitacao deve usar instrutor, sala e unidade compativeis");
+        if (r.turnos() == null || r.turnos().isEmpty())
+            throw new RegraDeNegocioException("A solicitacao deve ter ao menos um turno");
+        for (String turno : r.turnos()) {
+            reservas.validarParaSolicitacao(new ReservaRequest(
+                    r.salaId(), r.turmaId(), turno, r.diasSemana(),
+                    r.dataInicio() != null ? r.dataInicio() : r.data(),
+                    r.dataFim() != null ? r.dataFim() : r.data(),
+                    r.horaInicio(), r.horaFim(), r.instrutorId(), r.unidadeId()));
+        }
 
         Solicitacao s = new Solicitacao();
         s.setSalaId(r.salaId());
