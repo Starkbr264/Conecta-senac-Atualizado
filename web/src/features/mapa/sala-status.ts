@@ -8,6 +8,7 @@ import {
   type OverrideSala,
 } from '../../core/storage';
 import { calcStatus } from '../../core/format';
+import type { SalaStatusRemoto } from '../../core/api';
 import type { DiaSemana, Reserva, Sala, StatusSala } from '../../types';
 
 export interface PeriodoSala {
@@ -123,4 +124,36 @@ export function calcularStatusSala(sala: Sala, hoje: string, turnoFiltro = ''): 
       ? 'iminente'
       : 'livre';
   return { stat, periodos, override: null };
+}
+
+/**
+ * Mescla o cálculo local com o estado vindo de `GET /api/salas/status`.
+ *
+ * O override manual local tem precedência absoluta — mesma regra de
+ * {@link calcularStatusSala}: o DTO remoto não expõe `statusManual`, então
+ * assumir o status remoto quando existe override descartava a marcação do
+ * coordenador (tag "Manual", botão "Auto" e o próprio estado `livre`
+ * selecionado no Mapa de Salas). Sem override local, vale o status do
+ * servidor; sem servidor, o cálculo local.
+ */
+export function mesclarStatusRemoto(
+  local: SalaStatusInfo,
+  remoto: SalaStatusRemoto | undefined,
+  turnoFiltro = '',
+): SalaStatusInfo {
+  if (local.override || !remoto) return local;
+  return {
+    stat: remoto.status,
+    periodos:
+      remoto.turma || remoto.inicio || remoto.fim
+        ? [{
+            turno: turnoFiltro || 'Status',
+            turmaNome: remoto.reason || remoto.turma || 'Status da sala',
+            instNome: null,
+            stat: remoto.status === 'ocupada' ? 'ocupada' as const : 'iminente' as const,
+            hora: remoto.inicio && remoto.fim ? `${remoto.inicio} - ${remoto.fim}` : undefined,
+          }]
+        : [],
+    override: null,
+  };
 }

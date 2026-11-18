@@ -79,7 +79,7 @@ import { byId, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
-import { calcularStatusSala, STATUS_UI } from '../mapa/sala-status';
+import { calcularStatusSala, mesclarStatusRemoto, STATUS_UI } from '../mapa/sala-status';
 import type {
   DiaSemana,
   Sessao,
@@ -1137,21 +1137,9 @@ function calcSalaStatus(s: ReturnType<typeof getSalaById>, hj: string, turnoFilt
   if (!s) {
     return { stat: 'livre', periodos: [], turnosOcupados: [], turnoAtivo: '', turmaNome: '', instNome: '', override: null };
   }
-  const info = remoto
-    ? {
-        stat: remoto.status,
-        periodos: remoto.turma || remoto.inicio || remoto.fim
-          ? [{
-              turno: turnoFiltro || 'Status',
-              turmaNome: remoto.reason || remoto.turma || 'Status da sala',
-              instNome: null,
-              stat: remoto.status === 'ocupada' ? 'ocupada' as const : 'iminente' as const,
-              hora: remoto.inicio && remoto.fim ? `${remoto.inicio} - ${remoto.fim}` : undefined,
-            }]
-          : [],
-        override: null,
-      }
-    : calcularStatusSala(s, hj, turnoFiltro);
+  // Override manual local tem precedência sobre o status remoto (mesma regra
+  // de calcularStatusSala) — ver mesclarStatusRemoto.
+  const info = mesclarStatusRemoto(calcularStatusSala(s, hj, turnoFiltro), remoto, turnoFiltro);
   const turnosOcupados = info.override
     ? info.stat === 'livre' ? [] : ['Manual']
     : info.periodos.map((periodo) => periodo.turno).filter((turno, i, list) => list.indexOf(turno) === i);

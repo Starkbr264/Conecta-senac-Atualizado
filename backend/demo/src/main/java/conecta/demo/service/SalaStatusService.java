@@ -70,10 +70,13 @@ public class SalaStatusService {
                                         String horaInicio, String horaFim, String turno) {
         Resultado atual = calcularAutomatico(sala, LocalDate.now(), LocalDate.now(), null, null, null, true);
         String manual = normalizar(sala.getStatusManual());
-        String statusAtual = manual.isEmpty() || "livre".equals(manual) ? atual.status : manual;
-        if (!manual.isEmpty() && !"livre".equals(manual)) {
-            return resposta(sala, manual, sala.getMotivoManual(), null, null, null, statusAtual);
+        // Override manual tem precedencia absoluta — os cinco estados, inclusive
+        // 'livre'. Somente statusManual nulo (Auto) devolve o calculo ao automatico:
+        // tratar 'livre' como Auto fazia a API ocultar a marcacao do coordenador.
+        if (!manual.isEmpty()) {
+            return resposta(sala, manual, sala.getMotivoManual(), null, null, null, manual);
         }
+        String statusAtual = atual.status;
         boolean consultaDoEstadoAtual = inicio.equals(LocalDate.now()) && fim.equals(inicio)
                 && (horaInicio == null || horaInicio.isBlank())
                 && (horaFim == null || horaFim.isBlank());

@@ -41,6 +41,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci --no-audit --no-fund
 
+      - name: Testes de regressao (vitest)
+        run: npm test
+
       - name: Typecheck e build
         run: npm run build
 
