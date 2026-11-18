@@ -42,7 +42,7 @@ class ReservaServiceBusinessRulesTest {
         sala.setUnidadeId(1L);
         sala.setAtiva(true);
         sala.setTurnosDisponiveis(List.of("Matutino"));
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
 
         ReservaRequest request = new ReservaRequest(
                 1L, null, "Noturno", Set.of("seg"),
@@ -55,7 +55,8 @@ class ReservaServiceBusinessRulesTest {
     @Test
     void rejeitaNovaReservaEmSalaEmManutencao() {
         Sala sala = salaComStatusManual("manutencao");
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
+        when(salas.findById(any())).thenReturn(java.util.Optional.of(sala));
 
         assertThrows(RegraDeNegocioException.class, () -> service.criar(request()));
     }
@@ -63,7 +64,8 @@ class ReservaServiceBusinessRulesTest {
     @Test
     void rejeitaNovaReservaEmSalaIndisponivel() {
         Sala sala = salaComStatusManual("indisponivel");
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
+        when(salas.findById(any())).thenReturn(java.util.Optional.of(sala));
 
         assertThrows(RegraDeNegocioException.class, () -> service.criar(request()));
     }
@@ -71,7 +73,8 @@ class ReservaServiceBusinessRulesTest {
     @Test
     void rejeitaReservaQuandoStatusManualBloqueadoTemEspacosEMaiusculas() {
         Sala sala = salaComStatusManual("  MANUTENCAO ");
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
+        when(salas.findById(any())).thenReturn(java.util.Optional.of(sala));
 
         assertThrows(RegraDeNegocioException.class, () -> service.criar(request()));
     }
@@ -79,7 +82,8 @@ class ReservaServiceBusinessRulesTest {
     @Test
     void permiteNovaReservaEmSalaSemBloqueioManual() {
         Sala sala = salaComStatusManual(null);
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
+        when(salas.findById(any())).thenReturn(java.util.Optional.of(sala));
         when(reservas.findBySalaIdAndDataInicioLessThanEqualAndDataFimGreaterThanEqual(
                 any(), any(), any())).thenReturn(List.of());
 
@@ -90,7 +94,8 @@ class ReservaServiceBusinessRulesTest {
     @Test
     void rejeitaAtualizacaoQueTransfereReservaParaSalaBloqueada() {
         Sala sala = salaComStatusManual("indisponivel");
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
+        when(salas.findById(any())).thenReturn(java.util.Optional.of(sala));
         Reserva atual = reservaExistente(9L, 2L);
         when(reservas.findById(9L)).thenReturn(java.util.Optional.of(atual));
 
@@ -100,7 +105,8 @@ class ReservaServiceBusinessRulesTest {
     @Test
     void permiteAtualizacaoAdministrativaDeReservaExistenteEmSalaBloqueada() {
         Sala sala = salaComStatusManual("manutencao");
-        when(salas.findById(1L)).thenReturn(java.util.Optional.of(sala));
+        when(salas.findForUpdate(any())).thenReturn(java.util.Optional.of(sala));
+        when(salas.findById(any())).thenReturn(java.util.Optional.of(sala));
         Reserva atual = reservaExistente(9L, 1L);
         when(reservas.findById(9L)).thenReturn(java.util.Optional.of(atual));
         when(reservas.findBySalaIdAndDataInicioLessThanEqualAndDataFimGreaterThanEqual(

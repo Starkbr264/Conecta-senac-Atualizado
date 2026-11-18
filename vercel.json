@@ -7,6 +7,11 @@
   "github": {
     "silent": true
   },
+  "git": {
+    "deploymentEnabled": {
+      "feat/unificar-status-salas": false
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",

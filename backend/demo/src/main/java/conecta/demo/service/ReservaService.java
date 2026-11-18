@@ -10,6 +10,8 @@ import conecta.demo.repository.ReservaRepository;
 import conecta.demo.repository.SalaRepository;
 import conecta.demo.repository.TurmaRepository;
 import java.util.List;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -47,12 +49,24 @@ public class ReservaService {
         return reservas.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Reserva", id));
     }
 
-    public Reserva criar(ReservaRequest request) {
+    /**
+     * A validação e a gravação ficam serializadas no serviço singleton. Isso
+     * evita que duas aprovações simultâneas no mesmo processo passem ambas pela
+     * consulta de conflito antes de salvar a reserva.
+     */
+    public synchronized Reserva criar(ReservaRequest request) {
         Reserva reserva = montar(request);
         validarSalaParaNovaOcupacao(reserva, null);
         validarDisponibilidade(reserva, null);
         reserva.setId(proximoId());
         return reservas.save(reserva);
+    }
+
+    /** Validação definitiva usada antes de registrar uma solicitação pendente. */
+    public void validarParaSolicitacao(ReservaRequest request) {
+        Reserva reserva = montar(request);
+        validarSalaParaNovaOcupacao(reserva, null);
+        validarDisponibilidade(reserva, null);
     }
 
     /** Valida uma reserva sincronizada sem persisti-la. */
@@ -78,7 +92,7 @@ public class ReservaService {
         return reservas.findAll().stream().mapToLong(Reserva::getId).max().orElse(0L) + 1;
     }
 
-    public Reserva atualizar(Long id, ReservaRequest request) {
+    public synchronized Reserva atualizar(Long id, ReservaRequest request) {
         Reserva atual = buscar(id);
         Reserva nova = montar(request);
         validarSalaParaNovaOcupacao(nova, id);
@@ -105,7 +119,8 @@ public class ReservaService {
     private Reserva montar(ReservaRequest r) {
         if (r.dataFim().isBefore(r.dataInicio()))
             throw new RegraDeNegocioException("A data final deve ser posterior a data inicial");
-        Sala sala = salas.findById(r.salaId()).orElseThrow(() -> new RecursoNaoEncontradoException("Sala", r.salaId()));
+        Sala sala = salas.findForUpdate(r.salaId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Sala", r.salaId()));
         if (!sala.isAtiva())
             throw new RegraDeNegocioException("Sala indisponivel");
         if (!sala.getUnidadeId().equals(r.unidadeId()))
@@ -128,7 +143,7 @@ public class ReservaService {
         x.setSalaId(r.salaId());
         x.setTurmaId(r.turmaId());
         x.setTurno(r.turno());
-        x.setDiasSemana(r.diasSemana());
+        x.setDiasSemana(r.diasSemana() == null ? Set.of() : r.diasSemana());
         x.setDataInicio(r.dataInicio());
         x.setDataFim(r.dataFim());
         x.setHoraInicio(r.horaInicio());
@@ -144,9 +159,36 @@ public class ReservaService {
                 .stream()
                 .filter(r -> ignorarId == null || !r.getId().equals(ignorarId))
                 .filter(r -> !"CANCELADA".equals(r.getStatus()))
-                .anyMatch(r -> r.getTurno().equalsIgnoreCase(proposta.getTurno()) && diasCoincidem(r.getDiasSemana(), proposta.getDiasSemana()));
+                .anyMatch(r -> r.getTurno().equalsIgnoreCase(proposta.getTurno())
+                        && diasCoincidem(r.getDiasSemana(), proposta.getDiasSemana())
+                        && horariosCoincidem(r, proposta));
         if (conflito)
             throw new RegraDeNegocioException("Ja existe reserva para esta sala, periodo e turno");
+    }
+
+    /**
+     * Turnos sem horário específico ocupam todo o turno. Quando os dois lados
+     * possuem horários, somente a interseção real bloqueia a nova reserva.
+     */
+    private boolean horariosCoincidem(Reserva existente, Reserva proposta) {
+        if (existente.getHoraInicio() == null || existente.getHoraInicio().isBlank()
+                || existente.getHoraFim() == null || existente.getHoraFim().isBlank()
+                || proposta.getHoraInicio() == null || proposta.getHoraInicio().isBlank()
+                || proposta.getHoraFim() == null || proposta.getHoraFim().isBlank()) {
+            return true;
+        }
+        try {
+            LocalTime inicioExistente = LocalTime.parse(existente.getHoraInicio());
+            LocalTime fimExistente = LocalTime.parse(existente.getHoraFim());
+            LocalTime inicioProposto = LocalTime.parse(proposta.getHoraInicio());
+            LocalTime fimProposto = LocalTime.parse(proposta.getHoraFim());
+            if (!fimExistente.isAfter(inicioExistente) || !fimProposto.isAfter(inicioProposto)) {
+                throw new RegraDeNegocioException("O horario final deve ser posterior ao horario inicial");
+            }
+            return inicioExistente.isBefore(fimProposto) && inicioProposto.isBefore(fimExistente);
+        } catch (DateTimeParseException ex) {
+            throw new RegraDeNegocioException("Horario invalido");
+        }
     }
 
     /**
@@ -196,6 +238,7 @@ public class ReservaService {
     }
 
     private boolean diasCoincidem(java.util.Set<String> um, java.util.Set<String> outro) {
+        if (um == null || outro == null || um.isEmpty() || outro.isEmpty()) return true;
         return um.stream().anyMatch(dia -> outro.stream().anyMatch(candidato -> dia.equalsIgnoreCase(candidato)));
     }
 }

@@ -1009,7 +1009,18 @@ export function addSolic(d: NovaSolicitacao): Solicitacao {
 
 export async function addSolicAsync(d: NovaSolicitacao): Promise<Solicitacao> {
   const item = addSolic(d);
-  await confirmar(item);
+  try {
+    await confirmar(item);
+  } catch (erro) {
+    // Uma rejeicao definitiva (em especial 409) nao pode deixar uma
+    // solicitacao fantasma no cache local como se estivesse pendente.
+    if (erro instanceof ErroApi && REJEICOES_DEFINITIVAS.has(erro.status)) {
+      const idx = CACHE.solicitacoes.findIndex((s) => s.id === item.id);
+      if (idx >= 0) CACHE.solicitacoes.splice(idx, 1);
+      sv(K.solicitacoes, CACHE.solicitacoes);
+    }
+    throw erro;
+  }
   return { ...item };
 }
 

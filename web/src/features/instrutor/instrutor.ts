@@ -38,7 +38,6 @@ import {
   getSalasByUnidade,
   getTurmaById,
   getTurmas,
-  getUserById,
   initDados,
   marcarTodasLidas,
   unidadePadrao,
@@ -47,6 +46,7 @@ import {
 import { calcStatus, esc, fmtData, fmtDateTime, hojeISO, htmlStatus } from '../../core/format';
 import { modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
+import { buscarStatusSalas, ErroApi, type SalaStatusRemoto } from '../../core/api';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
 import {
   filtrarLista,
@@ -57,6 +57,7 @@ import {
 import { byId, qsa, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import type { DiaSemana, Sessao, Turno } from '../../types';
+import { STATUS_UI } from '../mapa/sala-status';
 
 const TODOS_OS_TURNOS: Turno[] = ['Matutino', 'Vespertino', 'Noturno'];
 const DIAS_SEMANA: DiaSemana[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -113,22 +114,6 @@ function datasNoPeriodo(ini: string, fim: string): string[] {
 
 function diasSemanaDatas(datas: string[]): DiaSemana[] {
   return [...new Set((datas || []).map(diaSemanaIso))];
-}
-
-/** Proximo dia livre (dataFim da reserva + 1) da sala, ou `''`. */
-function dataLiberacao(salaId: number, hj: string): string {
-  const rs = getReservas().filter((r) => r.salaId === salaId && r.dataFim >= hj);
-  if (rs.length === 0) return '';
-
-  const maxFim = rs.reduce((acc, r) => (r.dataFim > acc ? r.dataFim : acc), hj);
-  const dtFim = dateFromIsoLocal(maxFim);
-  dtFim.setDate(dtFim.getDate() + 1);
-  const liberacao = dtFim.toISOString().split('T')[0];
-  return (
-    ' <span style="color:var(--amber);font-weight:600">&mdash; Livre a partir de ' +
-    fmtData(liberacao) +
-    '</span>'
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +252,7 @@ function linhaTurma(t: TurmaComStatus): string {
 // ---------------------------------------------------------------------------
 
 /** Cards de salas da unidade com status de ocupacao e botao de solicitar. */
-export function rdSalas(): void {
+export async function rdSalas(): Promise<void> {
   const salas = getSalasByUnidade(uid() as number);
   const cont = byId('listaSalas');
   const hj = hojeISO();
@@ -277,69 +262,29 @@ export function rdSalas(): void {
     return;
   }
 
-  const dia = diaSemanaIso(hj);
+  let statuses: SalaStatusRemoto[];
+  try {
+    statuses = await buscarStatusSalas({ unidadeId: uid() ?? undefined, inicio: hj, fim: hj });
+  } catch {
+    cont.innerHTML = '<p class="txt2">Não foi possível atualizar os estados das salas.</p>';
+    return;
+  }
+  const statusMap = new Map(statuses.map((status) => [status.id, status]));
+  cont.innerHTML = salas.map((s) => renderSalaSolicitacao(s, statusMap.get(s.id))).join('');
+}
 
-  cont.innerHTML = salas
-    .map((s) => {
-      let livre = true;
-      const ocupacoes: string[] = [];
-      let instNome = '';
-
-      const rs = getReservas().filter(
-        (r) => r.salaId === s.id && r.dataInicio <= hj && r.dataFim >= hj,
-      );
-      for (const r of rs) {
-        if (!r.diasSemana || !r.diasSemana.includes(dia)) continue;
-        if (r.avulsa || !r.turmaId) {
-          livre = false;
-          ocupacoes.push(`Reservada (${r.turno})`);
-          break;
-        }
-        const t = getTurmaById(r.turmaId);
-        if (!t || calcStatus(t) === 'encerrada') continue;
-        livre = false;
-        const inst = t.instrutorId ? getUserById(t.instrutorId) : null;
-        instNome = inst ? inst.nome : '';
-        ocupacoes.push(`${r.turno}: ${t.nome}`);
-      }
-
-      const infoHtml = livre
-        ? '<span style="color:var(--green);font-weight:600"><span class="ic-dot ic-livre"></span> Disponível hoje</span>'
-        : `<span style="color:var(--red);font-weight:600"><span class="ic-dot ic-ocupada"></span> ${esc(ocupacoes.join(' | '))}</span>`;
-
-      const turnosHtml = (s.turnos ?? s.turnosDisponiveis ?? [])
-        .map((t) => `<span class="mapa-turno">${t[0]}</span>`)
-        .join('');
-
-      return (
-        `<div class="sala-card-v2 ${livre ? 'livre' : 'ocupada'}">` +
-        `<div class="sc-header"><div class="sc-nome">${esc(s.nome)}</div>` +
-        `<div class="sc-status-dot ${livre ? 'livre' : 'ocupada'}"></div></div>` +
-        `<div class="sc-tipo">${esc(s.tipo)}</div>` +
-        '<div class="sc-meta">' +
-        (s.andar
-          ? `<div class="sc-meta-item"><span class="sc-meta-icon"><i class="ph ph-buildings"></i></span>${esc(s.andar)}</div>`
-          : '') +
-        (s.bloco
-          ? `<div class="sc-meta-item"><span class="sc-meta-icon"><i class="ph ph-map-pin"></i></span>${esc(s.bloco)}</div>`
-          : '') +
-        `<div class="sc-meta-item"><span class="sc-meta-icon"><i class="ph ph-users"></i></span>${s.capacidade}</div>` +
-        '</div>' +
-        `<div class="sc-turnos">${turnosHtml}</div>` +
-        `<div style="margin-top:6px;font-size:.78rem">${infoHtml}</div>` +
-        (instNome
-          ? `<div style="font-size:.75rem;color:var(--text2);margin-top:3px"><i class="ph ph-user"></i> ${esc(instNome)}</div>`
-          : '') +
-        (livre
-          ? `<button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" data-action="abrirSolic" data-arg="${s.id}"><i class="ph ph-clipboard-text"></i> Solicitar Sala</button>`
-          : '<div style="margin-top:8px">' +
-            `<div style="font-size:.78rem;color:var(--red);font-weight:600;margin-bottom:4px"><i class="ph ph-lock"></i> Sala ocupada hoje${dataLiberacao(s.id, hj)}</div>` +
-            `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:4px" data-action="abrirSolic" data-arg="${s.id}"><i class="ph ph-calendar-plus"></i> Solicitar para outra data</button>` +
-            '</div>') +
-        '</div>'
-      );
-    })
-    .join('');
+function renderSalaSolicitacao(s: ReturnType<typeof getSalasByUnidade>[number], info?: SalaStatusRemoto): string {
+  const status = info?.status ?? 'indisponivel';
+  const ui = STATUS_UI[status];
+  const bloqueada = status === 'manutencao' || status === 'indisponivel';
+  const podeSolicitar = !bloqueada;
+  const detalhe = info?.reason || (info?.turma ? `${info.turma}${info.fim ? ` — até ${info.fim}` : ''}` : '');
+  const turnosHtml = (s.turnos ?? s.turnosDisponiveis ?? []).map((t) => `<span class="mapa-turno">${t[0]}</span>`).join('');
+  return `<div class="sala-card-v2 ${ui.classe}"><div class="sc-header"><div class="sc-nome">${esc(s.nome)}</div><div class="sc-status-dot ${ui.classe}"></div></div>` +
+    `<div class="sc-tipo">${esc(s.tipo)}</div><div class="sc-meta">${s.andar ? `<div class="sc-meta-item"><span class="sc-meta-icon"><i class="ph ph-buildings"></i></span>${esc(s.andar)}</div>` : ''}` +
+    `${s.bloco ? `<div class="sc-meta-item"><span class="sc-meta-icon"><i class="ph ph-map-pin"></i></span>${esc(s.bloco)}</div>` : ''}<div class="sc-meta-item"><span class="sc-meta-icon"><i class="ph ph-users"></i></span>${s.capacidade}</div></div>` +
+    `<div class="sc-turnos">${turnosHtml}</div><div style="margin-top:6px;font-size:.78rem;color:var(--text2)"><i class="ph ${ui.icon}"></i> <strong>${ui.label}</strong>${detalhe ? ` — ${esc(detalhe)}` : ''}</div>` +
+    `<button class="btn ${podeSolicitar ? 'btn-primary' : 'btn-ghost'} btn-sm" style="margin-top:10px;width:100%" ${podeSolicitar ? `data-action="abrirSolic" data-arg="${s.id}"` : 'disabled'}><i class="ph ${podeSolicitar ? 'ph-clipboard-text' : 'ph-lock'}"></i> ${podeSolicitar ? 'Solicitar Sala' : 'Indisponível para solicitação'}</button></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -564,68 +509,61 @@ export function verificarDisponibilidadeSolic(): void {
   turnos = turnos.filter((t) => turnosSala.indexOf(t) !== -1);
 
   const turnosVerif = turnos.length ? turnos : turnosSala;
-  const conflitos: Array<{ turno: string; lib: string }> = [];
-  const livres: Turno[] = [];
+  const horaIniSolic = byId<HTMLInputElement>('slHoraIni').value.trim();
+  const horaFimSolic = byId<HTMLInputElement>('slHoraFim').value.trim();
+  void atualizarDisponibilidadeRemota(
+    salaId, data, dataFim, horaIniSolic, horaFimSolic, turnosVerif, divDisp, erEl,
+  );
+  return;
+}
 
-  turnosVerif.forEach((turno) => {
-    const rs = getReservas().filter(
-      (r) =>
-        r.salaId === salaId &&
-        r.turno === turno &&
-        r.dataInicio <= dataFim &&
-        r.dataFim >= data &&
-        r.diasSemana &&
-        r.diasSemana.some((dia) => diasVerif.indexOf(dia) !== -1),
+async function atualizarDisponibilidadeRemota(
+  salaId: number,
+  inicio: string,
+  fim: string,
+  horaInicio: string,
+  horaFim: string,
+  turnos: Turno[],
+  divDisp: HTMLElement,
+  erEl: HTMLElement | null,
+): Promise<void> {
+  try {
+    const respostas = await Promise.all(turnos.map((turno) => buscarStatusSalas({
+      unidadeId: uid() ?? undefined, inicio, fim, horaInicio, horaFim, turno,
+    })));
+    const estados = respostas.map((lista, index) => ({
+      turno: turnos[index],
+      estado: lista.find((item) => item.id === salaId),
+    }));
+    const conflitos = estados.filter((item) =>
+      item.estado && (item.estado.status === 'ocupada' || item.estado.status === 'manutencao' || item.estado.status === 'indisponivel'),
     );
-    const ocupado = rs.some((r) => {
-      const t = r.turmaId ? getTurmaById(r.turmaId) : null;
-      return r.avulsa || !!(t && calcStatus(t) !== 'encerrada');
-    });
-    if (!ocupado) {
-      livres.push(turno);
+    const livres = estados.filter((item) => item.estado?.status === 'livre' || item.estado?.status === 'iminente');
+    if (!conflitos.length && !livres.length) {
+      divDisp.style.display = 'none';
       return;
     }
-    let maxFim: string | null = null;
-    getReservas()
-      .filter((r) => r.salaId === salaId && r.turno === turno && r.dataFim >= data)
-      .forEach((r) => {
-        const t = r.turmaId ? getTurmaById(r.turmaId) : null;
-        if (t && calcStatus(t) === 'encerrada') return;
-        if (!maxFim || r.dataFim > maxFim) maxFim = r.dataFim;
+    let html = '';
+    if (conflitos.length) {
+      html += '<div style="color:var(--red);font-weight:600;margin-bottom:4px"><i class="ph ph-warning-circle"></i> Indisponível no período:</div>';
+      conflitos.forEach(({ turno, estado }) => {
+        const ui = STATUS_UI[estado?.status ?? 'ocupada'];
+        html += `<div style="margin-left:8px;color:var(--text2)"><i class="ph ${ui.icon}"></i> <strong>${esc(turno)}</strong> — ${ui.label}${estado?.reason ? `: ${esc(estado.reason)}` : ''}</div>`;
       });
-    let lib = '';
-    if (maxFim) {
-      const dtF = dateFromIsoLocal(maxFim);
-      dtF.setDate(dtF.getDate() + 1);
-      lib = ` — livre a partir de <strong>${fmtData(dtF.toISOString().split('T')[0])}</strong>`;
     }
-    conflitos.push({ turno, lib });
-  });
-
-  if (conflitos.length === 0 && livres.length === 0) {
+    if (livres.length) {
+      html += `<div style="color:var(--green);font-weight:600;margin-top:${conflitos.length ? '8px' : '0'}"><i class="ph ph-check-circle"></i> Disponível no período:</div>`;
+      livres.forEach(({ turno, estado }) => {
+        const ui = STATUS_UI[estado?.status ?? 'livre'];
+        html += `<div style="margin-left:8px;color:var(--text2)"><i class="ph ${ui.icon}"></i> <strong>${esc(turno)}</strong> — ${ui.label}</div>`;
+      });
+    }
+    divDisp.style.cssText = `display:block;padding:10px 14px;border-radius:8px;font-size:.83rem;line-height:1.7;background:${conflitos.length ? 'var(--red-l)' : 'var(--green-l)'};border:1px solid rgba(220,38,38,.25)`;
+    divDisp.innerHTML = html;
+    if (erEl !== null) erEl.style.display = 'none';
+  } catch {
     divDisp.style.display = 'none';
-    return;
   }
-
-  let html = '';
-  if (conflitos.length) {
-    html +=
-      '<div style="color:var(--red);font-weight:600;margin-bottom:4px"><i class="ph ph-warning-circle"></i> Turno(s) ocupado(s):</div>';
-    conflitos.forEach((c) => {
-      html += `<div style="margin-left:8px;color:var(--text2)"><i class="ph ph-lock"></i> <strong>${esc(c.turno)}</strong>${c.lib}</div>`;
-    });
-  }
-  if (livres.length && turnos.length) {
-    html += `<div style="color:var(--green);font-weight:600;margin-top:${conflitos.length ? '8px' : '0'}"><i class="ph ph-check-circle"></i> Disponível:</div>`;
-    livres.forEach((t) => {
-      html += `<div style="margin-left:8px;color:var(--text2)"><i class="ph ph-check"></i> <strong>${esc(t)}</strong></div>`;
-    });
-  }
-  divDisp.style.cssText = conflitos.length
-    ? 'display:block;padding:10px 14px;border-radius:8px;font-size:.83rem;line-height:1.7;background:var(--red-l);border:1px solid rgba(220,38,38,.25)'
-    : 'display:block;padding:10px 14px;border-radius:8px;font-size:.83rem;line-height:1.7;background:var(--green-l);border:1px solid rgba(5,150,105,.25)';
-  divDisp.innerHTML = html;
-  if (erEl !== null) erEl.style.display = 'none';
 }
 
 function turnosAtivos(): Turno[] {
@@ -714,57 +652,6 @@ export async function enviarSolic(): Promise<void> {
     return;
   }
 
-  // Deteccao de conflito: no modo periodo, um unico dia da semana em comum ja
-  // bloqueia; nos demais modos, data a data.
-  let conflitou = false;
-  if (modoData === 'periodo') {
-    turnos.forEach((turno) => {
-      getReservas()
-        .filter(
-          (r) =>
-            r.salaId === salaId &&
-            r.turno === turno &&
-            r.dataInicio <= dataFimGlobal &&
-            r.dataFim >= dataIniGlobal &&
-            r.diasSemana &&
-            r.diasSemana.some((dia) => diasSel.indexOf(dia) !== -1),
-        )
-        .forEach((r) => {
-          const t = r.turmaId ? getTurmaById(r.turmaId) : null;
-          if (r.avulsa || (t && calcStatus(t) !== 'encerrada')) conflitou = true;
-        });
-    });
-  } else {
-    datasParaEnviar.forEach((data) => {
-      const diaSem = diaSemanaIso(data);
-      turnos.forEach((turno) => {
-        getReservas()
-          .filter(
-            (r) =>
-              r.salaId === salaId &&
-              r.turno === turno &&
-              r.dataInicio <= data &&
-              r.dataFim >= data &&
-              r.diasSemana &&
-              r.diasSemana.includes(diaSem),
-          )
-          .forEach((r) => {
-            const t = r.turmaId ? getTurmaById(r.turmaId) : null;
-            if (r.avulsa || (t && calcStatus(t) !== 'encerrada')) conflitou = true;
-          });
-      });
-    });
-  }
-
-  if (conflitou) {
-    if (erEl !== null) {
-      erEl.innerHTML =
-        '<i class="ph ph-warning"></i> Sala já reservada em um dos períodos selecionados.';
-      erEl.style.display = 'block';
-    }
-    return;
-  }
-
   // O legado gravava `null` (e nao ausencia da chave) em `diasSemana` e
   // `datasEspecificas`; o cast preserva exatamente esse formato persistido.
   const payload = {
@@ -801,7 +688,12 @@ export async function enviarSolic(): Promise<void> {
         (modoData === 'especificas' ? ` (${datasParaEnviar.length} data(s))` : '') +
         `${horario}.`,
     });
-  } catch {
+  } catch (erro) {
+    if (erro instanceof ErroApi && erro.status === 409) {
+      toast(erro.message || 'A disponibilidade da sala foi alterada. Atualize a tela e tente novamente.', 'erro');
+      await rdSalas();
+      return;
+    }
     toast('Solicitação mantida localmente, aguardando sincronização.', 'aviso');
     return;
   }

@@ -1,0 +1,109 @@
+name: Validacao remota - status das salas
+
+on:
+  push:
+    branches:
+      - feat/unificar-status-salas
+    paths:
+      - ".github/workflows/ci-unificar-status-salas.yml"
+      - "backend/demo/**"
+      - "web/**"
+  pull_request:
+    branches:
+      - main-Versão-4.0
+    paths:
+      - ".github/workflows/ci-unificar-status-salas.yml"
+      - "backend/demo/**"
+      - "web/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Testes de regressao (vitest)
+        run: npm test
+
+      - name: Typecheck e build
+        run: npm run build
+
+  backend:
+    name: Backend Java 21 e PostgreSQL
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/demo
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: conecta_ci
+          POSTGRES_USER: conecta_ci
+          POSTGRES_PASSWORD: conecta_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U conecta_ci -d conecta_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    # SPRING_APPLICATION_JSON tem precedencia sobre application-test.properties.
+    # As credenciais sao exclusivas do container efemero deste job.
+    env:
+      JWT_SECRET: ci-only-secret-key-with-at-least-32-characters
+      SPRING_APPLICATION_JSON: >-
+        {"spring.datasource.url":"jdbc:postgresql://localhost:5432/conecta_ci?sslmode=disable",
+        "spring.datasource.username":"conecta_ci",
+        "spring.datasource.password":"conecta_ci",
+        "spring.datasource.driver-class-name":"org.postgresql.Driver"}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Garantir execucao do wrapper
+        run: chmod +x ./gradlew
+
+      - name: Testes backend
+        run: ./gradlew test --no-daemon --console=plain
+
+      - name: Build do backend
+        run: ./gradlew bootJar -x test --no-daemon --console=plain
+
+      - name: Publicar relatorios de teste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-backend-java21
+          path: |
+            backend/demo/build/test-results/test/**
+            backend/demo/build/reports/tests/test/**
+          if-no-files-found: warn
