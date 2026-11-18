@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,6 +73,7 @@ public class SolicitacaoService {
                     .orElseThrow(() -> new RegraDeNegocioException("Turma da solicitacao nao existe"));
             if (!sol.getUnidadeId().equals(turma.getUnidadeId()))
                 throw new RegraDeNegocioException("Turma da solicitacao nao pertence a mesma unidade");
+            validarTurnosDaTurma(turma, sol.getTurnos());
         }
     }
 
@@ -97,6 +99,7 @@ public class SolicitacaoService {
             throw new RegraDeNegocioException("Solicitacao deve usar instrutor, sala e unidade compativeis");
         if (r.turnos() == null || r.turnos().isEmpty())
             throw new RegraDeNegocioException("A solicitacao deve ter ao menos um turno");
+        validarTurma(r.turmaId(), r.unidadeId(), r.turnos());
         temporal.validar(dataInicio(r), dataFim(r), r.datasEspecificas(),
                 r.turnos(), r.horaInicio(), r.horaFim());
         if (duplicada(r)) {
@@ -152,6 +155,7 @@ public class SolicitacaoService {
         if (aprovar) {
             if (s.getTurnos().isEmpty())
                 throw new RegraDeNegocioException("A solicitacao deve ter ao menos um turno");
+            validarTurma(s.getTurmaId(), s.getUnidadeId(), s.getTurnos());
             if (solicitacaoPendenteEquivalente(s)) {
                 throw new RegraDeNegocioException("Ja existe uma solicitacao pendente equivalente");
             }
@@ -195,6 +199,31 @@ public class SolicitacaoService {
 
     private LocalDate dataFim(Solicitacao s) {
         return s.getDataFim() != null ? s.getDataFim() : s.getData();
+    }
+
+    /**
+     * A turma atualmente possui um turno cadastrado por registro. A regra fica
+     * centralizada aqui para ser aplicada na criacao/sincronizacao e na
+     * aprovacao, sem confiar no turno enviado pelo frontend.
+     */
+    private void validarTurma(Long turmaId, Long unidadeId, Set<String> turnos) {
+        if (turmaId == null) return;
+        Turma turma = turmas.findById(turmaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Turma da solicitacao nao existe"));
+        if (!Objects.equals(unidadeId, turma.getUnidadeId()))
+            throw new RegraDeNegocioException("Turma da solicitacao nao pertence a unidade");
+        validarTurnosDaTurma(turma, turnos);
+    }
+
+    private void validarTurnosDaTurma(Turma turma, Set<String> turnos) {
+        if (turnos == null || turnos.isEmpty())
+            throw new RegraDeNegocioException("A solicitacao deve ter ao menos um turno");
+        String turnoTurma = turma.getTurno();
+        boolean incompatibilidade = turnoTurma == null || turnos.stream()
+                .anyMatch(turno -> turno == null || !turnoTurma.equalsIgnoreCase(turno));
+        if (incompatibilidade)
+            throw new RegraDeNegocioException(
+                    "A solicitacao deve usar o turno da turma: " + turnoTurma);
     }
 
     private boolean duplicada(SolicitacaoRequest r) {

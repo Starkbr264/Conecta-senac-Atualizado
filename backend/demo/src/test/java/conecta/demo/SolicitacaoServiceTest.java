@@ -7,10 +7,12 @@ import conecta.demo.model.Notificacao;
 import conecta.demo.model.Sala;
 import conecta.demo.model.Solicitacao;
 import conecta.demo.model.StatusSolicitacao;
+import conecta.demo.model.Turma;
 import conecta.demo.model.Usuario;
 import conecta.demo.repository.NotificacaoRepository;
 import conecta.demo.repository.SalaRepository;
 import conecta.demo.repository.SolicitacaoRepository;
+import conecta.demo.repository.TurmaRepository;
 import conecta.demo.repository.UsuarioRepository;
 import conecta.demo.service.ReservaService;
 import conecta.demo.service.SolicitacaoService;
@@ -61,6 +63,8 @@ class SolicitacaoServiceTest {
     @Mock
     private UsuarioRepository usuarios;
     @Mock
+    private TurmaRepository turmas;
+    @Mock
     private ReservaService reservas;
     @Mock
     private NotificacaoRepository notificacoes;
@@ -71,7 +75,7 @@ class SolicitacaoServiceTest {
     void setUp() {
         var temporal = temporalAt("2026-08-01T09:00");
         service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes,
-                null, null, null, temporal);
+                null, turmas, null, temporal);
     }
 
     private conecta.demo.service.SolicitacaoTemporalService temporalAt(String localDateTime) {
@@ -159,6 +163,56 @@ class SolicitacaoServiceTest {
         when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
 
         assertThrows(RegraDeNegocioException.class, () -> service.criar(request(UNIDADE_OK)));
+        verify(solicitacoes, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Criar: aceita o turno cadastrado na turma")
+    void criarComTurnoDaTurmaAceita() {
+        Turma turma = turmaDaUnidade("Matutino", UNIDADE_OK);
+        SolicitacaoRequest entrada = requestComTurma(turma.getId(), Set.of("Matutino"));
+        when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
+        when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
+        when(turmas.findById(turma.getId())).thenReturn(Optional.of(turma));
+        when(solicitacoes.findAll()).thenReturn(List.of());
+        when(solicitacoes.findByUnidadeId(UNIDADE_OK)).thenReturn(List.of());
+        when(solicitacoes.save(any(Solicitacao.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.criar(entrada);
+
+        verify(solicitacoes).save(any(Solicitacao.class));
+    }
+
+    @Test
+    @DisplayName("Criar: rejeita cada turno incompatível com a turma")
+    void criarComTurnosIncompativeisFalha() {
+        Turma turma = turmaDaUnidade("Matutino", UNIDADE_OK);
+        when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
+        when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
+        when(turmas.findById(turma.getId())).thenReturn(Optional.of(turma));
+
+        for (Set<String> turnos : List.of(Set.of("Vespertino"), Set.of("Noturno"),
+                Set.of("Matutino", "Vespertino", "Noturno"))) {
+            assertThrows(RegraDeNegocioException.class,
+                    () -> service.criar(requestComTurma(turma.getId(), turnos)));
+        }
+        verify(solicitacoes, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Criar: rejeita turma inexistente e turma de outra unidade sem persistir")
+    void criarComTurmaInvalidaFalha() {
+        when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
+        when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
+        when(turmas.findById(40L)).thenReturn(Optional.empty());
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.criar(requestComTurma(40L, Set.of("Matutino"))));
+
+        Turma outraUnidade = turmaDaUnidade("Matutino", 99L);
+        when(turmas.findById(outraUnidade.getId())).thenReturn(Optional.of(outraUnidade));
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.criar(requestComTurma(outraUnidade.getId(), Set.of("Matutino"))));
         verify(solicitacoes, never()).save(any());
     }
 
@@ -264,6 +318,21 @@ class SolicitacaoServiceTest {
     }
 
     @Test
+    @DisplayName("Responder: aprovacao mantem a compatibilidade entre turma e turnos")
+    void responderAprovarTurnoIncompativelFalha() {
+        Solicitacao pendente = solicitacao(StatusSolicitacao.PENDENTE);
+        pendente.setTurmaId(40L);
+        pendente.setTurnos(Set.of("Matutino", "Vespertino"));
+        when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(pendente));
+        when(turmas.findById(40L)).thenReturn(Optional.of(turmaDaUnidade("Matutino", UNIDADE_OK)));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("aprovar", null)));
+        verify(reservas, never()).criar(any());
+        verify(solicitacoes, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Responder: recusar nao cria reserva nem altera turnos")
     void responderRecusarNaoCriaReserva() {
         Solicitacao pendente = solicitacao(StatusSolicitacao.PENDENTE);
@@ -303,5 +372,25 @@ class SolicitacaoServiceTest {
         s.setStatus(status);
         s.setTurnos(Set.of("Matutino"));
         return s;
+    }
+
+    private SolicitacaoRequest requestComTurma(Long turmaId, Set<String> turnos) {
+        SolicitacaoRequest base = request(UNIDADE_OK);
+        return new SolicitacaoRequest(
+                base.salaId(), base.instrutorId(), turmaId, turnos, base.data(),
+                base.dataInicio(), base.dataFim(), base.diasSemana(), base.datasEspecificas(),
+                base.horaInicio(), base.horaFim(), base.modo(), base.turno(), base.motivo(),
+                base.unidadeId());
+    }
+
+    private conecta.demo.model.Turma turmaDaUnidade(String turno, Long unidadeId) {
+        conecta.demo.model.Turma turma = new conecta.demo.model.Turma();
+        turma.setId(40L);
+        turma.setNome("Turma de teste");
+        turma.setCodigo("T-TESTE");
+        turma.setCurso("Curso de teste");
+        turma.setTurno(turno);
+        turma.setUnidadeId(unidadeId);
+        return turma;
     }
 }
