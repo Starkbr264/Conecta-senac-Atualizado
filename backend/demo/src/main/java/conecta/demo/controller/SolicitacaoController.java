@@ -27,6 +27,11 @@ public class SolicitacaoController {
         return service.listar(unidadeId, instrutorId);
     }
 
+    @GetMapping("/configuracao-temporal")
+    public java.util.Map<String, Object> configuracaoTemporal() {
+        return service.configuracaoTemporal();
+    }
+
     @GetMapping("/{id}")
     public Solicitacao buscar(@PathVariable Long id) {
         return service.buscar(id);

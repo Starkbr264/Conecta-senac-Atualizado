@@ -47,6 +47,7 @@ import { calcStatus, esc, fmtData, fmtDateTime, hojeISO, htmlStatus } from '../.
 import { modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { buscarStatusSalas, ErroApi, type SalaStatusRemoto } from '../../core/api';
+import { carregarConfiguracaoTemporal, classificarTurno, hojeTemporalISO, temConfiguracaoTemporal } from '../../core/temporal';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
 import {
   filtrarLista,
@@ -72,6 +73,7 @@ function uid(): number | null {
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initInstrutor(): Promise<void> {
   await initDados();
+  await carregarConfiguracaoTemporal();
   requirePerfil('instrutor');
   sess = getSessao();
   initSidebar();
@@ -344,8 +346,11 @@ export function abrirSolic(salaId: number): void {
   const s = getSalaById(salaId);
   byId('slNome').textContent = s ? s.nome : '';
   byId<HTMLInputElement>('slData').value = '';
+  byId<HTMLInputElement>('slData').min = hojeISO();
   byId<HTMLInputElement>('slDataIni').value = '';
+  byId<HTMLInputElement>('slDataIni').min = hojeISO();
   byId<HTMLInputElement>('slDataFim').value = '';
+  byId<HTMLInputElement>('slDataFim').min = hojeISO();
   byId<HTMLTextAreaElement>('slMotivo').value = '';
   byId<HTMLInputElement>('slHoraIni').value = '';
   byId<HTMLInputElement>('slHoraFim').value = '';
@@ -624,6 +629,31 @@ export async function enviarSolic(): Promise<void> {
     datasParaEnviar = datasEspecificas;
     dataIniGlobal = datasParaEnviar[0];
     dataFimGlobal = datasParaEnviar[datasParaEnviar.length - 1];
+  }
+
+  const hoje = hojeTemporalISO();
+  if (!temConfiguracaoTemporal()) {
+    toast('Não foi possível validar os horários oficiais. Tente novamente.', 'erro');
+    return;
+  }
+  const invalidas = datasParaEnviar.filter((data) => data < hoje);
+  if (invalidas.length) {
+    toast('Não é possível solicitar uma sala para uma data que já passou.', 'erro');
+    return;
+  }
+  const impedimentoTemporal = turnos
+    .map((turno) => classificarTurno(dataIniGlobal, turno, horaIni, horaFim))
+    .find((diagnostico) => diagnostico === 'Data passada' || diagnostico === 'Turno em andamento' || diagnostico === 'Turno encerrado');
+  if (impedimentoTemporal) {
+    toast(
+      impedimentoTemporal === 'Data passada'
+        ? 'Não é possível solicitar uma sala para uma data que já passou.'
+        : impedimentoTemporal === 'Turno encerrado'
+          ? 'Este turno já foi encerrado. Selecione um turno futuro.'
+          : 'Este turno já começou. Selecione um turno futuro.',
+      'erro',
+    );
+    return;
   }
 
   const diasSel = diasSemanaDatas(datasParaEnviar);

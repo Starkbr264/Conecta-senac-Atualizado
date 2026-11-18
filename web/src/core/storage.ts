@@ -10,7 +10,7 @@
  *  - fonte da verdade:    `GET /api/dados` em `server/index.js`.
  */
 
-import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi } from './api';
+import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi, responderSolicitacao } from './api';
 import { getSessao } from './theme';
 import type {
   Atualizar,
@@ -1037,6 +1037,16 @@ export async function updSolicAsync(id: number | string, d: Atualizar<Solicitaca
   if (!item) return null;
   await confirmar(CACHE.solicitacoes.find((s) => String(s.id) === String(id)) ?? null);
   return item;
+}
+
+/** Responde uma solicitação pela transação autoritativa do backend. */
+export async function responderSolicAsync(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<void> {
+  await responderSolicitacao(id, decisao, resposta);
+  await sincronizarServidor();
 }
 
 // ---------------------------------------------------------------------------

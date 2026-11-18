@@ -231,6 +231,27 @@ export function buscarStatusSalas(params: {
   return apiGet<SalaStatusRemoto[]>(`/api/salas/status${query.size ? `?${query}` : ''}`);
 }
 
+export function responderSolicitacao(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<unknown> {
+  return apiPost<unknown>(`/api/solicitacoes/${id}/resposta`, {
+    decisao,
+    resposta: resposta || null,
+  });
+}
+
+export interface ConfiguracaoTemporal {
+  timezone: string;
+  agora: string;
+  turnos: Record<string, { inicio: string; fim: string }>;
+}
+
+export function buscarConfiguracaoTemporal(): Promise<ConfiguracaoTemporal> {
+  return apiGet<ConfiguracaoTemporal>('/api/solicitacoes/configuracao-temporal');
+}
+
 /** Envia o lote de sincronizacao (`POST /api/sinc`). */
 export function sincronizar(payload: unknown): Promise<unknown> {
   return apiPost<unknown>('/api/sinc', payload);

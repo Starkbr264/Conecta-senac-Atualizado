@@ -51,6 +51,7 @@ import {
   updSalaAsync,
   updSolicAsync,
   updTurmaAsync,
+  responderSolicAsync,
   unidadePadrao,
   type NovoSala,
   type OverrideSala,
@@ -69,6 +70,7 @@ import { fmsg, fmsgHide, modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
 import { ErroApi, buscarStatusSalas, type SalaStatusRemoto } from '../../core/api';
+import { carregarConfiguracaoTemporal, classificarTurno, hojeTemporalISO } from '../../core/temporal';
 import {
   filtrarLista,
   lerFiltros,
@@ -119,10 +121,12 @@ interface ModalMotivoSalaState {
 }
 
 let modalMotivoSalaState: ModalMotivoSalaState | null = null;
+let recusaSolicId: number | null = null;
 
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initCoordenador(): Promise<void> {
   await initDados();
+  await carregarConfiguracaoTemporal();
   requirePerfil('coordenador');
   sess = getSessao();
   initModalMotivoSala();
@@ -1825,7 +1829,7 @@ function popularFiltrosMapa(): void {
 
 /** Lista as solicitacoes da unidade (pendentes primeiro). */
 export function rdSolics(): void {
-  const list = getSolics()
+  const todos = getSolics()
     .filter((s) => s.unidadeId === uid())
     .slice()
     .sort((a, b) => {
@@ -1835,12 +1839,95 @@ export function rdSolics(): void {
     });
 
   const cont = byId('listaSolics');
+  const pendentes = todos.filter((s) => s.status === 'pendente');
+  const aprovadas = todos.filter((s) => s.status === 'aprovada');
+  const recusadas = todos.filter((s) => s.status === 'recusada');
+  setText('solicCountPendentes', pendentes.length);
+  setText('solicCountAprovadas', aprovadas.length);
+  setText('solicCountRecusadas', recusadas.length);
+  document.querySelectorAll<HTMLElement>('[data-solic-tab]').forEach((tab) => {
+    tab.classList.toggle('ativo', tab.dataset['solicTab'] === (window as Window & { _solicTab?: string })._solicTab);
+  });
+  const aba = (window as Window & { _solicTab?: string })._solicTab ?? 'pendente';
+  const list = todos.filter((s) => s.status === aba);
   if (!list.length) {
     cont.innerHTML = '<p class="txt2">Nenhuma solicitação recebida.</p>';
     return;
   }
-
   cont.innerHTML = list.map((s) => cardSolic(s)).join('');
+}
+
+export function selecionarAbaSolic(tab: string): void {
+  (window as Window & { _solicTab?: string })._solicTab = tab;
+  rdSolics();
+}
+
+interface DiagnosticoSolicitacao {
+  rotulos: string[];
+  impedimentos: string[];
+}
+
+function diagnosticarSolicitacao(s: Solicitacao): DiagnosticoSolicitacao {
+  const rotulos: string[] = [];
+  const impedimentos: string[] = [];
+  const hoje = hojeTemporalISO();
+  const inicio = String(s.dataInicio || s.data || '');
+  const fim = String(s.dataFim || s.data || inicio);
+  if (inicio < hoje || fim < hoje) {
+    rotulos.push('Data passada');
+    impedimentos.push('A data solicitada já passou.');
+  }
+  const turnos = (s.turnos?.length ? s.turnos : s.turno ? [s.turno] : []) as string[];
+  const reservas = getReservas();
+  const equivalente = getSolics().some((outra) =>
+    outra.id !== s.id &&
+    outra.status === 'pendente' &&
+    outra.instrutorId === s.instrutorId &&
+    outra.unidadeId === s.unidadeId &&
+    outra.salaId === s.salaId &&
+    (outra.turmaId ?? null) === (s.turmaId ?? null) &&
+    String(outra.dataInicio || outra.data) === inicio &&
+    String(outra.dataFim || outra.data) === fim &&
+    JSON.stringify(outra.turnos ?? [outra.turno]) === JSON.stringify(s.turnos ?? [s.turno]) &&
+    JSON.stringify(outra.diasSemana ?? []) === JSON.stringify(s.diasSemana ?? []),
+  );
+  if (equivalente) {
+    rotulos.push('Duplicada');
+    impedimentos.push('Já existe uma solicitação pendente equivalente.');
+  }
+  for (const turno of turnos) {
+    const conflito = verificarConflito({
+      salaId: s.salaId,
+      turno,
+      diasSemana: (s.diasSemana ?? []) as DiaSemana[],
+      dataInicio: inicio,
+      dataFim: fim,
+      horaInicio: s.horaInicio,
+      horaFim: s.horaFim,
+    });
+    if (conflito) {
+      rotulos.push(`Conflito no ${turno}`);
+      impedimentos.push(conflito);
+    }
+  }
+  const sala = getSalaById(s.salaId);
+  if (sala?.statusManual === 'manutencao') {
+    rotulos.push('Sala em manutenção');
+    impedimentos.push('A sala está em manutenção.');
+  } else if (sala?.statusManual === 'indisponivel') {
+    rotulos.push('Sala indisponível');
+    impedimentos.push('A sala está indisponível.');
+  }
+  for (const turno of turnos) {
+    const label = classificarTurno(inicio, turno, s.horaInicio, s.horaFim);
+    if (label) {
+      rotulos.push(label);
+      impedimentos.push(label === 'Turno encerrado'
+        ? 'O período solicitado já terminou.'
+        : 'O turno solicitado já está em andamento.');
+    }
+  }
+  return { rotulos: [...new Set(rotulos)], impedimentos: [...new Set(impedimentos)] };
 }
 
 function cardSolic(s: Solicitacao): string {
@@ -1854,6 +1941,7 @@ function cardSolic(s: Solicitacao): string {
       : [];
   const turnosStr = [...new Set(base as string[])].join(', ') || '—';
   const isPendente = s.status === 'pendente';
+  const diagnostico = diagnosticarSolicitacao(s);
   const statusBadge = isPendente
     ? '<span class="bdg" style="background:var(--amber-l);color:var(--amber);border:1px solid var(--amber-d)">PENDENTE</span>'
     : `<span class="bdg ${s.status === 'aprovada' ? 'bdg-green' : 'bdg-red'}">${String(s.status).toUpperCase()}</span>`;
@@ -1934,11 +2022,24 @@ function cardSolic(s: Solicitacao): string {
         esc(s.motivo) +
         '</div>'
       : '') +
-    (isPendente
-      ? '<div style="display:flex;gap:8px;margin-top:4px">' +
-        `<button class="btn btn-success btn-sm" data-action="responderSolic" data-arg="${s.id}" data-arg2="aprovada"><i class="ph ph-check"></i> Aprovar</button>` +
-        `<button class="btn btn-danger btn-sm"  data-action="responderSolic" data-arg="${s.id}" data-arg2="recusada"><i class="ph ph-x"></i> Recusar</button>` +
+    (diagnostico.rotulos.length
+      ? '<div class="solic-indicadores">' +
+        diagnostico.rotulos.map((r) => `<span class="solic-indicador">${esc(r)}</span>`).join('') +
         '</div>'
+      : '') +
+    (isPendente
+      ? '<div class="solic-acoes">' +
+        `<button class="btn btn-success btn-sm" ${diagnostico.impedimentos.length ? 'disabled title="' + esc(diagnostico.impedimentos.join(' ')) + '"' : `data-action="responderSolic" data-arg="${s.id}" data-arg2="aprovada"`}><i class="ph ph-check"></i> Aprovar</button>` +
+        `<button class="btn btn-danger btn-sm" data-action="abrirRecusaSolic" data-arg="${s.id}"><i class="ph ph-x"></i> Recusar</button>` +
+        '</div>' +
+        (diagnostico.impedimentos.length
+          ? '<div class="solic-impedimento"><i class="ph ph-warning-circle"></i> ' + esc(diagnostico.impedimentos.join(' ')) + '</div>'
+          : '') +
+        (recusaSolicId === s.id
+          ? '<div class="solic-recusa"><label for="motivoRecusaSolic">Motivo da recusa (opcional)</label><textarea id="motivoRecusaSolic" rows="3"></textarea><div class="solic-sugestoes">' +
+            ['Data já passou', 'Solicitação duplicada', 'Conflito de horário'].map((r) => `<button class="btn btn-ghost btn-sm" data-action="sugerirRecusaSolic" data-arg="${esc(r)}">${esc(r)}</button>`).join('') +
+            '</div><div class="solic-recusa-acoes"><button class="btn btn-ghost btn-sm" data-action="cancelarRecusaSolic">Cancelar</button><button class="btn btn-danger btn-sm" data-action="confirmarRecusaSolic" data-arg="${s.id}">Confirmar recusa</button></div></div>'
+          : '')
       : s.resposta
         ? '<div style="margin-top:8px;border-left:3px solid ' +
           (s.status === 'aprovada' ? 'var(--green)' : 'var(--red)') +
@@ -1962,125 +2063,8 @@ export async function responderSolic(
   id: number,
   status: StatusSolicitacao,
 ): Promise<void> {
-  const bruto = prompt(
-    status === 'aprovada'
-      ? 'Comentario para o instrutor (opcional):'
-      : 'Motivo da recusa (opcional):',
-    status === 'recusada' ? 'Sala bloqueada para manutencao.' : '',
-  );
-  if (bruto === null) return;
-  const comentario = bruto.trim();
-
-  document.querySelectorAll<HTMLButtonElement>(`[onclick*="responderSolic(${id}"]`).forEach((b) => {
-    b.disabled = true;
-    b.style.opacity = '0.5';
-  });
-
   try {
-    await updSolicAsync(id, {
-      status,
-      resposta: comentario || undefined,
-      respondidaEm: new Date().toISOString(),
-    });
-
-    const s = getSolics().find((x) => x.id === id) ?? null;
-    const inst = s ? getUserById(s.instrutorId) : null;
-    const sala = s ? getSalaById(s.salaId) : null;
-
-    if (status === 'aprovada' && s) {
-      const turnos =
-        Array.isArray(s.turnos) && s.turnos.length
-          ? s.turnos
-          : [s.turno || 'Matutino'];
-      const turnosDaSala = (
-        sala ? (sala.turnos ?? sala.turnosDisponiveis ?? []) : []
-      ) as string[];
-      const finalTurnos = turnos.filter((t) => turnosDaSala.length === 0 || turnosDaSala.includes(String(t)));
-      const usarTurnos = finalTurnos.length ? finalTurnos : turnos;
-
-      const dataIni = String(s.dataInicio || s.data);
-      const dataFim = String(s.dataFim || s.data);
-
-      let diasSemana: DiaSemana[] | null =
-        Array.isArray(s.diasSemana) && s.diasSemana.length ? s.diasSemana : null;
-      if (!diasSemana) {
-        const p = dataIni.split('-').map(Number);
-        diasSemana = [
-          (['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as DiaSemana[])[
-            new Date(p[0], p[1] - 1, p[2]).getDay()
-          ],
-        ];
-      }
-
-      const datasEsp =
-        Array.isArray(s.datasEspecificas) && s.datasEspecificas.length
-          ? s.datasEspecificas
-          : null;
-      if (datasEsp && (!Array.isArray(s.diasSemana) || !s.diasSemana.length)) {
-        diasSemana = diasSemanaDeDatas(datasEsp);
-      }
-
-      for (const turno of usarTurnos) {
-        const conflito = checarConflito(s.salaId, String(turno), diasSemana, dataIni, dataFim, null);
-        if (!conflito) {
-          await addReservaAsync({
-            salaId: s.salaId,
-            turmaId: s.turmaId || null,
-            turno,
-            diasSemana,
-            dataInicio: dataIni,
-            dataFim,
-            datasEspecificas: datasEsp ?? undefined,
-            horaInicio: s.horaInicio || null,
-            horaFim: s.horaFim || null,
-            instrutorId: s.instrutorId,
-            reservadoPorId: sess ? sess.id : null,
-            unidadeId: unidadePadrao(),
-            avulsa: !s.turmaId,
-            solicId: id,
-          });
-        }
-      }
-    }
-
-    const salaNome = sala ? sala.nome : 'a sala solicitada';
-    const base = s
-      ? Array.isArray(s.turnos) && s.turnos.length
-        ? s.turnos
-        : s.turno
-          ? [s.turno]
-          : []
-      : [];
-    const turnoStr = [...new Set(base as string[])].join(', ');
-    const dataIniS = s ? String(s.dataInicio || s.data) : '';
-    const dataFimS = s ? String(s.dataFim || s.data) : '';
-    const dataStr =
-      dataIniS === dataFimS ? fmtData(dataIniS) : `${fmtData(dataIniS)} a ${fmtData(dataFimS)}`;
-    const horStr = s && s.horaInicio && s.horaFim ? ` das ${s.horaInicio} às ${s.horaFim}` : '';
-    const comentarioTxt = comentario ? ` Comentário: "${comentario}"` : '';
-
-    const [tipo, titulo, msgCorpo] =
-      status === 'aprovada'
-        ? [
-            'aprovada',
-            'Solicitação aprovada',
-            `Sua solicitação de "${salaNome}" foi aprovada para ${dataStr}${horStr} (${turnoStr}). A reserva foi criada automaticamente.${comentarioTxt}`,
-          ]
-        : [
-            'recusada',
-            'Solicitação recusada',
-            `Sua solicitação de "${salaNome}" para ${dataStr} (${turnoStr}) foi recusada pelo coordenador.${comentarioTxt}`,
-          ];
-
-    await addNotifAsync({
-      tipo,
-      titulo,
-      msg: msgCorpo,
-      para: 'instrutor',
-      paraId: s ? s.instrutorId : null,
-      unidadeId: unidadePadrao(),
-    });
-
+    await responderSolicAsync(id, status === 'aprovada' ? 'aprovar' : 'recusar');
     toast(`Solicitação ${status}!`, 'ok');
   } catch (err) {
     console.error('Erro ao responder solicitação:', err);
@@ -2091,6 +2075,36 @@ export async function responderSolic(
   atualizarBadges();
   popularFiltrosMapa();
   rdMapa();
+}
+
+export function abrirRecusaSolic(id: number): void {
+  recusaSolicId = id;
+  rdSolics();
+}
+
+export function cancelarRecusaSolic(): void {
+  recusaSolicId = null;
+  rdSolics();
+}
+
+export function sugerirRecusaSolic(motivo: string): void {
+  const campo = tryById<HTMLTextAreaElement>('motivoRecusaSolic');
+  if (campo) campo.value = motivo;
+}
+
+export async function confirmarRecusaSolic(id: number): Promise<void> {
+  const campo = tryById<HTMLTextAreaElement>('motivoRecusaSolic');
+  const motivo = campo?.value.trim() ?? '';
+  try {
+    await responderSolicAsync(id, 'recusar', motivo);
+    recusaSolicId = null;
+    toast('Solicitação recusada!', 'ok');
+    await initDados(true);
+    rdSolics();
+    atualizarBadges();
+  } catch (erro) {
+    toast(erro instanceof ErroApi ? erro.message : 'Erro ao recusar solicitação.', 'erro');
+  }
 }
 
 // ---------------------------------------------------------------------------

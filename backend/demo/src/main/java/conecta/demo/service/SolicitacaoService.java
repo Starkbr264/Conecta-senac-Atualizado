@@ -8,8 +8,11 @@ import conecta.demo.exception.RecursoNaoEncontradoException;
 import conecta.demo.model.*;
 import conecta.demo.repository.*;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Objects;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,13 +27,16 @@ public class SolicitacaoService {
     private final IdAllocatorService ids;
     private final TurmaRepository turmas;
     private final UnidadeRepository unidades;
+    private final SolicitacaoTemporalService temporal;
 
     public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes) {
-        this(solicitacoes, salas, usuarios, reservas, notificacoes, null, null, null);
+        this(solicitacoes, salas, usuarios, reservas, notificacoes, null, null, null,
+                new SolicitacaoTemporalService(java.time.Clock.systemUTC(),
+                        java.time.ZoneId.of("America/Sao_Paulo"), java.util.Map.of()));
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes, IdAllocatorService ids, TurmaRepository turmas, UnidadeRepository unidades) {
+    public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes, IdAllocatorService ids, TurmaRepository turmas, UnidadeRepository unidades, SolicitacaoTemporalService temporal) {
         this.solicitacoes = solicitacoes;
         this.salas = salas;
         this.usuarios = usuarios;
@@ -39,6 +45,7 @@ public class SolicitacaoService {
         this.ids = ids;
         this.turmas = turmas;
         this.unidades = unidades;
+        this.temporal = temporal;
     }
 
     /**
@@ -79,6 +86,10 @@ public class SolicitacaoService {
         return solicitacoes.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Solicitacao", id));
     }
 
+    public Map<String, Object> configuracaoTemporal() {
+        return temporal.configuracao();
+    }
+
     public Solicitacao criar(SolicitacaoRequest r) {
         Sala sala = salas.findById(r.salaId()).orElseThrow(() -> new RecursoNaoEncontradoException("Sala", r.salaId()));
         Usuario instrutor = usuarios.findById(r.instrutorId()).orElseThrow(() -> new RecursoNaoEncontradoException("Instrutor", r.instrutorId()));
@@ -86,6 +97,11 @@ public class SolicitacaoService {
             throw new RegraDeNegocioException("Solicitacao deve usar instrutor, sala e unidade compativeis");
         if (r.turnos() == null || r.turnos().isEmpty())
             throw new RegraDeNegocioException("A solicitacao deve ter ao menos um turno");
+        temporal.validar(dataInicio(r), dataFim(r), r.datasEspecificas(),
+                r.turnos(), r.horaInicio(), r.horaFim());
+        if (duplicada(r)) {
+            throw new RegraDeNegocioException("Ja existe uma solicitacao pendente equivalente");
+        }
         for (String turno : r.turnos()) {
             reservas.validarParaSolicitacao(new ReservaRequest(
                     r.salaId(), r.turmaId(), turno, r.diasSemana(),
@@ -136,6 +152,11 @@ public class SolicitacaoService {
         if (aprovar) {
             if (s.getTurnos().isEmpty())
                 throw new RegraDeNegocioException("A solicitacao deve ter ao menos um turno");
+            if (solicitacaoPendenteEquivalente(s)) {
+                throw new RegraDeNegocioException("Ja existe uma solicitacao pendente equivalente");
+            }
+            temporal.validar(dataInicio(s), dataFim(s), s.getDatasEspecificas(),
+                    s.getTurnos(), s.getHoraInicio(), s.getHoraFim());
             for (String turno : s.getTurnos()) {
                 reservas.criar(new ReservaRequest(s.getSalaId(), s.getTurmaId(), turno, s.getDiasSemana(), s.getDataInicio() != null ? s.getDataInicio() : s.getData(), s.getDataFim() != null ? s.getDataFim() : s.getData(), s.getHoraInicio(), s.getHoraFim(), s.getInstrutorId(), s.getUnidadeId()));
             }
@@ -158,5 +179,48 @@ public class SolicitacaoService {
         n.setUnidadeId(s.getUnidadeId());
         notificacoes.save(n);
         return salva;
+    }
+
+    private LocalDate dataInicio(SolicitacaoRequest r) {
+        return r.dataInicio() != null ? r.dataInicio() : r.data();
+    }
+
+    private LocalDate dataFim(SolicitacaoRequest r) {
+        return r.dataFim() != null ? r.dataFim() : r.data();
+    }
+
+    private LocalDate dataInicio(Solicitacao s) {
+        return s.getDataInicio() != null ? s.getDataInicio() : s.getData();
+    }
+
+    private LocalDate dataFim(Solicitacao s) {
+        return s.getDataFim() != null ? s.getDataFim() : s.getData();
+    }
+
+    private boolean duplicada(SolicitacaoRequest r) {
+        return solicitacoes.findByUnidadeId(r.unidadeId()).stream()
+                .filter(s -> s.getStatus() == StatusSolicitacao.PENDENTE)
+                .anyMatch(s -> Objects.equals(s.getInstrutorId(), r.instrutorId())
+                        && Objects.equals(s.getSalaId(), r.salaId())
+                        && Objects.equals(s.getTurmaId(), r.turmaId())
+                        && Objects.equals(dataInicio(s), dataInicio(r))
+                        && Objects.equals(dataFim(s), dataFim(r))
+                        && Objects.equals(s.getHoraInicio(), r.horaInicio())
+                        && Objects.equals(s.getHoraFim(), r.horaFim())
+                        && Objects.equals(s.getTurnos(), r.turnos())
+                        && Objects.equals(s.getDiasSemana(), r.diasSemana()));
+    }
+
+    private boolean solicitacaoPendenteEquivalente(Solicitacao atual) {
+        return solicitacoes.findByUnidadeId(atual.getUnidadeId()).stream()
+                .filter(s -> s.getId() != null && !s.getId().equals(atual.getId()))
+                .filter(s -> s.getStatus() == StatusSolicitacao.PENDENTE)
+                .anyMatch(s -> Objects.equals(s.getInstrutorId(), atual.getInstrutorId())
+                        && Objects.equals(s.getSalaId(), atual.getSalaId())
+                        && Objects.equals(s.getTurmaId(), atual.getTurmaId())
+                        && Objects.equals(dataInicio(s), dataInicio(atual))
+                        && Objects.equals(dataFim(s), dataFim(atual))
+                        && Objects.equals(s.getTurnos(), atual.getTurnos())
+                        && Objects.equals(s.getDiasSemana(), atual.getDiasSemana()));
     }
 }

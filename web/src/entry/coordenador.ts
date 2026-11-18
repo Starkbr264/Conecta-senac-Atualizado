@@ -51,6 +51,11 @@ registrarAcoes({
   // estreitamento para `StatusSolicitacao` e seguro (sem `any`).
   responderSolic: ({ num, arg2 }) =>
     void coordenador.responderSolic(num ?? 0, arg2 as StatusSolicitacao),
+  abrirRecusaSolic: ({ num }) => coordenador.abrirRecusaSolic(num ?? 0),
+  cancelarRecusaSolic: coordenador.cancelarRecusaSolic,
+  sugerirRecusaSolic: ({ arg }) => coordenador.sugerirRecusaSolic(arg ?? ''),
+  confirmarRecusaSolic: ({ num }) => void coordenador.confirmarRecusaSolic(num ?? 0),
+  selecionarAbaSolic: ({ arg }) => coordenador.selecionarAbaSolic(arg ?? 'pendente'),
   marcarTodasLidasLocal: coordenador.marcarTodasLidasLocal,
 
   // --- Alvos dos botoes `data-action="atualizarSecao"` ---

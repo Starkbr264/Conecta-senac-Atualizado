@@ -15,8 +15,13 @@ import conecta.demo.repository.UsuarioRepository;
 import conecta.demo.service.ReservaService;
 import conecta.demo.service.SolicitacaoService;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,7 +69,20 @@ class SolicitacaoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes);
+        var temporal = temporalAt("2026-08-01T09:00");
+        service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes,
+                null, null, null, temporal);
+    }
+
+    private conecta.demo.service.SolicitacaoTemporalService temporalAt(String localDateTime) {
+        ZoneId zone = ZoneId.of("America/Sao_Paulo");
+        return new conecta.demo.service.SolicitacaoTemporalService(
+                Clock.fixed(java.time.LocalDateTime.parse(localDateTime).atZone(zone).toInstant(), zone),
+                zone,
+                Map.of(
+                        "matutino", new conecta.demo.service.SolicitacaoTemporalService.IntervaloTurno(LocalTime.of(8, 0), LocalTime.of(12, 0)),
+                        "vespertino", new conecta.demo.service.SolicitacaoTemporalService.IntervaloTurno(LocalTime.of(14, 0), LocalTime.of(18, 0)),
+                        "noturno", new conecta.demo.service.SolicitacaoTemporalService.IntervaloTurno(LocalTime.of(19, 0), LocalTime.of(22, 0))));
     }
 
     private Sala salaDaUnidade(Long unidadeId) {
@@ -85,9 +103,9 @@ class SolicitacaoServiceTest {
                 INSTRUTOR_ID,
                 null,
                 Set.of("Matutino"),
-                null,
-                null,
-                null,
+                java.time.LocalDate.of(2026, 9, 1),
+                java.time.LocalDate.of(2026, 9, 1),
+                java.time.LocalDate.of(2026, 9, 1),
                 Set.of("seg"),
                 null,
                 null,
@@ -104,6 +122,7 @@ class SolicitacaoServiceTest {
         when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
         when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
         when(solicitacoes.findAll()).thenReturn(List.of());
+        when(solicitacoes.findByUnidadeId(UNIDADE_OK)).thenReturn(List.of());
 
         Solicitacao salva = new Solicitacao();
         when(solicitacoes.save(any(Solicitacao.class))).thenAnswer(inv -> {
@@ -228,6 +247,23 @@ class SolicitacaoServiceTest {
     }
 
     @Test
+    @DisplayName("Responder: aprovacao revalida turno que venceu enquanto aguardava")
+    void responderAprovarTurnoVencidoFalha() {
+        Solicitacao vencida = solicitacao(StatusSolicitacao.PENDENTE);
+        vencida.setData(java.time.LocalDate.of(2026, 8, 1));
+        vencida.setDataInicio(java.time.LocalDate.of(2026, 8, 1));
+        vencida.setDataFim(java.time.LocalDate.of(2026, 8, 1));
+        when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(vencida));
+        service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes,
+                null, null, null, temporalAt("2026-08-01T12:00"));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("aprovar", null)));
+        verify(reservas, never()).criar(any());
+        assertEquals(StatusSolicitacao.PENDENTE, vencida.getStatus());
+    }
+
+    @Test
     @DisplayName("Responder: recusar nao cria reserva nem altera turnos")
     void responderRecusarNaoCriaReserva() {
         Solicitacao pendente = solicitacao(StatusSolicitacao.PENDENTE);
@@ -261,6 +297,9 @@ class SolicitacaoServiceTest {
         s.setSalaId(SALA_ID);
         s.setInstrutorId(INSTRUTOR_ID);
         s.setUnidadeId(UNIDADE_OK);
+        s.setData(java.time.LocalDate.of(2026, 9, 1));
+        s.setDataInicio(java.time.LocalDate.of(2026, 9, 1));
+        s.setDataFim(java.time.LocalDate.of(2026, 9, 1));
         s.setStatus(status);
         s.setTurnos(Set.of("Matutino"));
         return s;
