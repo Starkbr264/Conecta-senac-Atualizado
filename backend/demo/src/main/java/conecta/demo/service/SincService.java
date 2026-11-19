@@ -605,7 +605,16 @@ public class SincService {
                 validarNotificacao(n);
                 return notificacoes.save(n).getId();
             case "solicitacoes":
-                Solicitacao sol = persistido instanceof Solicitacao existente ? existente : new Solicitacao();
+                // Snapshot dos dados temporais ANTES de aplicar o payload: a
+                // entidade existente e mutada no lugar, entao o estado anterior
+                // precisa ser capturado agora (null = criacao).
+                Solicitacao existenteSolicitacao =
+                        persistido instanceof Solicitacao atual ? atual : null;
+                SolicitacaoService.EstadoTemporalSolicitacao estadoTemporalAnterior =
+                        existenteSolicitacao == null
+                                ? null
+                                : SolicitacaoService.EstadoTemporalSolicitacao.de(existenteSolicitacao);
+                Solicitacao sol = existenteSolicitacao != null ? existenteSolicitacao : new Solicitacao();
                 sol.setId(id);
                 sol.setSalaId(longOuNull(item.get("salaId"), colecao + ".salaId"));
                 sol.setInstrutorId(longOuNull(item.get("instrutorId"), colecao + ".instrutorId"));
@@ -641,7 +650,7 @@ public class SincService {
                     sol.setDatasEspecificas(datas.stream().map(Object::toString).toList());
                 }
                 validarEntidade(sol);
-                solicitacaoService.validarParaSincronizacao(sol);
+                solicitacaoService.validarParaSincronizacao(sol, estadoTemporalAnterior);
                 return solicitacoes.save(sol).getId();
             default:
                 throw new AcessoNegadoException("Colecao nao autorizada para sincronizacao");

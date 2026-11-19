@@ -82,6 +82,7 @@ import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
 import { calcularStatusSala, mesclarStatusRemoto, STATUS_UI } from '../mapa/sala-status';
+import { turnosCompativeisComTurma } from '../instrutor/turnos';
 import type {
   DiaSemana,
   Sessao,
@@ -1867,7 +1868,8 @@ interface DiagnosticoSolicitacao {
   impedimentos: string[];
 }
 
-function diagnosticarSolicitacao(s: Solicitacao): DiagnosticoSolicitacao {
+/** Exportado para teste de regressão (homologação: solicitação 717). */
+export function diagnosticarSolicitacao(s: Solicitacao): DiagnosticoSolicitacao {
   const rotulos: string[] = [];
   const impedimentos: string[] = [];
   const hoje = hojeTemporalISO();
@@ -1894,6 +1896,28 @@ function diagnosticarSolicitacao(s: Solicitacao): DiagnosticoSolicitacao {
   if (equivalente) {
     rotulos.push('Duplicada');
     impedimentos.push('Já existe uma solicitação pendente equivalente.');
+  }
+  // Compatibilidade turma x turnos: mesma regra do backend
+  // (SolicitacaoService.validarTurnosDaTurma), reaproveitando o helper do
+  // módulo do instrutor. Sem os dados da turma não se presume compatibilidade:
+  // a validação definitiva continua sendo a do backend.
+  if (s.turmaId) {
+    const turma = getTurmaById(s.turmaId);
+    if (!turma) {
+      rotulos.push('Turma indisponível');
+      impedimentos.push('Não foi possível validar os turnos: dados da turma indisponíveis.');
+    } else {
+      const naoPermitidos = turnos.filter(
+        (turno) => !turnosCompativeisComTurma([turno as Turno], [String(turma.turno ?? '')]).length,
+      );
+      if (naoPermitidos.length) {
+        rotulos.push('Turno incompatível com a turma');
+        impedimentos.push(
+          `Turno incompatível com a turma — não permitido(s): ${naoPermitidos.join(', ')}. ` +
+            `Turno da turma: ${turma.turno || 'não cadastrado'}.`,
+        );
+      }
+    }
   }
   for (const turno of turnos) {
     const conflito = verificarConflito({
@@ -1930,7 +1954,8 @@ function diagnosticarSolicitacao(s: Solicitacao): DiagnosticoSolicitacao {
   return { rotulos: [...new Set(rotulos)], impedimentos: [...new Set(impedimentos)] };
 }
 
-function cardSolic(s: Solicitacao): string {
+/** Exportado para teste de regressão (homologação: solicitação 717). */
+export function cardSolic(s: Solicitacao): string {
   const sala = getSalaById(s.salaId);
   const inst = getUserById(s.instrutorId);
   const turma = s.turmaId ? getTurmaById(s.turmaId) : null;

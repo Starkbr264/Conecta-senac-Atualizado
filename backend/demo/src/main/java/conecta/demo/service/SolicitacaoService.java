@@ -50,13 +50,50 @@ public class SolicitacaoService {
     }
 
     /**
+     * Snapshot dos dados temporais de uma solicitacao persistida.
+     *
+     * <p>O {@code /api/sinc} materializa o payload APLICANDO-O sobre a mesma
+     * entidade JPA existente (mutacao no lugar), entao o estado anterior precisa
+     * ser capturado antes dos setters para distinguir uma alteracao efetiva de
+     * um reenvio de delta sem mudanca relevante.
+     */
+    public record EstadoTemporalSolicitacao(LocalDate data, LocalDate dataInicio, LocalDate dataFim,
+            List<String> datasEspecificas, Set<String> turnos, String horaInicio, String horaFim) {
+
+        static EstadoTemporalSolicitacao de(Solicitacao s) {
+            return new EstadoTemporalSolicitacao(s.getData(), s.getDataInicio(), s.getDataFim(),
+                    s.getDatasEspecificas(), s.getTurnos(), s.getHoraInicio(), s.getHoraFim());
+        }
+
+        /** True quando o payload mexeu em algum dado temporal da solicitacao. */
+        boolean alteradoEmRelacao(Solicitacao atual) {
+            return !Objects.equals(data, atual.getData())
+                    || !Objects.equals(dataInicio, atual.getDataInicio())
+                    || !Objects.equals(dataFim, atual.getDataFim())
+                    || !Objects.equals(datasEspecificas, atual.getDatasEspecificas())
+                    || !Objects.equals(turnos, atual.getTurnos())
+                    || !Objects.equals(horaInicio, atual.getHoraInicio())
+                    || !Objects.equals(horaFim, atual.getHoraFim());
+        }
+    }
+
+    /**
      * Valida uma solicitacao recebida do /api/sinc sem persisti-la.
      *
      * <p>Confere que sala, instrutor, unidade (e turma, quando informada)
      * existem e pertencem a mesma unidade da solicitacao — nenhum registro
      * orfao nem referencia cruzada entre unidades entra no banco.
+     *
+     * <p>Em seguida aplica a MESMA regra temporal da criacao normal
+     * ({@link SolicitacaoTemporalService}, fuso America/Sao_Paulo e horario do
+     * servidor): sempre em criacao, e em atualizacao apenas quando o payload
+     * altera efetivamente os dados temporais. Solicitacoes historicas cujos
+     * dados nao mudaram seguem preservadas.
+     *
+     * @param anterior estado persistido antes da aplicacao do payload;
+     *                {@code null} quando a solicitacao esta sendo criada
      */
-    void validarParaSincronizacao(Solicitacao sol) {
+    void validarParaSincronizacao(Solicitacao sol, EstadoTemporalSolicitacao anterior) {
         if (sol.getSalaId() == null || sol.getInstrutorId() == null || sol.getUnidadeId() == null || sol.getData() == null)
             throw new RegraDeNegocioException("Sala, instrutor, unidade e data da solicitacao sao obrigatorios");
         if (sol.getUnidadeId() == null || !unidades.existsById(sol.getUnidadeId()))
@@ -74,6 +111,14 @@ public class SolicitacaoService {
             if (!sol.getUnidadeId().equals(turma.getUnidadeId()))
                 throw new RegraDeNegocioException("Turma da solicitacao nao pertence a mesma unidade");
             validarTurnosDaTurma(turma, sol.getTurnos());
+        }
+        // Regra temporal unica (mesmo servico da criacao normal). Revalida em
+        // criacao e sempre que o payload alterar dados temporais; registros
+        // historicos com dados temporais inalterados nao sao rejeitados aqui.
+        if (anterior == null || anterior.alteradoEmRelacao(sol)) {
+            temporal.validar(dataInicio(sol), dataFim(sol), sol.getDatasEspecificas(),
+                    sol.getTurnos() == null ? List.of() : sol.getTurnos(),
+                    sol.getHoraInicio(), sol.getHoraFim());
         }
     }
 
