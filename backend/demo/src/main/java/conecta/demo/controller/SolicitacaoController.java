@@ -1,6 +1,7 @@
 package conecta.demo.controller;
 
 import conecta.demo.dto.RespostaSolicitacaoRequest;
+import conecta.demo.dto.CancelamentoSolicitacaoRequest;
 import conecta.demo.dto.SolicitacaoRequest;
 import conecta.demo.model.Solicitacao;
 import conecta.demo.service.SolicitacaoService;
@@ -52,6 +53,13 @@ public class SolicitacaoController {
     @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     public Solicitacao responder(@PathVariable Long id, @Valid @RequestBody RespostaSolicitacaoRequest request) {
         return service.responder(id, request);
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
+    public Solicitacao cancelar(@PathVariable Long id,
+                                @RequestBody(required = false) CancelamentoSolicitacaoRequest request) {
+        return service.cancelar(id, request == null ? null : request.motivo());
     }
 
 }

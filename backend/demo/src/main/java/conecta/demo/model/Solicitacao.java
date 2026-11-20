@@ -44,6 +44,11 @@ public class Solicitacao {
     @Column(name = "data_especifica")
     private List<String> datasEspecificas = new ArrayList<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "solicitacao_datas_expiradas", joinColumns = @JoinColumn(name = "solicitacao_id"))
+    @OrderColumn(name = "ordem")
+    private List<SolicitacaoDataExpirada> datasExpiradas = new ArrayList<>();
+
     private String horaInicio;
 
     private String horaFim;
@@ -66,6 +71,13 @@ public class Solicitacao {
     private Instant criadaEm = Instant.now();
 
     private Instant respondidaEm;
+
+    private Instant expiradaEm;
+
+    private String origemStatus;
+
+    @Column(length = 1000)
+    private String motivoStatus;
 
     @Column(length = 1000)
     private String resposta;
@@ -150,6 +162,14 @@ public class Solicitacao {
         this.datasEspecificas = datasEspecificas == null ? new ArrayList<>() : new ArrayList<>(datasEspecificas);
     }
 
+    public List<SolicitacaoDataExpirada> getDatasExpiradas() {
+        return datasExpiradas;
+    }
+
+    public void setDatasExpiradas(List<SolicitacaoDataExpirada> datasExpiradas) {
+        this.datasExpiradas = datasExpiradas == null ? new ArrayList<>() : new ArrayList<>(datasExpiradas);
+    }
+
     public String getHoraInicio() {
         return horaInicio;
     }
@@ -220,6 +240,30 @@ public class Solicitacao {
 
     public void setRespondidaEm(Instant respondidaEm) {
         this.respondidaEm = respondidaEm;
+    }
+
+    public Instant getExpiradaEm() {
+        return expiradaEm;
+    }
+
+    public void setExpiradaEm(Instant expiradaEm) {
+        this.expiradaEm = expiradaEm;
+    }
+
+    public String getOrigemStatus() {
+        return origemStatus;
+    }
+
+    public void setOrigemStatus(String origemStatus) {
+        this.origemStatus = origemStatus;
+    }
+
+    public String getMotivoStatus() {
+        return motivoStatus;
+    }
+
+    public void setMotivoStatus(String motivoStatus) {
+        this.motivoStatus = motivoStatus;
     }
 
     public String getResposta() {

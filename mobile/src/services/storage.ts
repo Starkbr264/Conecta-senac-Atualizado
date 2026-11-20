@@ -27,7 +27,7 @@ import {
   Usuario, Unidade, Sala, Turma, Reserva, Chave,
   Solicitacao, Notificacao, Sessao, Turno, DiaSemana, StatusTurma
 } from '@/types';
-import { buscarDados, enviarAlteracoes, loginApi, resetarApi, obterToken } from '@/services/api';
+import { buscarDados, enviarAlteracoes, loginApi, resetarApi, obterToken, responderSolicitacao } from '@/services/api';
 
 // Chaves do AsyncStorage
 const K = {
@@ -1014,6 +1014,12 @@ export async function updSolic(id: number, d: Partial<Solicitacao>): Promise<voi
   CACHE.solicitacoes[idx] = { ...CACHE.solicitacoes[idx], ...d };
   _marcarSujo('solicitacoes', [id]);
   await _persistColecao('solicitacoes');
+}
+
+/** Responde pela transacao autoritativa do backend e recarrega o snapshot remoto. */
+export async function responderSolic(id: number, status: 'aprovada' | 'recusada', resposta?: string): Promise<void> {
+  await responderSolicitacao(id, status === 'aprovada' ? 'aprovar' : 'recusar', resposta);
+  await _sync();
 }
 
 // ==== CRUD Notificacoes ====

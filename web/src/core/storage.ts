@@ -10,7 +10,7 @@
  *  - fonte da verdade:    `GET /api/dados` em `server/index.js`.
  */
 
-import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi, responderSolicitacao } from './api';
+import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi, responderSolicitacao, cancelarSolicitacao } from './api';
 import { getSessao } from './theme';
 import type {
   Atualizar,
@@ -1046,6 +1046,11 @@ export async function responderSolicAsync(
   resposta?: string,
 ): Promise<void> {
   await responderSolicitacao(id, decisao, resposta);
+  await sincronizarServidor();
+}
+
+export async function cancelarSolicAsync(id: number, motivo?: string): Promise<void> {
+  await cancelarSolicitacao(id, motivo);
   await sincronizarServidor();
 }
 

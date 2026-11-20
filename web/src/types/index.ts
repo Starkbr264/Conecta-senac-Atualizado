@@ -73,7 +73,7 @@ export type StatusChave = 'disponivel' | 'pega';
  * Java: enum `StatusSolicitacao { PENDENTE, APROVADA, RECUSADA }`
  * (`@JsonValue` minusculo).
  */
-export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada';
+export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada' | 'cancelada' | 'expirada';
 
 /** Tipos conhecidos de notificacao. O banco aceita qualquer string. */
 export type TipoNotificacao =
@@ -288,11 +288,20 @@ export interface Solicitacao {
   /** O servidor Node pode persistir `null` aqui. */
   diasSemana?: DiaSemana[] | null;
   datasEspecificas?: string[];
+  datasExpiradas?: Array<{
+    data: string;
+    expiradaEm: string;
+    origem: string;
+    motivo: string;
+  }>;
   modo?: ModoDataSolicitacao;
   motivo?: string;
   status: StatusSolicitacao | string;
   criadaEm?: string;
   respondidaEm?: string | null;
+  expiradaEm?: string | null;
+  origemStatus?: string | null;
+  motivoStatus?: string | null;
   resposta?: string | null;
 }
 

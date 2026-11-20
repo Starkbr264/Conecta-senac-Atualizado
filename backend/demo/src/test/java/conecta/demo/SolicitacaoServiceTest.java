@@ -266,6 +266,33 @@ class SolicitacaoServiceTest {
     }
 
     @Test
+    void cancelarSolicitacaoPendentePreservaRegistroERegistraTransicao() {
+        Solicitacao pendente = solicitacao(StatusSolicitacao.PENDENTE);
+        when(solicitacoes.findByIdForUpdate(SOLICITACAO_ID)).thenReturn(Optional.of(pendente));
+        when(solicitacoes.save(any(Solicitacao.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(notificacoes.findAll()).thenReturn(java.util.List.of());
+
+        Solicitacao resultado = service.cancelar(SOLICITACAO_ID, "Solicitação duplicada da solicitação #29");
+
+        assertEquals(StatusSolicitacao.CANCELADA, resultado.getStatus());
+        assertEquals("COORDENADOR", resultado.getOrigemStatus());
+        assertEquals("Solicitação duplicada da solicitação #29", resultado.getMotivoStatus());
+        assertEquals("Solicitação duplicada da solicitação #29", resultado.getResposta());
+        org.junit.jupiter.api.Assertions.assertNotNull(resultado.getRespondidaEm());
+        verify(solicitacoes).save(pendente);
+    }
+
+    @Test
+    void aprovarSolicitacaoExpiradaFalhaSemCriarReserva() {
+        Solicitacao expirada = solicitacao(StatusSolicitacao.EXPIRADA);
+        when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(java.util.Optional.of(expirada));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("aprovar", null)));
+        verify(reservas, never()).criar(any());
+    }
+
+    @Test
     @DisplayName("Responder: decisao fora de aprovar/recusar lanca 409")
     void responderComDecisaoInvalidaFalha() {
         when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(solicitacao(StatusSolicitacao.PENDENTE)));

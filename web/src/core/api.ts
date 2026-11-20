@@ -236,10 +236,22 @@ export function responderSolicitacao(
   decisao: 'aprovar' | 'recusar',
   resposta?: string,
 ): Promise<unknown> {
+  validarIdSolicitacao(id);
   return apiPost<unknown>(`/api/solicitacoes/${id}/resposta`, {
     decisao,
     resposta: resposta || null,
   });
+}
+
+export function cancelarSolicitacao(id: number, motivo?: string): Promise<unknown> {
+  validarIdSolicitacao(id);
+  return apiPost<unknown>(`/api/solicitacoes/${id}/cancelar`, { motivo: motivo || null });
+}
+
+function validarIdSolicitacao(id: number): void {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error('Solicitação sem ID persistido válido. Sincronize antes de continuar.');
+  }
 }
 
 export interface ConfiguracaoTemporal {

@@ -5,6 +5,7 @@ import conecta.demo.dto.RespostaSolicitacaoRequest;
 import conecta.demo.dto.SolicitacaoRequest;
 import conecta.demo.exception.RegraDeNegocioException;
 import conecta.demo.exception.RecursoNaoEncontradoException;
+import conecta.demo.exception.AcessoNegadoException;
 import conecta.demo.model.*;
 import conecta.demo.repository.*;
 import java.time.Instant;
@@ -29,15 +30,20 @@ public class SolicitacaoService {
     private final TurmaRepository turmas;
     private final UnidadeRepository unidades;
     private final SolicitacaoTemporalService temporal;
+    private final SolicitacaoExpiracaoService expiracao;
 
     public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes) {
         this(solicitacoes, salas, usuarios, reservas, notificacoes, null, null, null,
                 new SolicitacaoTemporalService(java.time.Clock.systemUTC(),
-                        java.time.ZoneId.of("America/Sao_Paulo"), java.util.Map.of()));
+                        java.time.ZoneId.of("America/Sao_Paulo"), java.util.Map.of()), null);
+    }
+
+    public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes, IdAllocatorService ids, TurmaRepository turmas, UnidadeRepository unidades, SolicitacaoTemporalService temporal) {
+        this(solicitacoes, salas, usuarios, reservas, notificacoes, ids, turmas, unidades, temporal, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes, IdAllocatorService ids, TurmaRepository turmas, UnidadeRepository unidades, SolicitacaoTemporalService temporal) {
+    public SolicitacaoService(SolicitacaoRepository solicitacoes, SalaRepository salas, UsuarioRepository usuarios, ReservaService reservas, NotificacaoRepository notificacoes, IdAllocatorService ids, TurmaRepository turmas, UnidadeRepository unidades, SolicitacaoTemporalService temporal, SolicitacaoExpiracaoService expiracao) {
         this.solicitacoes = solicitacoes;
         this.salas = salas;
         this.usuarios = usuarios;
@@ -47,6 +53,7 @@ public class SolicitacaoService {
         this.turmas = turmas;
         this.unidades = unidades;
         this.temporal = temporal;
+        this.expiracao = expiracao;
     }
 
     /**
@@ -122,19 +129,24 @@ public class SolicitacaoService {
         }
     }
 
-    @Transactional(readOnly = true)
     public List<Solicitacao> listar(Long unidadeId, Long instrutorId) {
+        if (expiracao != null) expiracao.expirarVencidas();
         if (instrutorId != null) return solicitacoes.findByInstrutorId(instrutorId);
         return unidadeId == null ? solicitacoes.findAll() : solicitacoes.findByUnidadeId(unidadeId);
     }
 
-    @Transactional(readOnly = true)
     public Solicitacao buscar(Long id) {
+        if (expiracao != null) expiracao.expirarVencidas();
         return solicitacoes.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Solicitacao", id));
     }
 
     public Map<String, Object> configuracaoTemporal() {
         return temporal.configuracao();
+    }
+
+    /** Recupera pendências vencidas antes de qualquer lote do cliente. */
+    public int expirarVencidas() {
+        return expiracao == null ? 0 : expiracao.expirarVencidas();
     }
 
     public Solicitacao criar(SolicitacaoRequest r) {
@@ -189,7 +201,11 @@ public class SolicitacaoService {
     }
 
     public Solicitacao responder(Long id, RespostaSolicitacaoRequest resposta) {
-        Solicitacao s = buscar(id);
+        Solicitacao s = solicitacoes.findByIdForUpdate(id)
+                .orElseGet(() -> solicitacoes.findById(id)
+                        .orElseThrow(() -> new RecursoNaoEncontradoException("Solicitacao", id)));
+        if (expiracao != null) expiracao.expirarSeVencida(s);
+        validarUnidadeDoUsuario(s);
         if (s.getStatus() != StatusSolicitacao.PENDENTE)
             throw new RegraDeNegocioException("Esta solicitacao ja foi respondida");
 
@@ -228,6 +244,49 @@ public class SolicitacaoService {
         n.setUnidadeId(s.getUnidadeId());
         notificacoes.save(n);
         return salva;
+    }
+
+    public Solicitacao cancelar(Long id, String motivo) {
+        Solicitacao s = solicitacoes.findByIdForUpdate(id)
+                .orElseGet(() -> solicitacoes.findById(id)
+                        .orElseThrow(() -> new RecursoNaoEncontradoException("Solicitacao", id)));
+        if (expiracao != null) expiracao.expirarSeVencida(s);
+        validarUnidadeDoUsuario(s);
+        if (s.getStatus() != StatusSolicitacao.PENDENTE)
+            throw new RegraDeNegocioException("Somente solicitacoes pendentes podem ser canceladas");
+
+        String justificativa = motivo == null || motivo.isBlank()
+                ? "Solicitação cancelada pelo coordenador"
+                : motivo.trim();
+        s.setStatus(StatusSolicitacao.CANCELADA);
+        s.setOrigemStatus("COORDENADOR");
+        s.setMotivoStatus(justificativa);
+        s.setResposta(justificativa);
+        s.setRespondidaEm(Instant.now());
+        Solicitacao salva = solicitacoes.save(s);
+
+        Notificacao n = new Notificacao();
+        n.setId(proximoIdNotificacao());
+        n.setTipo("cancelada");
+        n.setTitulo("Solicitacao cancelada");
+        n.setMsg(justificativa);
+        n.setParaPerfil("instrutor");
+        n.setParaId(s.getInstrutorId());
+        n.setUnidadeId(s.getUnidadeId());
+        notificacoes.save(n);
+        return salva;
+    }
+
+    private void validarUnidadeDoUsuario(Solicitacao solicitacao) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName())) return;
+        if (auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))) return;
+        Long unidadeUsuario = usuarios.findByEmailIgnoreCase(auth.getName())
+                .map(Usuario::getUnidadeId)
+                .orElseThrow(() -> new AcessoNegadoException("Usuario autenticado nao possui unidade"));
+        if (!Objects.equals(unidadeUsuario, solicitacao.getUnidadeId()))
+            throw new AcessoNegadoException("Usuario nao pode alterar solicitacao de outra unidade");
     }
 
     private LocalDate dataInicio(SolicitacaoRequest r) {

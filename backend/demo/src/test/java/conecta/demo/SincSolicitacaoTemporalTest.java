@@ -162,7 +162,7 @@ class SincSolicitacaoTemporalTest {
     }
 
     @Test
-    @DisplayName("FALHA 1: solicitacao historica reenviada sem mudanca temporal e preservada")
+    @DisplayName("solicitacao historica reenviada e vencida permanece expirada")
     void sincPreservaSolicitacaoHistoricaSemAlteracaoTemporal() throws Exception {
         Solicitacao historica = salvarHistorica(HOJE.minusDays(8), "Matutino", "Historica 17:49");
 
@@ -176,8 +176,8 @@ class SincSolicitacaoTemporalTest {
 
         Solicitacao salva = solicitacoes.findById(historica.getId()).orElseThrow();
         assertThat(salva.getStatus())
-                .as("registro historico pendente deve continuar pendente")
-                .isEqualTo(StatusSolicitacao.PENDENTE);
+                .as("recuperacao do servidor deve impedir que cache antigo reabra o registro")
+                .isEqualTo(StatusSolicitacao.EXPIRADA);
         assertThat(salva.getData())
                 .as("dados temporais do historico nao podem mudar so por reenviar o delta")
                 .isEqualTo(HOJE.minusDays(8));

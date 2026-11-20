@@ -52,6 +52,7 @@ import {
   updSolicAsync,
   updTurmaAsync,
   responderSolicAsync,
+  cancelarSolicAsync,
   unidadePadrao,
   type NovoSala,
   type OverrideSala,
@@ -1843,9 +1844,13 @@ export function rdSolics(): void {
   const pendentes = todos.filter((s) => s.status === 'pendente');
   const aprovadas = todos.filter((s) => s.status === 'aprovada');
   const recusadas = todos.filter((s) => s.status === 'recusada');
+  const canceladas = todos.filter((s) => s.status === 'cancelada');
+  const expiradas = todos.filter((s) => s.status === 'expirada');
   setText('solicCountPendentes', pendentes.length);
   setText('solicCountAprovadas', aprovadas.length);
   setText('solicCountRecusadas', recusadas.length);
+  setText('solicCountCanceladas', canceladas.length);
+  setText('solicCountExpiradas', expiradas.length);
   document.querySelectorAll<HTMLElement>('[data-solic-tab]').forEach((tab) => {
     tab.classList.toggle('ativo', tab.dataset['solicTab'] === (window as Window & { _solicTab?: string })._solicTab);
   });
@@ -1969,7 +1974,7 @@ export function cardSolic(s: Solicitacao): string {
   const diagnostico = diagnosticarSolicitacao(s);
   const statusBadge = isPendente
     ? '<span class="bdg" style="background:var(--amber-l);color:var(--amber);border:1px solid var(--amber-d)">PENDENTE</span>'
-    : `<span class="bdg ${s.status === 'aprovada' ? 'bdg-green' : 'bdg-red'}">${String(s.status).toUpperCase()}</span>`;
+    : `<span class="bdg ${s.status === 'aprovada' ? 'bdg-green' : s.status === 'expirada' ? '' : 'bdg-red'}">${String(s.status).toUpperCase()}</span>`;
 
   let dataLabel: string;
   if (s.modo === 'periodo' || s.dataInicio !== s.dataFim) {
@@ -1990,6 +1995,8 @@ export function cardSolic(s: Solicitacao): string {
     ? 'var(--amber)'
     : s.status === 'aprovada'
       ? 'var(--green)'
+      : s.status === 'expirada'
+        ? 'var(--text3)'
       : 'var(--red)';
 
   return (
@@ -2052,10 +2059,11 @@ export function cardSolic(s: Solicitacao): string {
         diagnostico.rotulos.map((r) => `<span class="solic-indicador">${esc(r)}</span>`).join('') +
         '</div>'
       : '') +
-    (isPendente
+     (isPendente
       ? '<div class="solic-acoes">' +
         `<button class="btn btn-success btn-sm" ${diagnostico.impedimentos.length ? 'disabled title="' + esc(diagnostico.impedimentos.join(' ')) + '"' : `data-action="responderSolic" data-arg="${s.id}" data-arg2="aprovada"`}><i class="ph ph-check"></i> Aprovar</button>` +
-        `<button class="btn btn-danger btn-sm" data-action="abrirRecusaSolic" data-arg="${s.id}"><i class="ph ph-x"></i> Recusar</button>` +
+         `<button class="btn btn-danger btn-sm" data-action="abrirRecusaSolic" data-arg="${s.id}"><i class="ph ph-x"></i> Recusar</button>` +
+         `<button class="btn btn-ghost btn-sm" data-action="cancelarSolic" data-arg="${s.id}"><i class="ph ph-prohibit"></i> Cancelar</button>` +
         '</div>' +
         (diagnostico.impedimentos.length
           ? '<div class="solic-impedimento"><i class="ph ph-warning-circle"></i> ' + esc(diagnostico.impedimentos.join(' ')) + '</div>'
@@ -2065,7 +2073,7 @@ export function cardSolic(s: Solicitacao): string {
             ['Data já passou', 'Solicitação duplicada', 'Conflito de horário'].map((r) => `<button class="btn btn-ghost btn-sm" data-action="sugerirRecusaSolic" data-arg="${esc(r)}">${esc(r)}</button>`).join('') +
             '</div><div class="solic-recusa-acoes"><button class="btn btn-ghost btn-sm" data-action="cancelarRecusaSolic">Cancelar</button><button class="btn btn-danger btn-sm" data-action="confirmarRecusaSolic" data-arg="${s.id}">Confirmar recusa</button></div></div>'
           : '')
-      : s.resposta
+       : s.resposta
         ? '<div style="margin-top:8px;border-left:3px solid ' +
           (s.status === 'aprovada' ? 'var(--green)' : 'var(--red)') +
           ';background:var(--surface2);padding:6px 10px;border-radius:6px">' +
@@ -2078,7 +2086,10 @@ export function cardSolic(s: Solicitacao): string {
           esc(s.resposta) +
           '</div>' +
           '</div>'
-        : '') +
+         : '') +
+    (s.datasExpiradas?.length
+      ? '<div class="solic-impedimento">Datas expiradas: ' + s.datasExpiradas.map((data) => esc(data.data)).join(', ') + '</div>'
+      : '') +
     '</div>'
   );
 }
@@ -2088,6 +2099,10 @@ export async function responderSolic(
   id: number,
   status: StatusSolicitacao,
 ): Promise<void> {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    toast('Solicitação sem ID persistido válido. Sincronize antes de continuar.', 'erro');
+    return;
+  }
   try {
     await responderSolicAsync(id, status === 'aprovada' ? 'aprovar' : 'recusar');
     toast(`Solicitação ${status}!`, 'ok');
@@ -2100,6 +2115,33 @@ export async function responderSolic(
   atualizarBadges();
   popularFiltrosMapa();
   rdMapa();
+}
+
+export async function cancelarSolic(id: number): Promise<void> {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    toast('Solicitação sem ID persistido válido. Sincronize antes de continuar.', 'erro');
+    return;
+  }
+  const solicitacao = getSolics().find((item) => item.id === id);
+  const duplicada = solicitacao && getSolics().find((item) =>
+    item.id !== id && item.status === 'pendente' && item.instrutorId === solicitacao.instrutorId
+      && item.unidadeId === solicitacao.unidadeId && item.salaId === solicitacao.salaId
+      && (item.turmaId ?? null) === (solicitacao.turmaId ?? null)
+      && String(item.dataInicio || item.data) === String(solicitacao.dataInicio || solicitacao.data)
+      && String(item.dataFim || item.data) === String(solicitacao.dataFim || solicitacao.data),
+  );
+  const motivoPadrao = duplicada ? `Solicitação duplicada da solicitação #${duplicada.id}` : '';
+  const motivo = window.prompt('Motivo do cancelamento (opcional):', motivoPadrao);
+  if (motivo === null) return;
+  try {
+    await cancelarSolicAsync(id, motivo.trim() || motivoPadrao);
+    toast('Solicitação cancelada.', 'ok');
+    rdSolics();
+    atualizarBadges();
+  } catch (err) {
+    console.error('Erro ao cancelar solicitação:', err);
+    toast('Erro ao cancelar. Tente novamente.', 'erro');
+  }
 }
 
 export function abrirRecusaSolic(id: number): void {
