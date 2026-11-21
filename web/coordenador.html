@@ -42,7 +42,7 @@
 
   <div class="main">
     <header class="topbar">
-      <button class="btn-menu-mobile" data-action="toggleSidebar" aria-label="Abrir menu">☰</button>
+      <button class="btn-menu-mobile" data-action="toggleSidebar" aria-label="Abrir menu"><i class="ph ph-list"></i></button>
       <div><div class="tb-title" id="tbTitle">Dashboard</div><div class="tb-sub" id="tbSub"></div></div>
       <div class="tb-right"><button class="btn-tema" data-action="toggleTema"><i class="ph ph-moon"></i></button></div>
     </header>
@@ -162,7 +162,15 @@
     
             
     <div class="pg" id="pg-solicitacoes">
-      <div class="card"><div class="card-head"><div class="card-title">Solicitações de Sala</div>
+      <div class="solic-header"><div><h1>Solicitações</h1><p>Pedidos de sala dos instrutores</p></div></div>
+      <div class="solic-tabs" role="tablist">
+        <button class="solic-tab ativo" data-solic-tab="pendente" data-action="selecionarAbaSolic" data-arg="pendente">Pendentes <strong id="solicCountPendentes">0</strong></button>
+        <button class="solic-tab" data-solic-tab="aprovada" data-action="selecionarAbaSolic" data-arg="aprovada">Aprovadas <strong id="solicCountAprovadas">0</strong></button>
+        <button class="solic-tab" data-solic-tab="recusada" data-action="selecionarAbaSolic" data-arg="recusada">Recusadas <strong id="solicCountRecusadas">0</strong></button>
+        <button class="solic-tab" data-solic-tab="cancelada" data-action="selecionarAbaSolic" data-arg="cancelada">Canceladas <strong id="solicCountCanceladas">0</strong></button>
+        <button class="solic-tab" data-solic-tab="expirada" data-action="selecionarAbaSolic" data-arg="expirada">Expiradas <strong id="solicCountExpiradas">0</strong></button>
+      </div>
+      <div class="card"><div class="card-head"><div class="card-title">Pedidos de sala</div>
         <button type="button" class="btn-refresh" data-action="atualizarSecao" data-arg="rdSolics"><i class="ph ph-arrows-clockwise"></i> Atualizar</button></div>
         <div id="listaSolics"></div>
       </div>

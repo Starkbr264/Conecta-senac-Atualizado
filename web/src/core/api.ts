@@ -231,6 +231,39 @@ export function buscarStatusSalas(params: {
   return apiGet<SalaStatusRemoto[]>(`/api/salas/status${query.size ? `?${query}` : ''}`);
 }
 
+export function responderSolicitacao(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<unknown> {
+  validarIdSolicitacao(id);
+  return apiPost<unknown>(`/api/solicitacoes/${id}/resposta`, {
+    decisao,
+    resposta: resposta || null,
+  });
+}
+
+export function cancelarSolicitacao(id: number, motivo?: string): Promise<unknown> {
+  validarIdSolicitacao(id);
+  return apiPost<unknown>(`/api/solicitacoes/${id}/cancelar`, { motivo: motivo || null });
+}
+
+function validarIdSolicitacao(id: number): void {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error('Solicitação sem ID persistido válido. Sincronize antes de continuar.');
+  }
+}
+
+export interface ConfiguracaoTemporal {
+  timezone: string;
+  agora: string;
+  turnos: Record<string, { inicio: string; fim: string }>;
+}
+
+export function buscarConfiguracaoTemporal(): Promise<ConfiguracaoTemporal> {
+  return apiGet<ConfiguracaoTemporal>('/api/solicitacoes/configuracao-temporal');
+}
+
 /** Envia o lote de sincronizacao (`POST /api/sinc`). */
 export function sincronizar(payload: unknown): Promise<unknown> {
   return apiPost<unknown>('/api/sinc', payload);

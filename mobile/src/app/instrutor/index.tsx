@@ -325,7 +325,7 @@ function MinhasSolicitacoes({ sessaoId }: { sessaoId: number }) {
           ? s.turnos.join(', ')
           : (s.turno ?? '—');
         const pend = s.status === 'pendente';
-        const cor = pend ? Colors.amber : s.status === 'aprovada' ? Colors.green : Colors.red;
+        const cor = pend ? Colors.amber : s.status === 'aprovada' ? Colors.green : s.status === 'expirada' ? Colors.text3 : Colors.red;
         const dataLabel = (s.dataInicio && s.dataFim && s.dataInicio !== s.dataFim)
           ? `${db.fmtData(s.dataInicio)} a ${db.fmtData(s.dataFim)}`
           : db.fmtData(s.data ?? s.dataInicio);
@@ -359,6 +359,9 @@ function MinhasSolicitacoes({ sessaoId }: { sessaoId: number }) {
                 ) : null}
               </View>
             ) : null}
+            {s.datasExpiradas?.length ? (
+              <Text style={styles.turmaMeta}>Datas expiradas: {s.datasExpiradas.map(item => item.data).join(', ')}</Text>
+            ) : null}
           </Card>
         );
       })}
@@ -367,9 +370,9 @@ function MinhasSolicitacoes({ sessaoId }: { sessaoId: number }) {
   );
 }
 
-// Badge de status para pedidos do instrutor (pendente/aprovada/recusada)
+// Badge de status para pedidos do instrutor.
 function StatusPillPedido({ status }: { status: string }) {
-  const tone = status === 'pendente' ? 'amber' : status === 'aprovada' ? 'green' : 'red' as const;
+  const tone = status === 'pendente' ? 'amber' : status === 'aprovada' ? 'green' : status === 'expirada' ? 'muted' : 'red' as const;
   return <Badge label={status.toUpperCase()} tone={tone} />;
 }
 

@@ -202,6 +202,18 @@ export async function enviarAlteracoes(
   }
 }
 
+export async function responderSolicitacao(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<void> {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Solicitacao sem ID persistido valido.');
+  await req(`/api/solicitacoes/${id}/resposta`, {
+    method: 'POST',
+    body: JSON.stringify({ decisao, resposta: resposta || null }),
+  });
+}
+
 /** Pede ao servidor para recarregar os dados de exemplo e baixa o resultado. */
 export async function resetarApi(): Promise<Record<string, unknown[]> | null> {
   try {

@@ -36,9 +36,9 @@ export type Perfil = 'admin' | 'coordenador' | 'instrutor' | 'recepcao';
 
 /**
  * Espelha `backend/.../model/StatusSolicitacao.java` (`PENDENTE, APROVADA,
- * RECUSADA`), `@JsonValue` minusculo -> `'pendente' | 'aprovada' | 'recusada'`.
+ * RECUSADA, CANCELADA e EXPIRADA), `@JsonValue` minusculo.
  */
-export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada';
+export type StatusSolicitacao = 'pendente' | 'aprovada' | 'recusada' | 'cancelada' | 'expirada';
 
 /**
  * Espelha `backend/.../model/StatusChave.java` (`DISPONIVEL, RETIRADA`).
@@ -242,6 +242,12 @@ export interface Solicitacao {
   /** O servidor Node pode persistir `null` aqui. */
   diasSemana?: DiaSemana[] | null;
   datasEspecificas?: string[];
+  datasExpiradas?: Array<{
+    data: string;
+    expiradaEm: string;
+    origem: string;
+    motivo: string;
+  }>;
   modo?: ModoDataSolicitacao;
   turno?: Turno | string;
   motivo?: string;
@@ -249,6 +255,9 @@ export interface Solicitacao {
   unidadeId: number;
   criadaEm?: string;
   respondidaEm?: string | null;
+  expiradaEm?: string | null;
+  origemStatus?: string | null;
+  motivoStatus?: string | null;
   resposta?: string | null;
 }
 

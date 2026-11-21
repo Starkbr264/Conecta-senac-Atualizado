@@ -975,31 +975,7 @@ function Solicitacoes({ uid, sessaoId, onChange }: { uid: number | null; sessaoI
   };
 
   const responder = async (s: Solicitacao, status: 'aprovada' | 'recusada', comentario?: string) => {
-    await db.updSolic(s.id, { status, ...(comentario ? { resposta: comentario } : {}), respondidaEm: new Date().toISOString() });
-    const sala = db.getSalaById(s.salaId);
-    if (status === 'aprovada') {
-      const dataIni = s.dataInicio ?? s.data ?? '';
-      const dataFim = s.dataFim ?? s.data ?? '';
-      const dias = s.diasSemana && s.diasSemana.length ? (s.diasSemana as DiaSemana[]) : [db.diaDaSemana(dataIni)];
-      for (const turno of (s.turnos ?? [])) {
-        const conflito = db.verificarConflito({ salaId: s.salaId, turno, diasSemana: dias, dataInicio: dataIni, dataFim });
-        if (!conflito) {
-          await db.addReserva({
-            salaId: s.salaId, turmaId: s.turmaId ?? null, turno,
-            diasSemana: dias, dataInicio: dataIni, dataFim,
-            horaInicio: s.horaInicio ?? null, horaFim: s.horaFim ?? null,
-            instrutorId: s.instrutorId, unidadeId: uid ?? db.unidadePadrao(), avulsa: !s.turmaId,
-          });
-        }
-      }
-    }
-    const comentarioTxt = comentario ? ` Comentario: "${comentario}"` : '';
-    await db.addNotif({
-      tipo: status === 'aprovada' ? 'aprovada' : 'recusada',
-      titulo: status === 'aprovada' ? 'Solicitacao aprovada' : 'Solicitacao recusada',
-      msg: `Sua solicitacao da sala "${sala?.nome ?? '?'}" foi ${status}.${comentarioTxt}`,
-      paraPerfil: 'instrutor', paraId: s.instrutorId, unidadeId: uid,
-    });
+    await db.responderSolic(s.id, status, comentario);
     onChange();
   };
 
@@ -1011,7 +987,7 @@ function Solicitacoes({ uid, sessaoId, onChange }: { uid: number | null; sessaoI
         const inst  = db.getUserById(s.instrutorId);
         const turma = s.turmaId ? db.getTurmaById(s.turmaId) : null;
         const pend  = s.status === 'pendente';
-        const cor   = pend ? Colors.amber : s.status === 'aprovada' ? Colors.green : Colors.red;
+        const cor   = pend ? Colors.amber : s.status === 'aprovada' ? Colors.green : s.status === 'expirada' ? Colors.text3 : Colors.red;
         const dataStr = (s.dataInicio && s.dataFim && s.dataInicio !== s.dataFim)
           ? `${db.fmtData(s.dataInicio)} a ${db.fmtData(s.dataFim)}`
           : db.fmtData(s.data ?? s.dataInicio);
@@ -1019,7 +995,7 @@ function Solicitacoes({ uid, sessaoId, onChange }: { uid: number | null; sessaoI
           <Card key={s.id} style={[styles.solicCard, { borderLeftColor: cor }]}>
             <View style={styles.rowBetween}>
               <Text style={styles.salaNome}>{inst?.nome ?? 'Instrutor'}</Text>
-              <Badge label={s.status.toUpperCase()} tone={pend ? 'amber' : s.status === 'aprovada' ? 'green' : 'red'} />
+              <Badge label={s.status.toUpperCase()} tone={pend ? 'amber' : s.status === 'aprovada' ? 'green' : s.status === 'expirada' ? 'muted' : 'red'} />
             </View>
             <Text style={styles.solicData}>{db.fmtDateTime(s.criadaEm)}</Text>
 
@@ -1058,6 +1034,9 @@ function Solicitacoes({ uid, sessaoId, onChange }: { uid: number | null; sessaoI
                 </Text>
                 <Text style={[styles.motivoTxt, { marginTop: 2 }]}>{s.resposta}</Text>
               </View>
+            ) : null}
+            {s.datasExpiradas?.length ? (
+              <Text style={styles.turmaMeta}>Datas expiradas: {s.datasExpiradas.map(item => item.data).join(', ')}</Text>
             ) : null}
 
             {pend && (

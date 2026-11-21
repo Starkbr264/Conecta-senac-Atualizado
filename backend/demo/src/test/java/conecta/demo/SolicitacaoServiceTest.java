@@ -7,16 +7,23 @@ import conecta.demo.model.Notificacao;
 import conecta.demo.model.Sala;
 import conecta.demo.model.Solicitacao;
 import conecta.demo.model.StatusSolicitacao;
+import conecta.demo.model.Turma;
 import conecta.demo.model.Usuario;
 import conecta.demo.repository.NotificacaoRepository;
 import conecta.demo.repository.SalaRepository;
 import conecta.demo.repository.SolicitacaoRepository;
+import conecta.demo.repository.TurmaRepository;
 import conecta.demo.repository.UsuarioRepository;
 import conecta.demo.service.ReservaService;
 import conecta.demo.service.SolicitacaoService;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,6 +63,8 @@ class SolicitacaoServiceTest {
     @Mock
     private UsuarioRepository usuarios;
     @Mock
+    private TurmaRepository turmas;
+    @Mock
     private ReservaService reservas;
     @Mock
     private NotificacaoRepository notificacoes;
@@ -64,7 +73,20 @@ class SolicitacaoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes);
+        var temporal = temporalAt("2026-08-01T09:00");
+        service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes,
+                null, turmas, null, temporal);
+    }
+
+    private conecta.demo.service.SolicitacaoTemporalService temporalAt(String localDateTime) {
+        ZoneId zone = ZoneId.of("America/Sao_Paulo");
+        return new conecta.demo.service.SolicitacaoTemporalService(
+                Clock.fixed(java.time.LocalDateTime.parse(localDateTime).atZone(zone).toInstant(), zone),
+                zone,
+                Map.of(
+                        "matutino", new conecta.demo.service.SolicitacaoTemporalService.IntervaloTurno(LocalTime.of(8, 0), LocalTime.of(12, 0)),
+                        "vespertino", new conecta.demo.service.SolicitacaoTemporalService.IntervaloTurno(LocalTime.of(14, 0), LocalTime.of(18, 0)),
+                        "noturno", new conecta.demo.service.SolicitacaoTemporalService.IntervaloTurno(LocalTime.of(19, 0), LocalTime.of(22, 0))));
     }
 
     private Sala salaDaUnidade(Long unidadeId) {
@@ -85,9 +107,9 @@ class SolicitacaoServiceTest {
                 INSTRUTOR_ID,
                 null,
                 Set.of("Matutino"),
-                null,
-                null,
-                null,
+                java.time.LocalDate.of(2026, 9, 1),
+                java.time.LocalDate.of(2026, 9, 1),
+                java.time.LocalDate.of(2026, 9, 1),
                 Set.of("seg"),
                 null,
                 null,
@@ -104,6 +126,7 @@ class SolicitacaoServiceTest {
         when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
         when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
         when(solicitacoes.findAll()).thenReturn(List.of());
+        when(solicitacoes.findByUnidadeId(UNIDADE_OK)).thenReturn(List.of());
 
         Solicitacao salva = new Solicitacao();
         when(solicitacoes.save(any(Solicitacao.class))).thenAnswer(inv -> {
@@ -140,6 +163,56 @@ class SolicitacaoServiceTest {
         when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
 
         assertThrows(RegraDeNegocioException.class, () -> service.criar(request(UNIDADE_OK)));
+        verify(solicitacoes, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Criar: aceita o turno cadastrado na turma")
+    void criarComTurnoDaTurmaAceita() {
+        Turma turma = turmaDaUnidade("Matutino", UNIDADE_OK);
+        SolicitacaoRequest entrada = requestComTurma(turma.getId(), Set.of("Matutino"));
+        when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
+        when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
+        when(turmas.findById(turma.getId())).thenReturn(Optional.of(turma));
+        when(solicitacoes.findAll()).thenReturn(List.of());
+        when(solicitacoes.findByUnidadeId(UNIDADE_OK)).thenReturn(List.of());
+        when(solicitacoes.save(any(Solicitacao.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.criar(entrada);
+
+        verify(solicitacoes).save(any(Solicitacao.class));
+    }
+
+    @Test
+    @DisplayName("Criar: rejeita cada turno incompatível com a turma")
+    void criarComTurnosIncompativeisFalha() {
+        Turma turma = turmaDaUnidade("Matutino", UNIDADE_OK);
+        when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
+        when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
+        when(turmas.findById(turma.getId())).thenReturn(Optional.of(turma));
+
+        for (Set<String> turnos : List.of(Set.of("Vespertino"), Set.of("Noturno"),
+                Set.of("Matutino", "Vespertino", "Noturno"))) {
+            assertThrows(RegraDeNegocioException.class,
+                    () -> service.criar(requestComTurma(turma.getId(), turnos)));
+        }
+        verify(solicitacoes, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Criar: rejeita turma inexistente e turma de outra unidade sem persistir")
+    void criarComTurmaInvalidaFalha() {
+        when(salas.findById(SALA_ID)).thenReturn(Optional.of(salaDaUnidade(UNIDADE_OK)));
+        when(usuarios.findById(INSTRUTOR_ID)).thenReturn(Optional.of(instrutorDaUnidade(UNIDADE_OK)));
+        when(turmas.findById(40L)).thenReturn(Optional.empty());
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.criar(requestComTurma(40L, Set.of("Matutino"))));
+
+        Turma outraUnidade = turmaDaUnidade("Matutino", 99L);
+        when(turmas.findById(outraUnidade.getId())).thenReturn(Optional.of(outraUnidade));
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.criar(requestComTurma(outraUnidade.getId(), Set.of("Matutino"))));
         verify(solicitacoes, never()).save(any());
     }
 
@@ -193,6 +266,33 @@ class SolicitacaoServiceTest {
     }
 
     @Test
+    void cancelarSolicitacaoPendentePreservaRegistroERegistraTransicao() {
+        Solicitacao pendente = solicitacao(StatusSolicitacao.PENDENTE);
+        when(solicitacoes.findByIdForUpdate(SOLICITACAO_ID)).thenReturn(Optional.of(pendente));
+        when(solicitacoes.save(any(Solicitacao.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(notificacoes.findAll()).thenReturn(java.util.List.of());
+
+        Solicitacao resultado = service.cancelar(SOLICITACAO_ID, "Solicitação duplicada da solicitação #29");
+
+        assertEquals(StatusSolicitacao.CANCELADA, resultado.getStatus());
+        assertEquals("COORDENADOR", resultado.getOrigemStatus());
+        assertEquals("Solicitação duplicada da solicitação #29", resultado.getMotivoStatus());
+        assertEquals("Solicitação duplicada da solicitação #29", resultado.getResposta());
+        org.junit.jupiter.api.Assertions.assertNotNull(resultado.getRespondidaEm());
+        verify(solicitacoes).save(pendente);
+    }
+
+    @Test
+    void aprovarSolicitacaoExpiradaFalhaSemCriarReserva() {
+        Solicitacao expirada = solicitacao(StatusSolicitacao.EXPIRADA);
+        when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(java.util.Optional.of(expirada));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("aprovar", null)));
+        verify(reservas, never()).criar(any());
+    }
+
+    @Test
     @DisplayName("Responder: decisao fora de aprovar/recusar lanca 409")
     void responderComDecisaoInvalidaFalha() {
         when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(solicitacao(StatusSolicitacao.PENDENTE)));
@@ -225,6 +325,38 @@ class SolicitacaoServiceTest {
 
         verify(reservas, org.mockito.Mockito.times(2)).criar(any());
         assertEquals(StatusSolicitacao.APROVADA, pendente.getStatus());
+    }
+
+    @Test
+    @DisplayName("Responder: aprovacao revalida turno que venceu enquanto aguardava")
+    void responderAprovarTurnoVencidoFalha() {
+        Solicitacao vencida = solicitacao(StatusSolicitacao.PENDENTE);
+        vencida.setData(java.time.LocalDate.of(2026, 8, 1));
+        vencida.setDataInicio(java.time.LocalDate.of(2026, 8, 1));
+        vencida.setDataFim(java.time.LocalDate.of(2026, 8, 1));
+        when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(vencida));
+        service = new SolicitacaoService(solicitacoes, salas, usuarios, reservas, notificacoes,
+                null, null, null, temporalAt("2026-08-01T12:00"));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("aprovar", null)));
+        verify(reservas, never()).criar(any());
+        assertEquals(StatusSolicitacao.PENDENTE, vencida.getStatus());
+    }
+
+    @Test
+    @DisplayName("Responder: aprovacao mantem a compatibilidade entre turma e turnos")
+    void responderAprovarTurnoIncompativelFalha() {
+        Solicitacao pendente = solicitacao(StatusSolicitacao.PENDENTE);
+        pendente.setTurmaId(40L);
+        pendente.setTurnos(Set.of("Matutino", "Vespertino"));
+        when(solicitacoes.findById(SOLICITACAO_ID)).thenReturn(Optional.of(pendente));
+        when(turmas.findById(40L)).thenReturn(Optional.of(turmaDaUnidade("Matutino", UNIDADE_OK)));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.responder(SOLICITACAO_ID, new RespostaSolicitacaoRequest("aprovar", null)));
+        verify(reservas, never()).criar(any());
+        verify(solicitacoes, never()).save(any());
     }
 
     @Test
@@ -261,8 +393,31 @@ class SolicitacaoServiceTest {
         s.setSalaId(SALA_ID);
         s.setInstrutorId(INSTRUTOR_ID);
         s.setUnidadeId(UNIDADE_OK);
+        s.setData(java.time.LocalDate.of(2026, 9, 1));
+        s.setDataInicio(java.time.LocalDate.of(2026, 9, 1));
+        s.setDataFim(java.time.LocalDate.of(2026, 9, 1));
         s.setStatus(status);
         s.setTurnos(Set.of("Matutino"));
         return s;
+    }
+
+    private SolicitacaoRequest requestComTurma(Long turmaId, Set<String> turnos) {
+        SolicitacaoRequest base = request(UNIDADE_OK);
+        return new SolicitacaoRequest(
+                base.salaId(), base.instrutorId(), turmaId, turnos, base.data(),
+                base.dataInicio(), base.dataFim(), base.diasSemana(), base.datasEspecificas(),
+                base.horaInicio(), base.horaFim(), base.modo(), base.turno(), base.motivo(),
+                base.unidadeId());
+    }
+
+    private conecta.demo.model.Turma turmaDaUnidade(String turno, Long unidadeId) {
+        conecta.demo.model.Turma turma = new conecta.demo.model.Turma();
+        turma.setId(40L);
+        turma.setNome("Turma de teste");
+        turma.setCodigo("T-TESTE");
+        turma.setCurso("Curso de teste");
+        turma.setTurno(turno);
+        turma.setUnidadeId(unidadeId);
+        return turma;
     }
 }

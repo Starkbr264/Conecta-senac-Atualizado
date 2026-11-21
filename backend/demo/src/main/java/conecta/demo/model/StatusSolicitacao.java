@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Locale;
 
 public enum StatusSolicitacao {
-    PENDENTE, APROVADA, RECUSADA;
+    PENDENTE, APROVADA, RECUSADA, CANCELADA, EXPIRADA;
 
     @JsonValue
     public String json() {
