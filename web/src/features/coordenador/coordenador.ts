@@ -53,6 +53,7 @@ import {
   updTurmaAsync,
   responderSolicAsync,
   cancelarSolicAsync,
+  invalidatePendingDataRead,
   unidadePadrao,
   type NovoSala,
   type OverrideSala,
@@ -79,6 +80,7 @@ import {
   type ConfigBarraFiltros,
 } from '../../core/filters';
 import { byId, tryById } from '../../core/dom';
+import { createDataSyncController } from '../../core/data-sync';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
@@ -124,9 +126,11 @@ interface ModalMotivoSalaState {
 
 let modalMotivoSalaState: ModalMotivoSalaState | null = null;
 let recusaSolicId: number | null = null;
+let autoSync: ReturnType<typeof createDataSyncController> | null = null;
 
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initCoordenador(): Promise<void> {
+  autoSync?.stop();
   await initDados();
   await carregarConfiguracaoTemporal();
   requirePerfil('coordenador');
@@ -136,6 +140,16 @@ export async function initCoordenador(): Promise<void> {
   initLogo();
   ir('dashboard');
   atualizarBadges();
+  autoSync = createDataSyncController({
+    sync: async () => { await initDados(); },
+    onInvalidated: invalidatePendingDataRead,
+    onUpdated: () => {
+      rdSolics();
+      atualizarBadges();
+    },
+    isVisible: () => typeof document === 'undefined' || document.visibilityState === 'visible',
+  });
+  autoSync.start();
 }
 
 function uid(): number | null {

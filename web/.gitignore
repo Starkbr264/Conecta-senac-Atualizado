@@ -10,6 +10,10 @@ dist/
 .vite/
 .tsbuildinfo
 
+# Artefatos do Playwright
+test-results/
+playwright-report/
+
 # Configuracoes de IDE (nao versionar prefs locais)
 .vscode/
 .idea/

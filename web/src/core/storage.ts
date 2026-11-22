@@ -12,6 +12,7 @@
 
 import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi, responderSolicitacao, cancelarSolicitacao } from './api';
 import { getSessao } from './theme';
+import { createReadVersionGuard, publishDataUpdate } from './data-sync';
 import type {
   Atualizar,
   Chave,
@@ -197,6 +198,8 @@ export function loadCache(): void {
 const syncPromises = new WeakMap<object, Promise<SyncResult>>();
 let filaSync: SyncPendente[] = [];
 let flushPromise: Promise<SyncResult> | null = null;
+let sincronizacaoPromise: Promise<void> | null = null;
+const cacheReadVersion = createReadVersionGuard();
 
 /**
  * Status HTTP que significam recusa definitiva da operacao (validacao ou regra
@@ -235,6 +238,17 @@ function persist(key: Colecao, payload?: SyncPayload, entidade?: object): void {
   const delta = payload ?? payloadDaColecao(key, 'alteracoes', CACHE[key][CACHE[key].length - 1]);
   const promessa = enfileirar(delta);
   if (entidade) syncPromises.set(entidade, promessa);
+  void promessa.then((resultado) => {
+    if (resultado.confirmado) {
+      invalidatePendingDataRead();
+      publishDataUpdate();
+    }
+  });
+}
+
+/** Invalida qualquer GET em andamento sem apagar o cache atual. */
+export function invalidatePendingDataRead(): void {
+  cacheReadVersion.invalidate();
 }
 
 /** Coloca um id na fila de remocoes pendentes. */
@@ -359,9 +373,9 @@ async function confirmarFila(): Promise<void> {
  * central com dados divergentes. Cada alteracao local ja foi (ou sera)
  * propagada por {@link pushColecao}.
  */
-export async function sincronizarServidor(): Promise<void> {
+async function sincronizarServidorInterno(): Promise<boolean> {
   if (!filaSync.length) lerFilaSync();
-  if (filaSync.length && !(await flushPendentes()).confirmado) return;
+  if (filaSync.length && !(await flushPendentes()).confirmado) return true;
   // Sem token JWT nao ha o que sincronizar: /api/dados exige autenticacao e a
   // chamada retornaria 401 (logado antes como "modo offline"/"sessao expirada",
   // mensagem enganosa na tela de login, que roda este fluxo antes do login).
@@ -375,8 +389,9 @@ export async function sincronizarServidor(): Promise<void> {
     } catch {
       /* API indisponivel: preserva o cache local e segue offline. */
     }
-    return;
+    return true;
   }
+  const readVersion = cacheReadVersion.beginRead();
   try {
     if (CACHE._remocoes && Object.keys(CACHE._remocoes).length) {
       const remocoes: Partial<Record<Colecao, number[]>> = {};
@@ -392,6 +407,7 @@ export async function sincronizarServidor(): Promise<void> {
     }
 
     const remoto = await buscarDados();
+    if (!cacheReadVersion.isCurrent(readVersion)) return false;
 
     COLECOES.forEach((chave) => {
       const dados = remoto[chave];
@@ -402,9 +418,29 @@ export async function sincronizarServidor(): Promise<void> {
     });
 
     console.log('[web] Banco sincronizado com o servidor central.');
+    return true;
   } catch (err) {
     console.warn('[web] Sincronizacao falhou (modo offline):', err);
+    return true;
   }
+}
+
+/**
+ * Evita duas abas/acoes da mesma pagina baixarem o banco simultaneamente.
+ * A segunda chamada aguarda exatamente a mesma promessa, sem iniciar outra
+ * leitura potencialmente mais antiga.
+ */
+export function sincronizarServidor(): Promise<void> {
+  if (!sincronizacaoPromise) {
+    sincronizacaoPromise = (async () => {
+      // Uma leitura invalidada nao pode ser aplicada; repete-se apenas a
+      // leitura, sem republicar eventos ou iniciar um ciclo de notificacoes.
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        if (await sincronizarServidorInterno()) return;
+      }
+    })().finally(() => { sincronizacaoPromise = null; });
+  }
+  return sincronizacaoPromise;
 }
 
 // ---------------------------------------------------------------------------
@@ -1046,12 +1082,16 @@ export async function responderSolicAsync(
   resposta?: string,
 ): Promise<void> {
   await responderSolicitacao(id, decisao, resposta);
+  invalidatePendingDataRead();
   await sincronizarServidor();
+  publishDataUpdate();
 }
 
 export async function cancelarSolicAsync(id: number, motivo?: string): Promise<void> {
   await cancelarSolicitacao(id, motivo);
+  invalidatePendingDataRead();
   await sincronizarServidor();
+  publishDataUpdate();
 }
 
 // ---------------------------------------------------------------------------

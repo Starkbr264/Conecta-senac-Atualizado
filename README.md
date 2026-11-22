@@ -167,10 +167,35 @@ npm run dev          # http://localhost:5173
 Scripts disponíveis:
 
 ```bash
-npm run typecheck    # tsc --noEmit (strict)
-npm run build        # typecheck + vite build -> web/dist
-npm run preview      # serve o web/dist recém-gerado
+npm test           # vitest (testes unitários/integração)
+npm run typecheck  # tsc --noEmit (strict)
+npm run build      # typecheck + vite build -> web/dist
+npm run preview    # serve o web/dist recém-gerado
+npm run test:e2e   # Playwright (2 cenários, API mockada, inicia o Vite sozinho)
 ```
+
+#### Testes E2E de sincronização (Playwright)
+
+Reproduzíveis após clonar o repositório, sem backend, sem credenciais e sem
+acesso ao Supabase — toda a API é mockada/interceptada e **somente métodos GET
+são permitidos** (qualquer requisição não-GET é bloqueada e o teste falha):
+
+```bash
+cd web
+npm install
+npx playwright install chromium   # primeira execução
+npm run test:e2e
+```
+
+A configuração (`playwright.config.ts`) sobe automaticamente o Vite em
+`http://127.0.0.1:4173`. Os dois cenários (`e2e/data-sync.spec.ts`) cobrem:
+
+1. **BroadcastChannel nativo** — duas páginas independentes no mesmo contexto;
+2. **Fallback via `storage`** — `BroadcastChannel` desabilitado por init script.
+
+Em ambos: contadores de solicitações atualizados na segunda aba, botão manual
+`data-action="atualizarSecao"` disparando nova leitura, e zero escritas
+registradas.
 
 ### 9.2 Backend Java (sem Docker)
 
@@ -219,8 +244,9 @@ npm run typecheck
 - **Backend:** 148 testes automatizados (JUnit 5), incluindo testes com PostgreSQL
   embutido (zonky), regras de negócio, autorização por unidade, concorrência de
   IDs (8 threads × 5 alocações = 40 IDs únicos), sincronização e idempotência.
-- **Frontend:** `npm run typecheck` (TypeScript strict) + `npm run build`
-  (Vite) sem erros.
+- **Frontend:** `npm test` (Vitest, 28 testes incluindo integração de
+  sincronização), `npm run test:e2e` (Playwright, 2 cenários com API mockada),
+  `npm run typecheck` (TypeScript strict) e `npm run build` (Vite) sem erros.
 - **Integridade:** `git diff --check` sem problemas de whitespace.
 
 ## 11. Segurança
