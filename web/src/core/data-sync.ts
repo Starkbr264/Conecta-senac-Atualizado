@@ -166,12 +166,25 @@ export function createDataSyncController(options: ControllerOptions): DataSyncCo
       });
   };
 
+  // Evita que chamadas repetidas de requestRefresh agendem varios microtasks
+  // em sequencia: a primeira marca `scheduled` e apenas ela agenda o `run`;
+  // chamadas subsequentes (burst de eventos/polling) apenas sinalizam `queued`
+  // para que o ciclo em andamento reagende uma unica vez.
+  let scheduled = false;
   const requestRefresh = (): void => {
     if (running) {
       queued = true;
       return;
     }
-    scheduleTask(run);
+    if (scheduled) {
+      queued = true;
+      return;
+    }
+    scheduled = true;
+    scheduleTask(() => {
+      scheduled = false;
+      run();
+    });
   };
 
   const receive = (value: unknown): void => {

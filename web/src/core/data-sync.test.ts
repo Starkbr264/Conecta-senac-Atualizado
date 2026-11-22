@@ -201,4 +201,59 @@ describe('atualizacao de dados entre abas', () => {
     expect(intervalClears).toBe(1);
     expect(channel.closed).toBe(true);
   });
+
+  describe('coalescencia de requestRefresh', () => {
+    it('agenda um unico run mesmo com chamadas repetidas', () => {
+      const sync = vi.fn().mockResolvedValue(undefined);
+      const scheduled: Array<() => void> = [];
+      const scheduleTask = (task: () => void): void => { scheduled.push(task); };
+      const controller = createDataSyncController({
+        sync,
+        onUpdated: vi.fn(),
+        isVisible: () => true,
+        setIntervalTask: () => 1,
+        clearIntervalTask: () => undefined,
+        scheduleTask,
+        channel: null,
+        subscribeStorage: () => () => undefined,
+      });
+
+      controller.requestRefresh();
+      controller.requestRefresh();
+      controller.requestRefresh();
+
+      expect(scheduled).toHaveLength(1);
+    });
+
+    it('reagenda uma unica vez apos concluir o run em andamento', async () => {
+      let resolverSync!: () => void;
+      const sync = vi.fn().mockImplementation(() => new Promise<void>((resolve) => { resolverSync = resolve; }));
+      const scheduled: Array<() => void> = [];
+      const scheduleTask = (task: () => void): void => { scheduled.push(task); };
+      const controller = createDataSyncController({
+        sync,
+        onUpdated: vi.fn(),
+        isVisible: () => true,
+        setIntervalTask: () => 1,
+        clearIntervalTask: () => undefined,
+        scheduleTask,
+        channel: null,
+        subscribeStorage: () => () => undefined,
+      });
+
+      controller.requestRefresh();
+      expect(scheduled).toHaveLength(1);
+      scheduled.shift()!();
+
+      // Enquanto o run esta em andamento, novas chamadas marcam queued.
+      controller.requestRefresh();
+      controller.requestRefresh();
+      expect(scheduled).toHaveLength(0);
+
+      resolverSync();
+      await vi.waitFor(() => {
+        expect(scheduled).toHaveLength(1);
+      }, { timeout: 1000 });
+    });
+  });
 });

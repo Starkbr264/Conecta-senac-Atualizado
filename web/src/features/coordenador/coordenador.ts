@@ -126,6 +126,8 @@ interface ModalMotivoSalaState {
 
 let modalMotivoSalaState: ModalMotivoSalaState | null = null;
 let recusaSolicId: number | null = null;
+let recusaSalvando = false;
+let recusaErro: string | null = null;
 let autoSync: ReturnType<typeof createDataSyncController> | null = null;
 
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
@@ -1870,11 +1872,57 @@ export function rdSolics(): void {
   });
   const aba = (window as Window & { _solicTab?: string })._solicTab ?? 'pendente';
   const list = todos.filter((s) => s.status === aba);
+
+  const fingerprint =
+    `${aba}|${list.map((s) => `${s.id}:${s.status}:${s.respondidaEm || ''}:${s.motivo || ''}`).join(',')}|` +
+    `recusa:${recusaSolicId}:${recusaSalvando}:${recusaErro || ''}|` +
+    `cancel:${cancelamentoSolicId}:${cancelamentoSalvando}:${cancelamentoErro || ''}`;
+
+  // Preserva o estado de edição (textarea de recusa/cancelamento) para que uma
+  // atualização automática com dados inalterados não apague o texto digitado,
+  // o foco nem o scroll. Capturado antes de qualquer reconstrução.
+  const textareaIds = ['motivoRecusaSolic', 'motivoCancelamentoSolic'];
+  const valoresTextareas = new Map<string, string>();
+  textareaIds.forEach((id) => {
+    const el = document.getElementById(id) as HTMLTextAreaElement | null;
+    if (el) valoresTextareas.set(id, el.value);
+  });
+  const textareaAtiva = document.activeElement as HTMLTextAreaElement | null;
+  const idTextareaAtiva =
+    textareaAtiva && textareaAtiva.id ? textareaAtiva.id : null;
+  const inicioSelecao = textareaAtiva ? textareaAtiva.selectionStart : null;
+  const fimSelecao = textareaAtiva ? textareaAtiva.selectionEnd : null;
+  const scrollAntes = cont.scrollTop;
+
+  const ultimaImpressao = (window as Window & { _rdSolicsImpressao?: string })._rdSolicsImpressao;
+  if (ultimaImpressao === fingerprint) {
+    // Dados e estado da seção não mudaram: evita rebuild, flash e perda de foco.
+    return;
+  }
+  (window as Window & { _rdSolicsImpressao?: string })._rdSolicsImpressao = fingerprint;
+
   if (!list.length) {
     cont.innerHTML = '<p class="txt2">Nenhuma solicitação recebida.</p>';
     return;
   }
   cont.innerHTML = list.map((s) => cardSolic(s)).join('');
+
+  valoresTextareas.forEach((valor, id) => {
+    const novo = document.getElementById(id) as HTMLTextAreaElement | null;
+    if (novo) novo.value = valor;
+  });
+  if (idTextareaAtiva) {
+    const novo = document.getElementById(idTextareaAtiva) as HTMLTextAreaElement | null;
+    if (novo) {
+      if (inicioSelecao !== null && fimSelecao !== null) {
+        try { novo.setSelectionRange(inicioSelecao, fimSelecao); } catch { /* ignore */ }
+      }
+      if (document.activeElement !== novo) {
+        try { novo.focus(); } catch { /* ignore */ }
+      }
+    }
+  }
+  cont.scrollTop = scrollAntes;
 }
 
 export function selecionarAbaSolic(tab: string): void {
@@ -2083,10 +2131,25 @@ export function cardSolic(s: Solicitacao): string {
           ? '<div class="solic-impedimento"><i class="ph ph-warning-circle"></i> ' + esc(diagnostico.impedimentos.join(' ')) + '</div>'
           : '') +
         (recusaSolicId === s.id
-          ? '<div class="solic-recusa"><label for="motivoRecusaSolic">Motivo da recusa (opcional)</label><textarea id="motivoRecusaSolic" rows="3"></textarea><div class="solic-sugestoes">' +
-            ['Data já passou', 'Solicitação duplicada', 'Conflito de horário'].map((r) => `<button class="btn btn-ghost btn-sm" data-action="sugerirRecusaSolic" data-arg="${esc(r)}">${esc(r)}</button>`).join('') +
-            '</div><div class="solic-recusa-acoes"><button class="btn btn-ghost btn-sm" data-action="cancelarRecusaSolic">Cancelar</button><button class="btn btn-danger btn-sm" data-action="confirmarRecusaSolic" data-arg="${s.id}">Confirmar recusa</button></div></div>'
+          ? '<div class="solic-recusa"><label for="motivoRecusaSolic">Motivo da recusa (opcional)</label><textarea id="motivoRecusaSolic" rows="3" ' + (recusaSalvando ? 'disabled ' : '') + '></textarea><div class="solic-sugestoes">' +
+            ['Data já passou', 'Solicitação duplicada', 'Conflito de horário'].map((r) => `<button class="btn btn-ghost btn-sm" data-action="sugerirRecusaSolic" data-arg="${esc(r)}"${recusaSalvando ? ' disabled' : ''}>${esc(r)}</button>`).join('') +
+            '</div>' +
+            (recusaErro ? `<div class="solic-erro" role="alert"><i class="ph ph-warning-circle"></i> ${esc(recusaErro)}</div>` : '') +
+            '<div class="solic-recusa-acoes"><button class="btn btn-ghost btn-sm" data-action="cancelarRecusaSolic"' + (recusaSalvando ? ' disabled' : '') + '>Cancelar</button><button class="btn btn-danger btn-sm" data-action="confirmarRecusaSolic" data-arg="' + s.id + '"' + (recusaSalvando ? ' disabled' : '') + '>' + (recusaSalvando ? '<i class="ph ph-circle-notch"></i> Recusando…' : 'Confirmar recusa') + '</button></div></div>'
           : '')
+          + (cancelamentoSolicId === s.id
+            ? '<div class="solic-recusa solic-cancelamento">' +
+              '<strong class="solic-cancelamento-titulo">Cancelar solicitação</strong>' +
+              '<p class="txt2" style="margin:2px 0 6px">Informe o motivo do cancelamento (opcional).</p>' +
+              `<label for="motivoCancelamentoSolic">Motivo do cancelamento (opcional)</label>` +
+              `<textarea id="motivoCancelamentoSolic" rows="3" placeholder="Opcional"${cancelamentoSalvando ? ' disabled' : ''}>${esc(cancelamentoMotivoPadrao)}</textarea>` +
+              (cancelamentoErro ? `<div class="solic-erro" role="alert"><i class="ph ph-warning-circle"></i> ${esc(cancelamentoErro)}</div>` : '') +
+              '<div class="solic-recusa-acoes">' +
+              `<button class="btn btn-ghost btn-sm" data-action="fecharCancelamentoSolic"${cancelamentoSalvando ? ' disabled' : ''}>Voltar</button>` +
+              `<button class="btn btn-danger btn-sm" data-action="confirmarCancelamentoSolic" data-arg="${s.id}"${cancelamentoSalvando ? ' disabled' : ''}>` +
+              (cancelamentoSalvando ? '<i class="ph ph-circle-notch"></i> Cancelando…' : '<i class="ph ph-prohibit"></i> Confirmar cancelamento') +
+              '</button></div></div>'
+            : '')
        : s.resposta
         ? '<div style="margin-top:8px;border-left:3px solid ' +
           (s.status === 'aprovada' ? 'var(--green)' : 'var(--red)') +
@@ -2131,7 +2194,36 @@ export async function responderSolic(
   rdMapa();
 }
 
-export async function cancelarSolic(id: number): Promise<void> {
+// --- Cancelamento: interface propria (substitui o `window.prompt` nativo) ---
+let cancelamentoSolicId: number | null = null;
+let cancelamentoMotivoPadrao = '';
+let cancelamentoSalvando = false;
+let cancelamentoErro: string | null = null;
+
+/**
+ * Classifica qualquer erro de mutacao numa mensagem exibivel sem vazar
+ * tokens, senhas ou detalhes internos: `ErroApi` usa a mensagem de negocio do
+ * backend; timeout e falha de rede ganham textos proprios; o resto cai no
+ * fallback informado.
+ */
+export function mensagemDeFalhaDeOperacao(erro: unknown, fallback: string): string {
+  if (erro instanceof ErroApi) return erro.message;
+  if (erro instanceof Error) {
+    const tipo = String(erro.name || '');
+    const msg = String(erro.message || '');
+    if (tipo === 'AbortError' || /timeout|timed out/i.test(msg)) {
+      return 'Tempo de conexão esgotado. Verifique a rede e tente novamente.';
+    }
+    if (erro instanceof TypeError || /fetch|network|failed to fetch|load failed/i.test(msg)) {
+      return 'Falha de conexão com o servidor. Tente novamente.';
+    }
+    if (msg) return msg;
+  }
+  return fallback;
+}
+
+/** Abre a interface de cancelamento (sem diálogo nativo). */
+export function cancelarSolic(id: number): void {
   if (!Number.isSafeInteger(id) || id <= 0) {
     toast('Solicitação sem ID persistido válido. Sincronize antes de continuar.', 'erro');
     return;
@@ -2144,17 +2236,45 @@ export async function cancelarSolic(id: number): Promise<void> {
       && String(item.dataInicio || item.data) === String(solicitacao.dataInicio || solicitacao.data)
       && String(item.dataFim || item.data) === String(solicitacao.dataFim || solicitacao.data),
   );
-  const motivoPadrao = duplicada ? `Solicitação duplicada da solicitação #${duplicada.id}` : '';
-  const motivo = window.prompt('Motivo do cancelamento (opcional):', motivoPadrao);
-  if (motivo === null) return;
+  cancelamentoMotivoPadrao = duplicada ? `Solicitação duplicada da solicitação #${duplicada.id}` : '';
+  cancelamentoSolicId = id;
+  cancelamentoSalvando = false;
+  cancelamentoErro = null;
+  rdSolics();
+}
+
+/** Volta sem executar a operacao de cancelamento. */
+export function fecharCancelamentoSolic(): void {
+  if (cancelamentoSalvando) return;
+  cancelamentoSolicId = null;
+  cancelamentoErro = null;
+  rdSolics();
+}
+
+/** Confirma o cancelamento somente apos o clique do usuario. */
+export async function confirmarCancelamentoSolic(id: number): Promise<void> {
+  if (cancelamentoSalvando) return;
+  const campo = tryById<HTMLTextAreaElement>('motivoCancelamentoSolic');
+  const digitado = (campo?.value ?? '').trim();
+  // Contrato atual da API: motivo opcional; sem texto envia null (nao string vazia).
+  const motivo = digitado || cancelamentoMotivoPadrao || undefined;
+  cancelamentoSalvando = true;
+  cancelamentoErro = null;
+  rdSolics();
   try {
-    await cancelarSolicAsync(id, motivo.trim() || motivoPadrao);
+    await cancelarSolicAsync(id, motivo);
+    cancelamentoSolicId = null;
+    cancelamentoSalvando = false;
     toast('Solicitação cancelada.', 'ok');
     rdSolics();
     atualizarBadges();
+    popularFiltrosMapa();
+    rdMapa();
   } catch (err) {
-    console.error('Erro ao cancelar solicitação:', err);
-    toast('Erro ao cancelar. Tente novamente.', 'erro');
+    console.error('Erro ao cancelar solicitação:', err instanceof Error ? err.message : err);
+    cancelamentoSalvando = false;
+    cancelamentoErro = mensagemDeFalhaDeOperacao(err, 'Erro ao cancelar. Tente novamente.');
+    rdSolics();
   }
 }
 
@@ -2176,15 +2296,27 @@ export function sugerirRecusaSolic(motivo: string): void {
 export async function confirmarRecusaSolic(id: number): Promise<void> {
   const campo = tryById<HTMLTextAreaElement>('motivoRecusaSolic');
   const motivo = campo?.value.trim() ?? '';
+  if (recusaSalvando) return;
+  recusaSalvando = true;
+  recusaErro = null;
+  rdSolics();
   try {
     await responderSolicAsync(id, 'recusar', motivo);
     recusaSolicId = null;
+    recusaSalvando = false;
     toast('Solicitação recusada!', 'ok');
     await initDados(true);
     rdSolics();
     atualizarBadges();
   } catch (erro) {
-    toast(erro instanceof ErroApi ? erro.message : 'Erro ao recusar solicitação.', 'erro');
+    // O formulario permanece aberto com o texto digitado; a causa tecnica vai
+    // para o console e a mensagem classificada aparece dentro da propria
+    // interface (nem toda falha vem do backend como ErroApi — rede/timeout
+    // chegam como erro de fetch).
+    console.error('Erro ao recusar solicitação:', erro instanceof Error ? erro.message : erro);
+    recusaSalvando = false;
+    recusaErro = mensagemDeFalhaDeOperacao(erro, 'Erro ao recusar solicitação.');
+    rdSolics();
   }
 }
 

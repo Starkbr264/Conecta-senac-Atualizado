@@ -56,6 +56,8 @@ registrarAcoes({
   sugerirRecusaSolic: ({ arg }) => coordenador.sugerirRecusaSolic(arg ?? ''),
   confirmarRecusaSolic: ({ num }) => void coordenador.confirmarRecusaSolic(num as number),
   cancelarSolic: ({ num }) => void coordenador.cancelarSolic(num as number),
+  fecharCancelamentoSolic: coordenador.fecharCancelamentoSolic,
+  confirmarCancelamentoSolic: ({ num }) => void coordenador.confirmarCancelamentoSolic(num as number),
   selecionarAbaSolic: ({ arg }) => coordenador.selecionarAbaSolic(arg ?? 'pendente'),
   marcarTodasLidasLocal: coordenador.marcarTodasLidasLocal,
 
