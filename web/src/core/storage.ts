@@ -229,6 +229,36 @@ function salvarPrivado(key: Colecao, valor: unknown): void {
   if (namespace) sv(namespace, valor);
 }
 
+/**
+ * Valida o snapshot inteiro recebido de GET /api/dados antes de qualquer
+ * mutação do cache. O contrato declara todas as coleções de COLECOES como
+ * obrigatórias; arrays vazios são válidos, mas uma coleção ausente, nula,
+ * não-array ou com registros sem id não é um snapshot aplicável.
+ */
+function validarRespostaCompleta(remoto: unknown): asserts remoto is Record<Colecao, unknown[]> {
+  if (remoto === null || typeof remoto !== 'object') {
+    throw new Error('Resposta de dados inválida: corpo não é um objeto.');
+  }
+
+  const resposta = remoto as Record<string, unknown>;
+  for (const chave of COLECOES) {
+    if (!Object.prototype.hasOwnProperty.call(resposta, chave)) {
+      throw new Error(`Resposta de dados incompleta: coleção ausente (${chave}).`);
+    }
+    const dados = resposta[chave];
+    if (!Array.isArray(dados)) {
+      throw new Error(`Resposta de dados inválida: coleção não é array (${chave}).`);
+    }
+    if (dados.some((item) => (
+      item === null
+      || typeof item !== 'object'
+      || !Number.isSafeInteger((item as { id?: unknown }).id)
+    ))) {
+      throw new Error(`Resposta de dados inválida: registro sem id (${chave}).`);
+    }
+  }
+}
+
 export function invalidarCacheEmMemoria(): void {
   COLECOES.forEach((key) => { CACHE[key] = [] as never; });
   CACHE.loaded = false;
@@ -255,6 +285,48 @@ export function loadCache(): void {
   CACHE.notificacoes = identidade ? lerPrivado<Notificacao>('notificacoes') : [];
   CACHE.solicitacoes = identidade ? lerPrivado<Solicitacao>('solicitacoes') : [];
   lerFilaSync();
+}
+
+/**
+ * Verifica se existe um snapshot local utilizável para as coleções necessárias
+ * ao dashboard, no namespace da identidade atualmente autenticada.
+ *
+ * A existência de uma coleção vazia é válida; o que não é válido é a ausência
+ * da chave, JSON inválido ou uma coleção que não seja uma lista de objetos.
+ * O namespace inclui usuário, unidade e perfil, impedindo reaproveitamento
+ * acidental de dados de outra sessão.
+ */
+export function cacheDashboardConfiavel(): boolean {
+  const identidade = identidadeAtual();
+  if (!identidade || typeof localStorage === 'undefined') return false;
+
+  const camposDashboard: Record<Extract<Colecao, 'salas' | 'turmas' | 'reservas' | 'solicitacoes'>, string[]> = {
+    salas: ['id', 'unidadeId'],
+    turmas: ['id', 'unidadeId'],
+    reservas: ['id', 'unidadeId'],
+    solicitacoes: ['id', 'unidadeId', 'status'],
+  };
+  try {
+    return (Object.keys(camposDashboard) as Array<keyof typeof camposDashboard>).every((key) => {
+      const bruto = localStorage.getItem(cacheKeyForIdentity(key, identidade));
+      if (bruto === null) return false;
+      const dados: unknown = JSON.parse(bruto);
+      return Array.isArray(dados)
+        && dados.every((item) => {
+          if (item === null || typeof item !== 'object') return false;
+          const registro = item as Record<string, unknown>;
+          const id = registro.id;
+          const idValido = (typeof id === 'number' && Number.isSafeInteger(id))
+            || (typeof id === 'string' && id.trim() !== '');
+          return idValido && camposDashboard[key].every((campo) => {
+            const valor = registro[campo];
+            return valor !== null && valor !== undefined && String(valor).trim() !== '';
+          });
+        });
+    });
+  } catch {
+    return false;
+  }
 }
 
 /** Grava a colecao no localStorage e a propaga ao servidor. */
@@ -604,12 +676,11 @@ async function sincronizarServidorInterno(): Promise<boolean> {
       || identidadeAtual()?.unidadeId !== identidadeDaLeitura?.unidadeId
       || lowerPerfil(identidadeAtual()?.perfil) !== lowerPerfil(identidadeDaLeitura?.perfil)) return false;
 
+    validarRespostaCompleta(remoto);
     COLECOES.forEach((chave) => {
       const dados = remoto[chave];
-      if (Array.isArray(dados)) {
-        (CACHE[chave] as unknown[]) = dados as unknown[];
-        salvarPrivado(chave, dados);
-      }
+      (CACHE[chave] as unknown[]) = dados;
+      salvarPrivado(chave, dados);
     });
 
     console.log('[web] Banco sincronizado com o servidor central.');

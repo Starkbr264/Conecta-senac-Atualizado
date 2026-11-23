@@ -15,6 +15,17 @@ const cacheCom = (solicitacoes: unknown[]) => ({
   usuarios: [], unidades: [], salas: [], turmas: [], reservas: [], chaves: [], notificacoes: [], solicitacoes,
 });
 
+const bancoCompleto = (id = 1) => ({
+  usuarios: [{ id }],
+  unidades: [{ id }],
+  salas: [{ id }],
+  turmas: [{ id }],
+  reservas: [{ id }],
+  chaves: [{ id }],
+  notificacoes: [{ id }],
+  solicitacoes: [{ ...initialSolicitacao, id }],
+});
+
 function preparaLocalStorage(): void {
   const values = new Map<string, string>();
   Object.defineProperty(globalThis, 'localStorage', {
@@ -151,5 +162,111 @@ describe('storage e sincronizacao de solicitacoes', () => {
 
     liberar(cacheCom([]));
     await Promise.all([primeira, segunda]);
+  });
+
+  it('aceita resposta completa e arrays vazios, limpando a flag de falha', async () => {
+    const buscarDados = vi.fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(bancoCompleto(77));
+    const storage = await importaStorage(buscarDados);
+    storage.loadCache();
+
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(false);
+    expect(storage.CACHE.salas[0]?.id).toBe(77);
+
+    const vazio = {
+      usuarios: [], unidades: [], salas: [], turmas: [], reservas: [],
+      chaves: [], notificacoes: [], solicitacoes: [],
+    };
+    buscarDados.mockResolvedValueOnce(vazio);
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(false);
+    expect(storage.CACHE.salas).toEqual([]);
+  });
+
+  it.each(['usuarios', 'unidades', 'salas', 'turmas', 'reservas', 'chaves', 'notificacoes', 'solicitacoes'] as const)(
+    'recusa resposta sem a coleção obrigatória %s sem persistência parcial',
+    async (ausente) => {
+      const buscarDados = vi.fn().mockResolvedValue(bancoCompleto(200));
+      const storage = await importaStorage(buscarDados);
+      for (const colecao of [
+        'usuarios', 'unidades', 'salas', 'turmas', 'reservas',
+        'chaves', 'notificacoes', 'solicitacoes',
+      ] as const) {
+        localStorage.setItem(
+          storage.cacheKeyForIdentity(colecao, { id: 10, unidadeId: 1, perfil: 'coordenador' }),
+          JSON.stringify([{ id: 100 }]),
+        );
+      }
+      storage.loadCache();
+      const resposta = bancoCompleto(200) as Record<string, unknown>;
+      delete resposta[ausente];
+      buscarDados.mockResolvedValueOnce(resposta);
+
+      await storage.sincronizarServidor();
+
+      expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+      expect(Object.values(storage.CACHE).some((valor) => Array.isArray(valor)
+        && valor[0] && typeof valor[0] === 'object'
+        && (valor[0] as { id?: number }).id === 200)).toBe(false);
+      expect(storage.CACHE.salas[0]?.id).toBe(100);
+    },
+  );
+
+  it.each([
+    ['null', null],
+    ['objeto', {}],
+    ['string', 'invalido'],
+    ['numero', 42],
+  ] as const)('recusa coleção com tipo incorreto (%s)', async (_nome, valor) => {
+    const buscarDados = vi.fn();
+    const storage = await importaStorage(buscarDados);
+    const resposta = bancoCompleto(300) as Record<string, unknown>;
+    resposta.salas = valor;
+    buscarDados.mockResolvedValue(resposta);
+
+    await storage.sincronizarServidor();
+
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+    expect(storage.CACHE.salas).toEqual([]);
+  });
+
+  it('recupera integralmente após resposta parcial e não mantém falha antiga', async () => {
+    const parcial = bancoCompleto(400) as Record<string, unknown>;
+    delete parcial.reservas;
+    const buscarDados = vi.fn().mockResolvedValueOnce(parcial).mockResolvedValueOnce(bancoCompleto(401));
+    const storage = await importaStorage(buscarDados);
+    storage.loadCache();
+
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+    expect(storage.CACHE.salas).toEqual([]);
+
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(false);
+    expect(storage.CACHE.salas[0]?.id).toBe(401);
+    expect(storage.CACHE.reservas[0]?.id).toBe(401);
+  });
+
+  it('recusa registro sem identificador e preserva o snapshot anterior', async () => {
+    const buscarDados = vi.fn();
+    const storage = await importaStorage(buscarDados);
+    localStorage.setItem(
+      storage.cacheKeyForIdentity('salas', { id: 10, unidadeId: 1, perfil: 'coordenador' }),
+      JSON.stringify([{ id: 91 }]),
+    );
+    storage.loadCache();
+    const resposta = bancoCompleto(500) as Record<string, unknown>;
+    resposta.salas = [{ unidadeId: 1 }];
+    buscarDados.mockResolvedValue(resposta);
+
+    await storage.sincronizarServidor();
+
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+    expect(storage.CACHE.salas[0]?.id).toBe(91);
   });
 });
