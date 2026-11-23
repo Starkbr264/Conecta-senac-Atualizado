@@ -7,16 +7,16 @@
 -- direto as tabelas.
 --
 -- Problema: com RLS desligado, o role `anon` (cuja chave publica e
--- relacionada no projeto) tinha DELETE/INSERT/UPDATE/TRUNCATE sobre as 15
+-- relacionada no projeto) tinha DELETE/INSERT/UPDATE/TRUNCATE sobre as 18
 -- tabelas de `public`. Bastava a chave publica para ler, alterar e apagar
 -- tudo pela API `https://<ref>.supabase.co/rest/v1/...` -- inclusive a tabela
 -- `usuarios`, que guarda as senhas.
 --
 -- Efeito: o Advisor do Supabase acusava "RLS Disabled in Public" (CRITICAL)
--- em uma tabela por vez (15 avisos).
+-- em uma tabela por vez (18 avisos).
 --
 -- Este script:
---   1. habilita RLS nas 15 tabelas  -> com RLS ligado e SEM politicas, o
+--   1. habilita RLS nas 18 tabelas  -> com RLS ligado e SEM politicas, o
 --      Postgres nega tudo para quem nao e owner (default deny);
 --   2. revoga os grants de `anon` e `authenticated` (defense in depth).
 --

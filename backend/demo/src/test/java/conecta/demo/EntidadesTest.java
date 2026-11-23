@@ -31,7 +31,7 @@ class EntidadesTest {
             new Entidade("Reserva", "avulsa", "dataFim", "dataInicio", "diasSemana", "horaFim", "horaInicio", "id", "instrutorId", "salaId", "status", "turmaId", "turno", "unidadeId"),
             new Entidade("Sala", "andar", "ativa", "bloco", "capacidade", "id", "manualCriadaEm", "manualPor", "motivoManual", "nome", "statusManual", "tipo", "turnos", "turnosDisponiveis", "unidadeId"),
             new Entidade("Sessao", "id", "usuarioJson"),
-            new Entidade("Solicitacao", "criadaEm", "data", "dataFim", "dataInicio", "datasEspecificas", "diasSemana", "horaFim", "horaInicio", "id", "instrutorId", "modo", "motivo", "resposta", "respondidaEm", "salaId", "status", "turmaId", "turno", "turnos", "unidadeId"),
+            new Entidade("Solicitacao", "criadaEm", "data", "dataFim", "dataInicio", "datasEspecificas", "datasExpiradas", "diasSemana", "expiradaEm", "horaFim", "horaInicio", "id", "instrutorId", "modo", "motivo", "motivoStatus", "origemStatus", "resposta", "respondidaEm", "salaId", "status", "turmaId", "turno", "turnos", "unidadeId"),
             new Entidade("Turma", "codigo", "curso", "dataFim", "dataInicio", "id", "instrutorId", "nome", "turno", "unidadeId"),
             new Entidade("Unidade", "cep", "cidade", "endereco", "id", "nome"),
             new Entidade("Usuario", "email", "id", "nome", "perfil", "senha", "unidadeId"));
@@ -74,7 +74,7 @@ class EntidadesTest {
         // assertArrayEquals compara conteudo; assertEquals compararia a referencia do array.
         assertArrayEquals(new String[]{"ADMIN", "COORDENADOR", "INSTRUTOR", "RECEPCAO"}, constantesDe("Perfil"));
         assertArrayEquals(new String[]{"DISPONIVEL", "RETIRADA"}, constantesDe("StatusChave"));
-        assertArrayEquals(new String[]{"PENDENTE", "APROVADA", "RECUSADA"}, constantesDe("StatusSolicitacao"));
+        assertArrayEquals(new String[]{"PENDENTE", "APROVADA", "RECUSADA", "CANCELADA", "EXPIRADA"}, constantesDe("StatusSolicitacao"));
     }
 
     private static String[] constantesDe(String nome) throws ClassNotFoundException {

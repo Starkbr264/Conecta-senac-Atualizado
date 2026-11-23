@@ -60,10 +60,8 @@ public class SalaController {
 
     @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")
     @PutMapping("/{id}")
-    public Sala atualizar(@PathVariable Long id,
-                           @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId,
-                           @Valid @RequestBody Sala sala) {
-        return service.atualizar(id, usuarioId, sala);
+    public Sala atualizar(@PathVariable Long id, @Valid @RequestBody Sala sala) {
+        return service.atualizar(id, sala);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN','COORDENADOR')")

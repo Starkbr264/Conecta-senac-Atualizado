@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -119,12 +120,18 @@ class PostgresRealAuditTests {
 
     @BeforeEach
     void autenticarAdminEBancarDados() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+        autenticarAdmin();
         if (jdbc == null) {
             jdbc = new JdbcTemplate(dataSource);
         }
         seed.semear(); // banco novo do zonky; idempotente (sai se unidades.count() > 0)
+    }
+
+    private void autenticarAdmin() {
+        var autenticacao = new TestingAuthenticationToken(
+                "admin@senac.test", "n/a", "ROLE_ADMIN");
+        autenticacao.setDetails(java.util.Map.of("userId", 1L));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
     }
 
     // ------------------------------------------------------------------
@@ -361,6 +368,90 @@ class PostgresRealAuditTests {
         return corpo;
     }
 
+    private Map<String, Object> corpoUnidades(String operacaoId, List<Map<String, Object>> unidades) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("operacaoId", operacaoId);
+        corpo.put("userId", 1L);
+        corpo.put("criados", Map.of("unidades", unidades));
+        return corpo;
+    }
+
+    private Map<String, Object> unidade(long id, String nome, String cep) {
+        Map<String, Object> unidade = new LinkedHashMap<>();
+        unidade.put("id", id);
+        unidade.put("nome", nome);
+        unidade.put("cep", cep);
+        unidade.put("cidade", "Brasilia");
+        unidade.put("endereco", "SCS Q.1");
+        return unidade;
+    }
+
+    @Test
+    void mesmoOperacaoIdConcorrenteNoPostgresExecutaEfeitoUmaVez() throws Exception {
+        String operacaoId = "pg-idempotencia-" + System.nanoTime();
+        String nome = "Unidade concorrente idempotente";
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CyclicBarrier inicio = new CyclicBarrier(2);
+        List<Future<Map<String, Object>>> respostas = new ArrayList<>();
+
+        for (int i = 0; i < 2; i++) {
+            respostas.add(pool.submit(() -> {
+                autenticarAdmin();
+                inicio.await(15, TimeUnit.SECONDS);
+                return sinc.sincronizar(corpoUnidades(
+                        operacaoId, List.of(unidade(97201L, nome, "70000-201"))));
+            }));
+        }
+
+        Map<String, Object> primeira = respostas.get(0).get(30, TimeUnit.SECONDS);
+        Map<String, Object> segunda = respostas.get(1).get(30, TimeUnit.SECONDS);
+        pool.shutdownNow();
+
+        assertThat(primeira.get("ok")).isEqualTo(Boolean.TRUE);
+        assertThat(segunda.get("ok")).isEqualTo(Boolean.TRUE);
+        assertThat(String.valueOf(primeira.get("idsNovos")))
+                .isEqualTo(String.valueOf(segunda.get("idsNovos")));
+        assertThat(primeira).containsKey("banco");
+        assertThat(segunda).containsKey("banco");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM sinc_operacoes WHERE id = ?", Integer.class, operacaoId))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM unidades WHERE nome = ?", Integer.class, nome))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT usuario_id FROM sinc_operacoes WHERE id = ?", Long.class, operacaoId))
+                .isEqualTo(1L);
+    }
+
+    @Test
+    void falhaDepoisDaReservaFazRollbackEPermiteReenvioNoPostgres() throws Exception {
+        String operacaoId = "pg-rollback-" + System.nanoTime();
+        String nome = "Unidade rollback idempotente";
+        Map<String, Object> invalida = unidade(97203L, "", "70000-203");
+
+        assertThatThrownBy(() -> sinc.sincronizar(corpoUnidades(operacaoId, List.of(
+                unidade(97202L, nome, "70000-202"), invalida)))).isNotNull();
+
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM sinc_operacoes WHERE id = ?", Integer.class, operacaoId))
+                .isEqualTo(0);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM unidades WHERE nome = ?", Integer.class, nome))
+                .isEqualTo(0);
+
+        Map<String, Object> reenviado = sinc.sincronizar(corpoUnidades(
+                operacaoId, List.of(unidade(97202L, nome, "70000-202"))));
+
+        assertThat(reenviado.get("ok")).isEqualTo(Boolean.TRUE);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM sinc_operacoes WHERE id = ?", Integer.class, operacaoId))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM unidades WHERE nome = ?", Integer.class, nome))
+                .isEqualTo(1);
+    }
+
     private Map<String, Object> turma(long id, String codigo, String curso, long unidadeId) {
         Map<String, Object> t = new LinkedHashMap<>();
         t.put("id", id);
@@ -490,8 +581,7 @@ class PostgresRealAuditTests {
         for (int t = 0; t < 2; t++) {
             final int n = t;
             tarefas.add(pool.submit(() -> {
-                SecurityContextHolder.getContext().setAuthentication(
-                        new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+                autenticarAdmin();
                 inicio.await();
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", 96201L + n);
@@ -562,8 +652,7 @@ class PostgresRealAuditTests {
 
             // instancia 1 (este contexto de teste)
             respostas.add(pool.submit(() -> {
-                SecurityContextHolder.getContext().setAuthentication(
-                        new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+                autenticarAdmin();
                 inicio.await();
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", 96301L);
@@ -578,8 +667,7 @@ class PostgresRealAuditTests {
 
             // instancia 2 (contexto Spring separado, pool proprio)
             respostas.add(pool.submit(() -> {
-                SecurityContextHolder.getContext().setAuthentication(
-                        new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+                autenticarAdmin();
                 inicio.await();
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", 96302L);

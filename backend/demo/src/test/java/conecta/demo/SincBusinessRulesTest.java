@@ -51,8 +51,10 @@ class SincBusinessRulesTest {
 
     @BeforeEach
     void autenticarAdminParaFluxosDeSincronizacao() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+        var autenticacao = new TestingAuthenticationToken(
+                "admin@senac.test", "n/a", "ROLE_ADMIN");
+        autenticacao.setDetails(java.util.Map.of("userId", 1L));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
     }
 
     @AfterEach
@@ -401,6 +403,16 @@ class SincBusinessRulesTest {
     }
 
     @Test
+    void rejeitaOperacaoQuandoUserIdDoPayloadNaoEdoJwt() throws Exception {
+        mockMvc.perform(post("/api/sinc").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\":2,\"criados\":{\"unidades\":[{\"id\":99203,"
+                                + "\"nome\":\"Nao deve persistir\",\"cep\":\"71000-006\","
+                                + "\"cidade\":\"Brasilia\",\"endereco\":\"SCS Q.3\"}]}}"))
+                .andExpect(status().isForbidden());
+        assertThat(unidades.existsById(99203L)).isFalse();
+    }
+
+    @Test
     void coordenadorNaoRemoveSalaDeOutraUnidadeMesmoComPayloadManipulado() throws Exception {
         long unidadeDona = criarUnidade("Unidade dona remocao", "71000-007");
         long unidadeUsuario = criarUnidade("Unidade usuario remocao", "71000-008");
@@ -424,8 +436,10 @@ class SincBusinessRulesTest {
         coordenador.setUnidadeId(unidadeUsuario);
         usuarios.saveAndFlush(coordenador);
 
-        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
-                coordenador.getEmail(), "n/a", "ROLE_COORDENADOR"));
+        var autenticacao = new TestingAuthenticationToken(
+                coordenador.getEmail(), "n/a", "ROLE_COORDENADOR");
+        autenticacao.setDetails(java.util.Map.of("userId", coordenador.getId()));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
         try {
             assertThrows(AcessoNegadoException.class, () -> sinc.sincronizar(Map.of(
                     "remocoes", Map.of("salas", List.of(99201L)))));
@@ -541,8 +555,10 @@ class SincBusinessRulesTest {
         coordenador.setPerfil(Perfil.COORDENADOR);
         coordenador.setUnidadeId(unidadeUsuario);
         usuarios.saveAndFlush(coordenador);
-        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
-                coordenador.getEmail(), "n/a", "ROLE_COORDENADOR"));
+        var autenticacao = new TestingAuthenticationToken(
+                coordenador.getEmail(), "n/a", "ROLE_COORDENADOR");
+        autenticacao.setDetails(java.util.Map.of("userId", coordenador.getId()));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
         try {
             assertThrows(AcessoNegadoException.class, () -> sinc.sincronizar(Map.of(
                     "criados", Map.of("notificacoes", List.of(Map.of(

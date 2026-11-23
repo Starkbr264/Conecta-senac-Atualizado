@@ -27,7 +27,8 @@ import {
   Usuario, Unidade, Sala, Turma, Reserva, Chave,
   Solicitacao, Notificacao, Sessao, Turno, DiaSemana, StatusTurma
 } from '@/types';
-import { buscarDados, enviarAlteracoes, loginApi, resetarApi, obterToken } from '@/services/api';
+import { buscarDados, enviarAlteracoes, loginApi, resetarApi, obterToken, responderSolicitacao } from '@/services/api';
+import { registerPrivateContextInvalidator } from '@/services/auth-context';
 
 // Chaves do AsyncStorage
 const K = {
@@ -66,6 +67,9 @@ const CACHE: Cache = {
 type EstadoSync = {
   dirty: Record<string, number[]>;
   remocoes: Record<string, number[]>;
+  operacaoId?: string;
+  userId?: number;
+  criadaEm?: string;
 };
 
 const ESTADO_SYNC: EstadoSync = { dirty: {}, remocoes: {} };
@@ -73,9 +77,18 @@ const ESTADO_SYNC: EstadoSync = { dirty: {}, remocoes: {} };
 let loaded = false;
 let loadingPromise: Promise<void> | null = null;
 let syncLoaded = false;
+let identidadeAtiva: number | null = null;
 
 // Nome das colecoes no mesmo formato usado pelo servidor
 const COLECOES = ['usuarios', 'unidades', 'salas', 'turmas', 'reservas', 'chaves', 'notificacoes', 'solicitacoes'] as const;
+const CHAVES_PRIVADAS = new Set<string>([
+  K.usuarios, K.salas, K.turmas, K.reservas, K.chaves, K.notificacoes, K.solicitacoes, K.sync,
+]);
+
+export function chaveCacheMobile(chave: string, userId: number | null = identidadeAtiva): string | null {
+  if (!CHAVES_PRIVADAS.has(chave)) return chave;
+  return Number.isSafeInteger(userId) ? `${chave}:u${userId}` : null;
+}
 
 const DIAS_VALIDOS: DiaSemana[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
 
@@ -161,7 +174,9 @@ function _aplicarIdsNovos(idsNovos: Record<string, Record<number, number>>): voi
 // ==== Helpers privados ====
 async function _load<T>(key: string): Promise<T[]> {
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const persistKey = chaveCacheMobile(key);
+    if (!persistKey) return [];
+    const raw = await AsyncStorage.getItem(persistKey);
     return raw ? (JSON.parse(raw) as T[]) : [];
   } catch (e) { 
     console.error(`Erro ao carregar ${key}:`, e);
@@ -192,8 +207,10 @@ function _sanitizarSolics(solics: Solicitacao[]): Solicitacao[] {
 
 async function _save(key: string, val: unknown[]): Promise<void> {
   try { 
+    const persistKey = chaveCacheMobile(key);
+    if (!persistKey) return;
     const json = JSON.stringify(val);
-    await AsyncStorage.setItem(key, json);
+    await AsyncStorage.setItem(persistKey, json);
   } catch (e) { 
     console.error(`Erro ao salvar ${key}:`, e);
     throw e;
@@ -217,11 +234,19 @@ function _nextId<T extends { id: number }>(list: T[]): number {
 async function _loadSyncState(): Promise<void> {
   if (syncLoaded) return;
   try {
-    const raw = await AsyncStorage.getItem(K.sync);
+    const persistKey = chaveCacheMobile(K.sync);
+    if (!persistKey) {
+      syncLoaded = true;
+      return;
+    }
+    const raw = await AsyncStorage.getItem(persistKey);
     if (raw) {
       const parsed = JSON.parse(raw);
       ESTADO_SYNC.dirty = parsed.dirty && typeof parsed.dirty === 'object' ? parsed.dirty : {};
       ESTADO_SYNC.remocoes = parsed.remocoes && typeof parsed.remocoes === 'object' ? parsed.remocoes : {};
+      ESTADO_SYNC.operacaoId = typeof parsed.operacaoId === 'string' ? parsed.operacaoId : undefined;
+      ESTADO_SYNC.userId = Number.isSafeInteger(parsed.userId) ? parsed.userId : undefined;
+      ESTADO_SYNC.criadaEm = typeof parsed.criadaEm === 'string' ? parsed.criadaEm : undefined;
     }
   } catch (e) {
     console.warn('[sync] Estado de sync invalido, ignorando:', e);
@@ -231,7 +256,9 @@ async function _loadSyncState(): Promise<void> {
 
 async function _saveSyncState(): Promise<void> {
   try {
-    await AsyncStorage.setItem(K.sync, JSON.stringify(ESTADO_SYNC));
+    const persistKey = chaveCacheMobile(K.sync);
+    if (!persistKey) return;
+    await AsyncStorage.setItem(persistKey, JSON.stringify(ESTADO_SYNC));
   } catch (e) {
     console.warn('[sync] Falha ao salvar estado de sync:', e);
   }
@@ -306,10 +333,28 @@ async function _enviarPendentes(): Promise<void> {
   ) return;
 
   try {
-    const res = await enviarAlteracoes(alteracoes, remocoes, criados);
+    const sessaoRaw = await AsyncStorage.getItem(K.sessao);
+    const sessao = sessaoRaw ? JSON.parse(sessaoRaw) as Sessao : null;
+    if (!sessao || !Number.isSafeInteger(sessao.id)) {
+      console.warn('[sync] Operacao mobile sem identidade verificavel; mantida localmente.');
+      return;
+    }
+    if (!ESTADO_SYNC.operacaoId || ESTADO_SYNC.userId !== sessao.id) {
+      ESTADO_SYNC.operacaoId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      ESTADO_SYNC.userId = sessao.id;
+      ESTADO_SYNC.criadaEm = new Date().toISOString();
+      await _saveSyncState();
+    }
+    const res = await enviarAlteracoes(alteracoes, remocoes, criados, {
+      operacaoId: ESTADO_SYNC.operacaoId,
+      userId: sessao.id,
+    });
     if (res.ok) {
       ESTADO_SYNC.dirty = {};
       ESTADO_SYNC.remocoes = {};
+      ESTADO_SYNC.operacaoId = undefined;
+      ESTADO_SYNC.userId = undefined;
+      ESTADO_SYNC.criadaEm = undefined;
       await _saveSyncState();
       // Aplica os ids oficiais devolvidos pelo servidor para os registros
       // que foram criados localmente (e suas referencias).
@@ -327,10 +372,12 @@ async function _enviarPendentes(): Promise<void> {
 //  1) propaga as alteracoes locais pendentes (feitas offline);
 //  2) baixa o banco do servidor e passa a usa-lo como fonte da verdade.
 async function _sync(): Promise<void> {
+  const identidadeDaLeitura = identidadeAtiva;
   try {
     await _enviarPendentes();
     const remoto = await buscarDados();
     if (!remoto) return; // servidor indisponivel: mantem o cache local
+    if (identidadeAtiva !== identidadeDaLeitura) return;
 
     // Substitui o cache local pelos dados do servidor
     const cacheDinamico = CACHE as unknown as Record<string, unknown[]>;
@@ -656,6 +703,12 @@ export async function initDados(force = false): Promise<void> {
   if (loadingPromise) return loadingPromise;
 
   loadingPromise = (async () => {
+    const sessao = await getSessao();
+    identidadeAtiva = sessao && Number.isSafeInteger(sessao.id) ? sessao.id : null;
+    if (!identidadeAtiva) {
+      await invalidarCacheMobile(false);
+      return;
+    }
     if (force) {
       console.log('Carregando dados (force=true)...');
       loaded = false; // Reset do estado carregado
@@ -727,11 +780,32 @@ export async function getSessao(): Promise<Sessao | null> {
   } catch { return null; }
 }
 export async function setSessao(u: Sessao): Promise<void> {
+  if (identidadeAtiva !== null && identidadeAtiva !== u.id) {
+    await invalidarCacheMobile(false);
+  }
+  identidadeAtiva = Number.isSafeInteger(u.id) ? u.id : null;
   await AsyncStorage.setItem(K.sessao, JSON.stringify(u));
 }
 export async function clearSessao(): Promise<void> {
+  await invalidarCacheMobile(true);
   await AsyncStorage.removeItem(K.sessao);
 }
+
+export async function invalidarCacheMobile(removerSessao = false): Promise<void> {
+  (Object.keys(CACHE) as Array<keyof Cache>).forEach((key) => { CACHE[key] = []; });
+  loaded = false;
+  loadingPromise = null;
+  syncLoaded = false;
+  ESTADO_SYNC.dirty = {};
+  ESTADO_SYNC.remocoes = {};
+  ESTADO_SYNC.operacaoId = undefined;
+  ESTADO_SYNC.userId = undefined;
+  ESTADO_SYNC.criadaEm = undefined;
+  identidadeAtiva = null;
+  if (removerSessao) await AsyncStorage.removeItem(K.sessao);
+}
+
+registerPrivateContextInvalidator(() => invalidarCacheMobile(true));
 
 // ==== Login ====
 export async function loginUser(email: string, senha: string): Promise<Usuario | null> {
@@ -1014,6 +1088,12 @@ export async function updSolic(id: number, d: Partial<Solicitacao>): Promise<voi
   CACHE.solicitacoes[idx] = { ...CACHE.solicitacoes[idx], ...d };
   _marcarSujo('solicitacoes', [id]);
   await _persistColecao('solicitacoes');
+}
+
+/** Responde pela transacao autoritativa do backend e recarrega o snapshot remoto. */
+export async function responderSolic(id: number, status: 'aprovada' | 'recusada', resposta?: string): Promise<void> {
+  await responderSolicitacao(id, status === 'aprovada' ? 'aprovar' : 'recusar', resposta);
+  await _sync();
 }
 
 // ==== CRUD Notificacoes ====

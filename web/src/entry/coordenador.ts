@@ -50,7 +50,15 @@ registrarAcoes({
   // unico produtor de `data-arg2` e so emite 'aprovada'/'recusada', por isso o
   // estreitamento para `StatusSolicitacao` e seguro (sem `any`).
   responderSolic: ({ num, arg2 }) =>
-    void coordenador.responderSolic(num ?? 0, arg2 as StatusSolicitacao),
+    void coordenador.responderSolic(num as number, arg2 as StatusSolicitacao),
+  abrirRecusaSolic: ({ num }) => coordenador.abrirRecusaSolic(num as number),
+  cancelarRecusaSolic: coordenador.cancelarRecusaSolic,
+  sugerirRecusaSolic: ({ arg }) => coordenador.sugerirRecusaSolic(arg ?? ''),
+  confirmarRecusaSolic: ({ num }) => void coordenador.confirmarRecusaSolic(num as number),
+  cancelarSolic: ({ num }) => void coordenador.cancelarSolic(num as number),
+  fecharCancelamentoSolic: coordenador.fecharCancelamentoSolic,
+  confirmarCancelamentoSolic: ({ num }) => void coordenador.confirmarCancelamentoSolic(num as number),
+  selecionarAbaSolic: ({ arg }) => coordenador.selecionarAbaSolic(arg ?? 'pendente'),
   marcarTodasLidasLocal: coordenador.marcarTodasLidasLocal,
 
   // --- Alvos dos botoes `data-action="atualizarSecao"` ---

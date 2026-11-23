@@ -29,6 +29,7 @@ import type {
   Usuario,
 } from '../types';
 import { clearSessao } from './theme';
+import { invalidatePrivateContext } from './auth-context';
 
 /**
  * 401 = token invalido/expirado. Alem de remover o JWT, limpa a sessao para
@@ -36,6 +37,7 @@ import { clearSessao } from './theme';
  * vez de manter uma identidade visual sem token por tras.
  */
 function encerrarSessaoExpirada(): never {
+  invalidatePrivateContext();
   salvarToken(null);
   clearSessao();
   throw new ErroApi('Sessao expirada. Faca login novamente.', 401);
@@ -229,6 +231,39 @@ export function buscarStatusSalas(params: {
     if (value !== undefined && value !== '') query.set(key, String(value));
   });
   return apiGet<SalaStatusRemoto[]>(`/api/salas/status${query.size ? `?${query}` : ''}`);
+}
+
+export function responderSolicitacao(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<unknown> {
+  validarIdSolicitacao(id);
+  return apiPost<unknown>(`/api/solicitacoes/${id}/resposta`, {
+    decisao,
+    resposta: resposta || null,
+  });
+}
+
+export function cancelarSolicitacao(id: number, motivo?: string): Promise<unknown> {
+  validarIdSolicitacao(id);
+  return apiPost<unknown>(`/api/solicitacoes/${id}/cancelar`, { motivo: motivo || null });
+}
+
+function validarIdSolicitacao(id: number): void {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error('Solicitação sem ID persistido válido. Sincronize antes de continuar.');
+  }
+}
+
+export interface ConfiguracaoTemporal {
+  timezone: string;
+  agora: string;
+  turnos: Record<string, { inicio: string; fim: string }>;
+}
+
+export function buscarConfiguracaoTemporal(): Promise<ConfiguracaoTemporal> {
+  return apiGet<ConfiguracaoTemporal>('/api/solicitacoes/configuracao-temporal');
 }
 
 /** Envia o lote de sincronizacao (`POST /api/sinc`). */

@@ -46,7 +46,8 @@ export function iniciais(nome: unknown): string {
 
 /** Data de hoje em ISO curto (`YYYY-MM-DD`). */
 export function hojeISO(): string {
-  return new Date().toISOString().split('T')[0];
+  const agora = new Date();
+  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
 }
 
 /** `2025-01-31` -> `31/01/2025`. Devolve `—` para entrada vazia. */

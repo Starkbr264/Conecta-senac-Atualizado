@@ -31,6 +31,7 @@ import Constants from 'expo-constants';
 import { Usuario } from '@/types';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { invalidatePrivateContext } from '@/services/auth-context';
 
 // Armazenamento de token: AsyncStorage (compativel com Expo Go).
 // TODO: migrar para expo-secure-store em producao para armazenamento criptografado.
@@ -119,6 +120,7 @@ async function req<T>(caminho: string, opcoes?: RequestInit): Promise<T> {
     });
     const corpo = await resp.json().catch(() => ({}));
     if (resp.status === 401) {
+      await invalidatePrivateContext();
       await salvarToken(null);
       throw new Error('Sessao expirada. Faca login novamente.');
     }
@@ -185,12 +187,13 @@ export type ResultadoSinc = {
 export async function enviarAlteracoes(
   alteracoes: Record<string, unknown[]> = {},
   remocoes: Record<string, (number | string)[]> = {},
-  criados: Record<string, unknown[]> = {}
+  criados: Record<string, unknown[]> = {},
+  metadados?: { operacaoId: string; userId: number },
 ): Promise<ResultadoSinc> {
   try {
     const resp = await req<{ ok: boolean; banco: Record<string, unknown[]> | null; idsNovos?: Record<string, Record<number, number>> }>('/api/sinc', {
       method: 'POST',
-      body: JSON.stringify({ alteracoes, remocoes, criados }),
+      body: JSON.stringify({ alteracoes, remocoes, criados, ...metadados }),
     });
     return {
       ok: resp.ok === true,
@@ -200,6 +203,18 @@ export async function enviarAlteracoes(
   } catch {
     return { ok: false, banco: null, idsNovos: {} };
   }
+}
+
+export async function responderSolicitacao(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<void> {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Solicitacao sem ID persistido valido.');
+  await req(`/api/solicitacoes/${id}/resposta`, {
+    method: 'POST',
+    body: JSON.stringify({ decisao, resposta: resposta || null }),
+  });
 }
 
 /** Pede ao servidor para recarregar os dados de exemplo e baixa o resultado. */

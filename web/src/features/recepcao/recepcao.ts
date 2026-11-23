@@ -215,7 +215,7 @@ function buildSalaCard(s: Sala, info: InfoSala): string {
         '<div class="sc-periodo sc-override">' +
         '<span class="sc-periodo-turno ' +
         (info.stat === 'ocupada' ? 'ocp' : 'imi') +
-        '"><i class="ph ph-gear"></i>️ Manual</span>' +
+        '"><i class="ph ph-gear"></i> Manual</span>' +
         '<div class="sc-turma">' +
         esc(info.override.motivo || 'Status manual') +
         '</div>' +

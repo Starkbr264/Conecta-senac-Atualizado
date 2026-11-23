@@ -34,11 +34,12 @@ public class JwtService {
     }
 
     /** Gera um token JWT para o usuario informado. */
-    public String gerar(String email, String perfil) {
+    public String gerar(Long userId, String email, String perfil) {
         Date agora = new Date();
         Date expiracao = new Date(agora.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(email)
+                .claim("uid", userId)
                 .claim("perfil", perfil)
                 .issuedAt(agora)
                 .expiration(expiracao)
@@ -63,5 +64,18 @@ public class JwtService {
     /** Extrai o perfil do token. */
     public String perfil(String token) {
         return validar(token).get("perfil", String.class);
+    }
+
+    public Long userId(String token) {
+        return validar(token).get("uid", Long.class);
+    }
+
+    /** Retorna somente uma identidade positiva e presente no token. */
+    public Long exigirUserId(String token) {
+        Long id = userId(token);
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("JWT sem identidade de usuario verificavel");
+        }
+        return id;
     }
 }

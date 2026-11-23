@@ -198,8 +198,8 @@ function linhaTurma(t: Turma, hoje: string): string {
           encerrada ? 'ENCERRADA' : 'ATIVA'
         }</span></td>
         <td>
-          <button class="btn btn-warning-sm" data-action="editarTurma" data-arg="${t.id}"><i class="ph ph-pencil-simple"></i>️ Editar</button>
-          <button class="btn btn-danger-sm"  data-action="excluirTurma" data-arg="${t.id}"><i class="ph ph-trash"></i>️ Excluir</button>
+          <button class="btn btn-warning-sm" data-action="editarTurma" data-arg="${t.id}"><i class="ph ph-pencil-simple"></i> Editar</button>
+          <button class="btn btn-danger-sm"  data-action="excluirTurma" data-arg="${t.id}"><i class="ph ph-trash"></i> Excluir</button>
         </td>
       </tr>`;
 }

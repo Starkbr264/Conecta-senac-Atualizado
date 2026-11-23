@@ -51,6 +51,9 @@ import {
   updSalaAsync,
   updSolicAsync,
   updTurmaAsync,
+  responderSolicAsync,
+  cancelarSolicAsync,
+  invalidatePendingDataRead,
   unidadePadrao,
   type NovoSala,
   type OverrideSala,
@@ -69,6 +72,7 @@ import { fmsg, fmsgHide, modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
 import { ErroApi, buscarStatusSalas, type SalaStatusRemoto } from '../../core/api';
+import { carregarConfiguracaoTemporal, classificarTurno, hojeTemporalISO } from '../../core/temporal';
 import {
   filtrarLista,
   lerFiltros,
@@ -76,10 +80,13 @@ import {
   type ConfigBarraFiltros,
 } from '../../core/filters';
 import { byId, tryById } from '../../core/dom';
+import { createDataSyncController } from '../../core/data-sync';
+import { ultimaSincronizacaoFalhou } from '../../core/storage';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
 import { calcularStatusSala, mesclarStatusRemoto, STATUS_UI } from '../mapa/sala-status';
+import { turnosCompativeisComTurma } from '../instrutor/turnos';
 import type {
   DiaSemana,
   Sessao,
@@ -119,10 +126,29 @@ interface ModalMotivoSalaState {
 }
 
 let modalMotivoSalaState: ModalMotivoSalaState | null = null;
+let recusaSolicId: number | null = null;
+let recusaSalvando = false;
+let recusaErro: string | null = null;
+// Estado de carregamento inicial da área de solicitações: true até a primeira
+// sincronização concluída (com sucesso ou falha). Evita exibir "Nenhuma
+// solicitação recebida" enquanto os dados ainda estão sendo carregados.
+let solicitacoesCarregando = true;
+let autoSync: ReturnType<typeof createDataSyncController> | null = null;
 
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initCoordenador(): Promise<void> {
-  await initDados();
+  autoSync?.stop();
+  solicitacoesCarregando = true;
+  try {
+    await initDados();
+  } catch (err) {
+    console.error('Falha ao carregar dados iniciais:', err);
+  }
+  try {
+    await carregarConfiguracaoTemporal();
+  } catch (err) {
+    console.warn('Configuração temporal indisponível:', err);
+  }
   requirePerfil('coordenador');
   sess = getSessao();
   initModalMotivoSala();
@@ -130,10 +156,32 @@ export async function initCoordenador(): Promise<void> {
   initLogo();
   ir('dashboard');
   atualizarBadges();
+  solicitacoesCarregando = false;
+  autoSync = createDataSyncController({
+    sync: async () => {
+      try {
+        await initDados();
+      } finally {
+        solicitacoesCarregando = false;
+        rdSolics();
+      }
+    },
+    onInvalidated: invalidatePendingDataRead,
+    onUpdated: () => {
+      solicitacoesCarregando = false;
+      rdSolics();
+      atualizarBadges();
+    },
+    isVisible: () => typeof document === 'undefined' || document.visibilityState === 'visible',
+  });
+  autoSync.start();
 }
 
 function uid(): number | null {
-  return sess ? sess.unidadeId : null;
+  // Fallback para getSessao() caso initCoordenador tenha abortado antes de
+  // definir `sess` (ex.: erro em carregarConfiguracaoTemporal). Evita que
+  // rdSolics filtre todas as solicitações por unidadeId === null.
+  return sess?.unidadeId ?? getSessao()?.unidadeId ?? null;
 }
 
 function refreshMapaCoord(): void {
@@ -1825,7 +1873,7 @@ function popularFiltrosMapa(): void {
 
 /** Lista as solicitacoes da unidade (pendentes primeiro). */
 export function rdSolics(): void {
-  const list = getSolics()
+  const todos = getSolics()
     .filter((s) => s.unidadeId === uid())
     .slice()
     .sort((a, b) => {
@@ -1835,15 +1883,188 @@ export function rdSolics(): void {
     });
 
   const cont = byId('listaSolics');
+  const pendentes = todos.filter((s) => s.status === 'pendente');
+  const aprovadas = todos.filter((s) => s.status === 'aprovada');
+  const recusadas = todos.filter((s) => s.status === 'recusada');
+  const canceladas = todos.filter((s) => s.status === 'cancelada');
+  const expiradas = todos.filter((s) => s.status === 'expirada');
+  setText('solicCountPendentes', pendentes.length);
+  setText('solicCountAprovadas', aprovadas.length);
+  setText('solicCountRecusadas', recusadas.length);
+  setText('solicCountCanceladas', canceladas.length);
+  setText('solicCountExpiradas', expiradas.length);
+  document.querySelectorAll<HTMLElement>('[data-solic-tab]').forEach((tab) => {
+    tab.classList.toggle('ativo', tab.dataset['solicTab'] === (window as Window & { _solicTab?: string })._solicTab);
+  });
+  const aba = (window as Window & { _solicTab?: string })._solicTab ?? 'pendente';
+  const list = todos.filter((s) => s.status === aba);
+
+  // Estado de carregamento inicial: exibe mensagem clara enquanto a primeira
+  // sincronização não concluiu. Evita "Nenhuma solicitação recebida" prematuro.
+  // (Não renderiza do cache durante o carregamento — cache-first fica para etapa futura.)
+  if (solicitacoesCarregando) {
+    cont.innerHTML = '<p class="txt2">Carregando solicitações...</p>';
+    return;
+  }
+
+  // Estado de erro: última sincronização falhou e não há dados para exibir.
+  // O erro é limpo no início de cada nova tentativa de sincronização
+  // (sincronizarServidor), não na renderização.
+  if (ultimaSincronizacaoFalhou() && todos.length === 0) {
+    cont.innerHTML = '<p class="txt2" style="color:var(--red)">Não foi possível carregar as solicitações. Tentando novamente...</p>';
+    return;
+  }
+
+  const fingerprint =
+    `${aba}|${list.map((s) => `${s.id}:${s.status}:${s.respondidaEm || ''}:${s.motivo || ''}`).join(',')}|` +
+    `recusa:${recusaSolicId}:${recusaSalvando}:${recusaErro || ''}|` +
+    `cancel:${cancelamentoSolicId}:${cancelamentoSalvando}:${cancelamentoErro || ''}`;
+
+  // Preserva o estado de edição (textarea de recusa/cancelamento) para que uma
+  // atualização automática com dados inalterados não apague o texto digitado,
+  // o foco nem o scroll. Capturado antes de qualquer reconstrução.
+  const textareaIds = ['motivoRecusaSolic', 'motivoCancelamentoSolic'];
+  const valoresTextareas = new Map<string, string>();
+  textareaIds.forEach((id) => {
+    const el = document.getElementById(id) as HTMLTextAreaElement | null;
+    if (el) valoresTextareas.set(id, el.value);
+  });
+  const textareaAtiva = document.activeElement as HTMLTextAreaElement | null;
+  const idTextareaAtiva =
+    textareaAtiva && textareaAtiva.id ? textareaAtiva.id : null;
+  const inicioSelecao = textareaAtiva ? textareaAtiva.selectionStart : null;
+  const fimSelecao = textareaAtiva ? textareaAtiva.selectionEnd : null;
+  const scrollAntes = cont.scrollTop;
+
+  const ultimaImpressao = (window as Window & { _rdSolicsImpressao?: string })._rdSolicsImpressao;
+  if (ultimaImpressao === fingerprint) {
+    // Dados e estado da seção não mudaram: evita rebuild, flash e perda de foco.
+    return;
+  }
+  (window as Window & { _rdSolicsImpressao?: string })._rdSolicsImpressao = fingerprint;
+
   if (!list.length) {
     cont.innerHTML = '<p class="txt2">Nenhuma solicitação recebida.</p>';
     return;
   }
-
   cont.innerHTML = list.map((s) => cardSolic(s)).join('');
+
+  valoresTextareas.forEach((valor, id) => {
+    const novo = document.getElementById(id) as HTMLTextAreaElement | null;
+    if (novo) novo.value = valor;
+  });
+  if (idTextareaAtiva) {
+    const novo = document.getElementById(idTextareaAtiva) as HTMLTextAreaElement | null;
+    if (novo) {
+      if (inicioSelecao !== null && fimSelecao !== null) {
+        try { novo.setSelectionRange(inicioSelecao, fimSelecao); } catch { /* ignore */ }
+      }
+      if (document.activeElement !== novo) {
+        try { novo.focus(); } catch { /* ignore */ }
+      }
+    }
+  }
+  cont.scrollTop = scrollAntes;
 }
 
-function cardSolic(s: Solicitacao): string {
+export function selecionarAbaSolic(tab: string): void {
+  (window as Window & { _solicTab?: string })._solicTab = tab;
+  rdSolics();
+}
+
+interface DiagnosticoSolicitacao {
+  rotulos: string[];
+  impedimentos: string[];
+}
+
+/** Exportado para teste de regressão (homologação: solicitação 717). */
+export function diagnosticarSolicitacao(s: Solicitacao): DiagnosticoSolicitacao {
+  const rotulos: string[] = [];
+  const impedimentos: string[] = [];
+  const hoje = hojeTemporalISO();
+  const inicio = String(s.dataInicio || s.data || '');
+  const fim = String(s.dataFim || s.data || inicio);
+  if (inicio < hoje || fim < hoje) {
+    rotulos.push('Data passada');
+    impedimentos.push('A data solicitada já passou.');
+  }
+  const turnos = (s.turnos?.length ? s.turnos : s.turno ? [s.turno] : []) as string[];
+  const reservas = getReservas();
+  const equivalente = getSolics().some((outra) =>
+    outra.id !== s.id &&
+    outra.status === 'pendente' &&
+    outra.instrutorId === s.instrutorId &&
+    outra.unidadeId === s.unidadeId &&
+    outra.salaId === s.salaId &&
+    (outra.turmaId ?? null) === (s.turmaId ?? null) &&
+    String(outra.dataInicio || outra.data) === inicio &&
+    String(outra.dataFim || outra.data) === fim &&
+    JSON.stringify(outra.turnos ?? [outra.turno]) === JSON.stringify(s.turnos ?? [s.turno]) &&
+    JSON.stringify(outra.diasSemana ?? []) === JSON.stringify(s.diasSemana ?? []),
+  );
+  if (equivalente) {
+    rotulos.push('Duplicada');
+    impedimentos.push('Já existe uma solicitação pendente equivalente.');
+  }
+  // Compatibilidade turma x turnos: mesma regra do backend
+  // (SolicitacaoService.validarTurnosDaTurma), reaproveitando o helper do
+  // módulo do instrutor. Sem os dados da turma não se presume compatibilidade:
+  // a validação definitiva continua sendo a do backend.
+  if (s.turmaId) {
+    const turma = getTurmaById(s.turmaId);
+    if (!turma) {
+      rotulos.push('Turma indisponível');
+      impedimentos.push('Não foi possível validar os turnos: dados da turma indisponíveis.');
+    } else {
+      const naoPermitidos = turnos.filter(
+        (turno) => !turnosCompativeisComTurma([turno as Turno], [String(turma.turno ?? '')]).length,
+      );
+      if (naoPermitidos.length) {
+        rotulos.push('Turno incompatível com a turma');
+        impedimentos.push(
+          `Turno incompatível com a turma — não permitido(s): ${naoPermitidos.join(', ')}. ` +
+            `Turno da turma: ${turma.turno || 'não cadastrado'}.`,
+        );
+      }
+    }
+  }
+  for (const turno of turnos) {
+    const conflito = verificarConflito({
+      salaId: s.salaId,
+      turno,
+      diasSemana: (s.diasSemana ?? []) as DiaSemana[],
+      dataInicio: inicio,
+      dataFim: fim,
+      horaInicio: s.horaInicio,
+      horaFim: s.horaFim,
+    });
+    if (conflito) {
+      rotulos.push(`Conflito no ${turno}`);
+      impedimentos.push(conflito);
+    }
+  }
+  const sala = getSalaById(s.salaId);
+  if (sala?.statusManual === 'manutencao') {
+    rotulos.push('Sala em manutenção');
+    impedimentos.push('A sala está em manutenção.');
+  } else if (sala?.statusManual === 'indisponivel') {
+    rotulos.push('Sala indisponível');
+    impedimentos.push('A sala está indisponível.');
+  }
+  for (const turno of turnos) {
+    const label = classificarTurno(inicio, turno, s.horaInicio, s.horaFim);
+    if (label) {
+      rotulos.push(label);
+      impedimentos.push(label === 'Turno encerrado'
+        ? 'O período solicitado já terminou.'
+        : 'O turno solicitado já está em andamento.');
+    }
+  }
+  return { rotulos: [...new Set(rotulos)], impedimentos: [...new Set(impedimentos)] };
+}
+
+/** Exportado para teste de regressão (homologação: solicitação 717). */
+export function cardSolic(s: Solicitacao): string {
   const sala = getSalaById(s.salaId);
   const inst = getUserById(s.instrutorId);
   const turma = s.turmaId ? getTurmaById(s.turmaId) : null;
@@ -1854,9 +2075,10 @@ function cardSolic(s: Solicitacao): string {
       : [];
   const turnosStr = [...new Set(base as string[])].join(', ') || '—';
   const isPendente = s.status === 'pendente';
+  const diagnostico = diagnosticarSolicitacao(s);
   const statusBadge = isPendente
     ? '<span class="bdg" style="background:var(--amber-l);color:var(--amber);border:1px solid var(--amber-d)">PENDENTE</span>'
-    : `<span class="bdg ${s.status === 'aprovada' ? 'bdg-green' : 'bdg-red'}">${String(s.status).toUpperCase()}</span>`;
+    : `<span class="bdg ${s.status === 'aprovada' ? 'bdg-green' : s.status === 'expirada' ? '' : 'bdg-red'}">${String(s.status).toUpperCase()}</span>`;
 
   let dataLabel: string;
   if (s.modo === 'periodo' || s.dataInicio !== s.dataFim) {
@@ -1877,6 +2099,8 @@ function cardSolic(s: Solicitacao): string {
     ? 'var(--amber)'
     : s.status === 'aprovada'
       ? 'var(--green)'
+      : s.status === 'expirada'
+        ? 'var(--text3)'
       : 'var(--red)';
 
   return (
@@ -1934,12 +2158,41 @@ function cardSolic(s: Solicitacao): string {
         esc(s.motivo) +
         '</div>'
       : '') +
-    (isPendente
-      ? '<div style="display:flex;gap:8px;margin-top:4px">' +
-        `<button class="btn btn-success btn-sm" data-action="responderSolic" data-arg="${s.id}" data-arg2="aprovada"><i class="ph ph-check"></i> Aprovar</button>` +
-        `<button class="btn btn-danger btn-sm"  data-action="responderSolic" data-arg="${s.id}" data-arg2="recusada"><i class="ph ph-x"></i> Recusar</button>` +
+    (diagnostico.rotulos.length
+      ? '<div class="solic-indicadores">' +
+        diagnostico.rotulos.map((r) => `<span class="solic-indicador">${esc(r)}</span>`).join('') +
         '</div>'
-      : s.resposta
+      : '') +
+     (isPendente
+      ? '<div class="solic-acoes">' +
+        `<button class="btn btn-success btn-sm" ${diagnostico.impedimentos.length ? 'disabled title="' + esc(diagnostico.impedimentos.join(' ')) + '"' : `data-action="responderSolic" data-arg="${s.id}" data-arg2="aprovada"`}><i class="ph ph-check"></i> Aprovar</button>` +
+         `<button class="btn btn-danger btn-sm" data-action="abrirRecusaSolic" data-arg="${s.id}"><i class="ph ph-x"></i> Recusar</button>` +
+         `<button class="btn btn-ghost btn-sm" data-action="cancelarSolic" data-arg="${s.id}"><i class="ph ph-prohibit"></i> Cancelar</button>` +
+        '</div>' +
+        (diagnostico.impedimentos.length
+          ? '<div class="solic-impedimento"><i class="ph ph-warning-circle"></i> ' + esc(diagnostico.impedimentos.join(' ')) + '</div>'
+          : '') +
+        (recusaSolicId === s.id
+          ? '<div class="solic-recusa"><label for="motivoRecusaSolic">Motivo da recusa (opcional)</label><textarea id="motivoRecusaSolic" rows="3" ' + (recusaSalvando ? 'disabled ' : '') + '></textarea><div class="solic-sugestoes">' +
+            ['Data já passou', 'Solicitação duplicada', 'Conflito de horário'].map((r) => `<button class="btn btn-ghost btn-sm" data-action="sugerirRecusaSolic" data-arg="${esc(r)}"${recusaSalvando ? ' disabled' : ''}>${esc(r)}</button>`).join('') +
+            '</div>' +
+            (recusaErro ? `<div class="solic-erro" role="alert"><i class="ph ph-warning-circle"></i> ${esc(recusaErro)}</div>` : '') +
+            '<div class="solic-recusa-acoes"><button class="btn btn-ghost btn-sm" data-action="cancelarRecusaSolic"' + (recusaSalvando ? ' disabled' : '') + '>Cancelar</button><button class="btn btn-danger btn-sm" data-action="confirmarRecusaSolic" data-arg="' + s.id + '"' + (recusaSalvando ? ' disabled' : '') + '>' + (recusaSalvando ? '<i class="ph ph-circle-notch"></i> Recusando…' : 'Confirmar recusa') + '</button></div></div>'
+          : '')
+          + (cancelamentoSolicId === s.id
+            ? '<div class="solic-recusa solic-cancelamento">' +
+              '<strong class="solic-cancelamento-titulo">Cancelar solicitação</strong>' +
+              '<p class="txt2" style="margin:2px 0 6px">Informe o motivo do cancelamento (opcional).</p>' +
+              `<label for="motivoCancelamentoSolic">Motivo do cancelamento (opcional)</label>` +
+              `<textarea id="motivoCancelamentoSolic" rows="3" placeholder="Opcional"${cancelamentoSalvando ? ' disabled' : ''}>${esc(cancelamentoMotivoPadrao)}</textarea>` +
+              (cancelamentoErro ? `<div class="solic-erro" role="alert"><i class="ph ph-warning-circle"></i> ${esc(cancelamentoErro)}</div>` : '') +
+              '<div class="solic-recusa-acoes">' +
+              `<button class="btn btn-ghost btn-sm" data-action="fecharCancelamentoSolic"${cancelamentoSalvando ? ' disabled' : ''}>Voltar</button>` +
+              `<button class="btn btn-danger btn-sm" data-action="confirmarCancelamentoSolic" data-arg="${s.id}"${cancelamentoSalvando ? ' disabled' : ''}>` +
+              (cancelamentoSalvando ? '<i class="ph ph-circle-notch"></i> Cancelando…' : '<i class="ph ph-prohibit"></i> Confirmar cancelamento') +
+              '</button></div></div>'
+            : '')
+       : s.resposta
         ? '<div style="margin-top:8px;border-left:3px solid ' +
           (s.status === 'aprovada' ? 'var(--green)' : 'var(--red)') +
           ';background:var(--surface2);padding:6px 10px;border-radius:6px">' +
@@ -1952,7 +2205,10 @@ function cardSolic(s: Solicitacao): string {
           esc(s.resposta) +
           '</div>' +
           '</div>'
-        : '') +
+         : '') +
+    (s.datasExpiradas?.length
+      ? '<div class="solic-impedimento">Datas expiradas: ' + s.datasExpiradas.map((data) => esc(data.data)).join(', ') + '</div>'
+      : '') +
     '</div>'
   );
 }
@@ -1962,125 +2218,12 @@ export async function responderSolic(
   id: number,
   status: StatusSolicitacao,
 ): Promise<void> {
-  const bruto = prompt(
-    status === 'aprovada'
-      ? 'Comentario para o instrutor (opcional):'
-      : 'Motivo da recusa (opcional):',
-    status === 'recusada' ? 'Sala bloqueada para manutencao.' : '',
-  );
-  if (bruto === null) return;
-  const comentario = bruto.trim();
-
-  document.querySelectorAll<HTMLButtonElement>(`[onclick*="responderSolic(${id}"]`).forEach((b) => {
-    b.disabled = true;
-    b.style.opacity = '0.5';
-  });
-
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    toast('Solicitação sem ID persistido válido. Sincronize antes de continuar.', 'erro');
+    return;
+  }
   try {
-    await updSolicAsync(id, {
-      status,
-      resposta: comentario || undefined,
-      respondidaEm: new Date().toISOString(),
-    });
-
-    const s = getSolics().find((x) => x.id === id) ?? null;
-    const inst = s ? getUserById(s.instrutorId) : null;
-    const sala = s ? getSalaById(s.salaId) : null;
-
-    if (status === 'aprovada' && s) {
-      const turnos =
-        Array.isArray(s.turnos) && s.turnos.length
-          ? s.turnos
-          : [s.turno || 'Matutino'];
-      const turnosDaSala = (
-        sala ? (sala.turnos ?? sala.turnosDisponiveis ?? []) : []
-      ) as string[];
-      const finalTurnos = turnos.filter((t) => turnosDaSala.length === 0 || turnosDaSala.includes(String(t)));
-      const usarTurnos = finalTurnos.length ? finalTurnos : turnos;
-
-      const dataIni = String(s.dataInicio || s.data);
-      const dataFim = String(s.dataFim || s.data);
-
-      let diasSemana: DiaSemana[] | null =
-        Array.isArray(s.diasSemana) && s.diasSemana.length ? s.diasSemana : null;
-      if (!diasSemana) {
-        const p = dataIni.split('-').map(Number);
-        diasSemana = [
-          (['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as DiaSemana[])[
-            new Date(p[0], p[1] - 1, p[2]).getDay()
-          ],
-        ];
-      }
-
-      const datasEsp =
-        Array.isArray(s.datasEspecificas) && s.datasEspecificas.length
-          ? s.datasEspecificas
-          : null;
-      if (datasEsp && (!Array.isArray(s.diasSemana) || !s.diasSemana.length)) {
-        diasSemana = diasSemanaDeDatas(datasEsp);
-      }
-
-      for (const turno of usarTurnos) {
-        const conflito = checarConflito(s.salaId, String(turno), diasSemana, dataIni, dataFim, null);
-        if (!conflito) {
-          await addReservaAsync({
-            salaId: s.salaId,
-            turmaId: s.turmaId || null,
-            turno,
-            diasSemana,
-            dataInicio: dataIni,
-            dataFim,
-            datasEspecificas: datasEsp ?? undefined,
-            horaInicio: s.horaInicio || null,
-            horaFim: s.horaFim || null,
-            instrutorId: s.instrutorId,
-            reservadoPorId: sess ? sess.id : null,
-            unidadeId: unidadePadrao(),
-            avulsa: !s.turmaId,
-            solicId: id,
-          });
-        }
-      }
-    }
-
-    const salaNome = sala ? sala.nome : 'a sala solicitada';
-    const base = s
-      ? Array.isArray(s.turnos) && s.turnos.length
-        ? s.turnos
-        : s.turno
-          ? [s.turno]
-          : []
-      : [];
-    const turnoStr = [...new Set(base as string[])].join(', ');
-    const dataIniS = s ? String(s.dataInicio || s.data) : '';
-    const dataFimS = s ? String(s.dataFim || s.data) : '';
-    const dataStr =
-      dataIniS === dataFimS ? fmtData(dataIniS) : `${fmtData(dataIniS)} a ${fmtData(dataFimS)}`;
-    const horStr = s && s.horaInicio && s.horaFim ? ` das ${s.horaInicio} às ${s.horaFim}` : '';
-    const comentarioTxt = comentario ? ` Comentário: "${comentario}"` : '';
-
-    const [tipo, titulo, msgCorpo] =
-      status === 'aprovada'
-        ? [
-            'aprovada',
-            'Solicitação aprovada',
-            `Sua solicitação de "${salaNome}" foi aprovada para ${dataStr}${horStr} (${turnoStr}). A reserva foi criada automaticamente.${comentarioTxt}`,
-          ]
-        : [
-            'recusada',
-            'Solicitação recusada',
-            `Sua solicitação de "${salaNome}" para ${dataStr} (${turnoStr}) foi recusada pelo coordenador.${comentarioTxt}`,
-          ];
-
-    await addNotifAsync({
-      tipo,
-      titulo,
-      msg: msgCorpo,
-      para: 'instrutor',
-      paraId: s ? s.instrutorId : null,
-      unidadeId: unidadePadrao(),
-    });
-
+    await responderSolicAsync(id, status === 'aprovada' ? 'aprovar' : 'recusar');
     toast(`Solicitação ${status}!`, 'ok');
   } catch (err) {
     console.error('Erro ao responder solicitação:', err);
@@ -2091,6 +2234,132 @@ export async function responderSolic(
   atualizarBadges();
   popularFiltrosMapa();
   rdMapa();
+}
+
+// --- Cancelamento: interface propria (substitui o `window.prompt` nativo) ---
+let cancelamentoSolicId: number | null = null;
+let cancelamentoMotivoPadrao = '';
+let cancelamentoSalvando = false;
+let cancelamentoErro: string | null = null;
+
+/**
+ * Classifica qualquer erro de mutacao numa mensagem exibivel sem vazar
+ * tokens, senhas ou detalhes internos: `ErroApi` usa a mensagem de negocio do
+ * backend; timeout e falha de rede ganham textos proprios; o resto cai no
+ * fallback informado.
+ */
+export function mensagemDeFalhaDeOperacao(erro: unknown, fallback: string): string {
+  if (erro instanceof ErroApi) return erro.message;
+  if (erro instanceof Error) {
+    const tipo = String(erro.name || '');
+    const msg = String(erro.message || '');
+    if (tipo === 'AbortError' || /timeout|timed out/i.test(msg)) {
+      return 'Tempo de conexão esgotado. Verifique a rede e tente novamente.';
+    }
+    if (erro instanceof TypeError || /fetch|network|failed to fetch|load failed/i.test(msg)) {
+      return 'Falha de conexão com o servidor. Tente novamente.';
+    }
+    if (msg) return msg;
+  }
+  return fallback;
+}
+
+/** Abre a interface de cancelamento (sem diálogo nativo). */
+export function cancelarSolic(id: number): void {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    toast('Solicitação sem ID persistido válido. Sincronize antes de continuar.', 'erro');
+    return;
+  }
+  const solicitacao = getSolics().find((item) => item.id === id);
+  const duplicada = solicitacao && getSolics().find((item) =>
+    item.id !== id && item.status === 'pendente' && item.instrutorId === solicitacao.instrutorId
+      && item.unidadeId === solicitacao.unidadeId && item.salaId === solicitacao.salaId
+      && (item.turmaId ?? null) === (solicitacao.turmaId ?? null)
+      && String(item.dataInicio || item.data) === String(solicitacao.dataInicio || solicitacao.data)
+      && String(item.dataFim || item.data) === String(solicitacao.dataFim || solicitacao.data),
+  );
+  cancelamentoMotivoPadrao = duplicada ? `Solicitação duplicada da solicitação #${duplicada.id}` : '';
+  cancelamentoSolicId = id;
+  cancelamentoSalvando = false;
+  cancelamentoErro = null;
+  rdSolics();
+}
+
+/** Volta sem executar a operacao de cancelamento. */
+export function fecharCancelamentoSolic(): void {
+  if (cancelamentoSalvando) return;
+  cancelamentoSolicId = null;
+  cancelamentoErro = null;
+  rdSolics();
+}
+
+/** Confirma o cancelamento somente apos o clique do usuario. */
+export async function confirmarCancelamentoSolic(id: number): Promise<void> {
+  if (cancelamentoSalvando) return;
+  const campo = tryById<HTMLTextAreaElement>('motivoCancelamentoSolic');
+  const digitado = (campo?.value ?? '').trim();
+  // Contrato atual da API: motivo opcional; sem texto envia null (nao string vazia).
+  const motivo = digitado || cancelamentoMotivoPadrao || undefined;
+  cancelamentoSalvando = true;
+  cancelamentoErro = null;
+  rdSolics();
+  try {
+    await cancelarSolicAsync(id, motivo);
+    cancelamentoSolicId = null;
+    cancelamentoSalvando = false;
+    toast('Solicitação cancelada.', 'ok');
+    rdSolics();
+    atualizarBadges();
+    popularFiltrosMapa();
+    rdMapa();
+  } catch (err) {
+    console.error('Erro ao cancelar solicitação:', err instanceof Error ? err.message : err);
+    cancelamentoSalvando = false;
+    cancelamentoErro = mensagemDeFalhaDeOperacao(err, 'Erro ao cancelar. Tente novamente.');
+    rdSolics();
+  }
+}
+
+export function abrirRecusaSolic(id: number): void {
+  recusaSolicId = id;
+  rdSolics();
+}
+
+export function cancelarRecusaSolic(): void {
+  recusaSolicId = null;
+  rdSolics();
+}
+
+export function sugerirRecusaSolic(motivo: string): void {
+  const campo = tryById<HTMLTextAreaElement>('motivoRecusaSolic');
+  if (campo) campo.value = motivo;
+}
+
+export async function confirmarRecusaSolic(id: number): Promise<void> {
+  const campo = tryById<HTMLTextAreaElement>('motivoRecusaSolic');
+  const motivo = campo?.value.trim() ?? '';
+  if (recusaSalvando) return;
+  recusaSalvando = true;
+  recusaErro = null;
+  rdSolics();
+  try {
+    await responderSolicAsync(id, 'recusar', motivo);
+    recusaSolicId = null;
+    recusaSalvando = false;
+    toast('Solicitação recusada!', 'ok');
+    await initDados(true);
+    rdSolics();
+    atualizarBadges();
+  } catch (erro) {
+    // O formulario permanece aberto com o texto digitado; a causa tecnica vai
+    // para o console e a mensagem classificada aparece dentro da propria
+    // interface (nem toda falha vem do backend como ErroApi — rede/timeout
+    // chegam como erro de fetch).
+    console.error('Erro ao recusar solicitação:', erro instanceof Error ? erro.message : erro);
+    recusaSalvando = false;
+    recusaErro = mensagemDeFalhaDeOperacao(erro, 'Erro ao recusar solicitação.');
+    rdSolics();
+  }
 }
 
 // ---------------------------------------------------------------------------

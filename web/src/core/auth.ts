@@ -9,7 +9,7 @@
 
 import { tryById } from './dom';
 import { iniciais } from './format';
-import { getUnidadeById } from './storage';
+import { getUnidadeById, invalidarCacheEmMemoria } from './storage';
 import { salvarToken } from './api';
 import { clearSessao, getSessao, initTema, observarSessao } from './theme';
 import type { Perfil } from '../types';
@@ -35,6 +35,7 @@ let perfilExigido: Perfil | null = null;
  */
 function observarSessaoEntreAbas(): void {
   observarSessao((sessao) => {
+    invalidarCacheEmMemoria();
     const paginaLogin = window.location.pathname.endsWith('login.html');
     if (!sessao) {
       if (!paginaLogin) window.location.replace('login.html');
@@ -86,6 +87,7 @@ export function seJaLogado(): void {
 
 /** Encerra a sessao local e volta para o login. */
 export function sair(): void {
+  invalidarCacheEmMemoria();
   clearSessao();
   salvarToken(null); // remove JWT do localStorage (senao o token antigo gera 401 "Sessao expirada" na proxima visita)
   window.location.replace('login.html');

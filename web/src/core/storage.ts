@@ -10,8 +10,10 @@
  *  - fonte da verdade:    `GET /api/dados` em `server/index.js`.
  */
 
-import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi } from './api';
+import { buscarDados, buscarUnidadesPublicas, login as loginRemoto, sincronizar, extrairUsuarioLogin, salvarToken, obterToken, ErroApi, responderSolicitacao, cancelarSolicitacao } from './api';
 import { getSessao } from './theme';
+import { createReadVersionGuard, publishDataUpdate } from './data-sync';
+import { registerPrivateContextInvalidator } from './auth-context';
 import type {
   Atualizar,
   Chave,
@@ -53,6 +55,7 @@ export const K = {
   tema: 'sn_v6_tema',
   init: 'sn_v6_init_v1',
   syncPendentes: 'sn_v6_sync_pendentes',
+  syncQuarentena: 'sn_v6_sync_quarentena',
 } as const;
 
 /** Nomes das coleções espelhadas em cache. */
@@ -91,14 +94,38 @@ export interface CacheDados {
 
 export interface SyncPayload {
   operacaoId?: string;
+  userId?: number;
   criados?: Partial<Record<Colecao, unknown[]>>;
   alteracoes?: Partial<Record<Colecao, unknown[]>>;
   remocoes?: Partial<Record<Colecao, number[]>>;
 }
 
-interface SyncPendente {
+export interface SyncPendente {
   operacaoId: string;
+  userId?: number;
+  unidadeId?: number;
+  criadaEm?: string;
+  estado?: 'pendente' | 'rejeitada';
+  erro?: { status?: number; mensagem: string; em: string };
   payload: SyncPayload;
+}
+
+export interface CacheIdentidade {
+  id: number;
+  unidadeId?: number | null;
+  perfil?: string | null;
+}
+
+export function cacheKeyForIdentity(key: Colecao, identidade: CacheIdentidade): string {
+  return `sn_v6_u${identidade.id}_un${identidade.unidadeId ?? 'none'}_p${lowerPerfil(identidade.perfil)}_${key}`;
+}
+
+export function isSyncPendenteOwnedBy(op: SyncPendente, userId: number): boolean {
+  return Number.isSafeInteger(userId) && op.userId === userId;
+}
+
+export function isSyncPendenteLegacy(op: Partial<SyncPendente>): boolean {
+  return !Number.isSafeInteger(op.userId) || !op.criadaEm || !op.operacaoId || !op.payload;
 }
 
 export interface SyncResult {
@@ -181,15 +208,52 @@ export function lowerPerfil(v: unknown): string {
 }
 
 /** Recarrega o cache a partir do `localStorage`. */
+function identidadeAtual(): CacheIdentidade | null {
+  const sessao = getSessao();
+  return sessao && Number.isSafeInteger(sessao.id)
+    ? { id: sessao.id, unidadeId: sessao.unidadeId, perfil: sessao.perfil }
+    : null;
+}
+
+function chavePrivada(key: Colecao, identidade = identidadeAtual()): string | null {
+  return identidade ? cacheKeyForIdentity(key, identidade) : null;
+}
+
+function lerPrivado<T>(key: Colecao): T[] {
+  const namespace = chavePrivada(key);
+  return namespace ? lv<T>(namespace) : [];
+}
+
+function salvarPrivado(key: Colecao, valor: unknown): void {
+  const namespace = chavePrivada(key);
+  if (namespace) sv(namespace, valor);
+}
+
+export function invalidarCacheEmMemoria(): void {
+  COLECOES.forEach((key) => { CACHE[key] = [] as never; });
+  CACHE.loaded = false;
+  CACHE.loadingPromise = null;
+  CACHE._remocoes = {};
+  filaSync = [];
+  contextoCache = null;
+  cacheReadVersion.invalidate();
+}
+
+registerPrivateContextInvalidator(invalidarCacheEmMemoria);
+
 export function loadCache(): void {
-  CACHE.usuarios = lv<Usuario>(K.usuarios);
+  const identidade = identidadeAtual();
+  contextoCache = identidade
+    ? cacheKeyForIdentity('usuarios', identidade).replace(/_usuarios$/, '')
+    : null;
+  CACHE.usuarios = identidade ? lerPrivado<Usuario>('usuarios') : [];
   CACHE.unidades = lv<Unidade>(K.unidades);
-  CACHE.salas = lv<Sala>(K.salas);
-  CACHE.turmas = lv<Turma>(K.turmas);
-  CACHE.reservas = lv<Reserva>(K.reservas);
-  CACHE.chaves = lv<Chave>(K.chaves);
-  CACHE.notificacoes = lv<Notificacao>(K.notificacoes);
-  CACHE.solicitacoes = lv<Solicitacao>(K.solicitacoes);
+  CACHE.salas = identidade ? lerPrivado<Sala>('salas') : [];
+  CACHE.turmas = identidade ? lerPrivado<Turma>('turmas') : [];
+  CACHE.reservas = identidade ? lerPrivado<Reserva>('reservas') : [];
+  CACHE.chaves = identidade ? lerPrivado<Chave>('chaves') : [];
+  CACHE.notificacoes = identidade ? lerPrivado<Notificacao>('notificacoes') : [];
+  CACHE.solicitacoes = identidade ? lerPrivado<Solicitacao>('solicitacoes') : [];
   lerFilaSync();
 }
 
@@ -197,20 +261,113 @@ export function loadCache(): void {
 const syncPromises = new WeakMap<object, Promise<SyncResult>>();
 let filaSync: SyncPendente[] = [];
 let flushPromise: Promise<SyncResult> | null = null;
+let sincronizacaoPromise: Promise<void> | null = null;
+let contextoCache: string | null = null;
+const cacheReadVersion = createReadVersionGuard();
+const SYNC_LOCK_KEY = 'sn_v6_sync_lock';
+const SYNC_LOCK_TTL_MS = 15_000;
+const SYNC_LOCK_WAIT_MS = 30;
+const SYNC_LOCK_OWNER = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+// Rastreia se a última sincronização falhou (rede, 401, timeout).
+// Limpo no início de cada tentativa de sincronização.
+let _ultimaSincronizacaoFalhou = false;
+export function ultimaSincronizacaoFalhou(): boolean { return _ultimaSincronizacaoFalhou; }
+export function lerQuarentenaSync(): unknown[] { return lv<unknown>(K_QUARENTENA); }
+
+type LockNavigator = Navigator & {
+  locks?: {
+    request<T>(name: string, options: { mode: 'exclusive' }, callback: (lock: unknown) => Promise<T>): Promise<T>;
+  };
+};
+
+/**
+ * Coordena o flush entre abas. Web Locks cobre abas do mesmo navegador; o
+ * lease curto permite funcionamento em navegadores sem essa API.
+ */
+export async function withSyncQueueLock<T>(work: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator === 'undefined' ? undefined : (navigator as LockNavigator).locks;
+  if (locks) {
+    return locks.request('conecta-senac-sync-fila', { mode: 'exclusive' }, work);
+  }
+
+  while (true) {
+    const agora = Date.now();
+    let adquirido = false;
+    try {
+      const bruto = localStorage.getItem(SYNC_LOCK_KEY);
+      const atual = bruto ? JSON.parse(bruto) as { owner?: string; expires?: number } : null;
+      if (!atual?.expires || atual.expires <= agora || atual.owner === SYNC_LOCK_OWNER) {
+        localStorage.setItem(SYNC_LOCK_KEY, JSON.stringify({
+          owner: SYNC_LOCK_OWNER,
+          expires: agora + SYNC_LOCK_TTL_MS,
+        }));
+        const confirmado = JSON.parse(localStorage.getItem(SYNC_LOCK_KEY) || '{}') as { owner?: string };
+        adquirido = confirmado.owner === SYNC_LOCK_OWNER;
+      }
+    } catch {
+      // Sem localStorage, o lock por aba continua sendo a proteção disponível.
+      adquirido = true;
+    }
+    if (adquirido) break;
+    await new Promise<void>((resolve) => setTimeout(resolve, SYNC_LOCK_WAIT_MS));
+  }
+
+  const renovador = setInterval(() => {
+    try {
+      const atual = JSON.parse(localStorage.getItem(SYNC_LOCK_KEY) || '{}') as { owner?: string };
+      if (atual.owner === SYNC_LOCK_OWNER) {
+        localStorage.setItem(SYNC_LOCK_KEY, JSON.stringify({
+          owner: SYNC_LOCK_OWNER,
+          expires: Date.now() + SYNC_LOCK_TTL_MS,
+        }));
+      }
+    } catch {
+      /* lease expirado ou storage indisponivel: a operacao segue nesta aba */
+    }
+  }, Math.floor(SYNC_LOCK_TTL_MS / 3));
+
+  try {
+    return await work();
+  } finally {
+    clearInterval(renovador);
+    try {
+      const atual = JSON.parse(localStorage.getItem(SYNC_LOCK_KEY) || '{}') as { owner?: string };
+      if (atual.owner === SYNC_LOCK_OWNER) localStorage.removeItem(SYNC_LOCK_KEY);
+    } catch {
+      /* a operação já terminou; um lease expirado não bloqueia a fila */
+    }
+  }
+}
 
 /**
  * Status HTTP que significam recusa definitiva da operacao (validacao ou regra
- * de negocio): a operacao sai da fila e o erro e reportado. Rede, 5xx, 401,
- * 408 e 429 mantem a operacao pendente para reenvio.
+ * de negocio): a operacao fica registrada como rejeitada e o erro e reportado.
+ * Rede, 5xx, 408 e 429 mantem a operacao pendente para reenvio.
  */
-const REJEICOES_DEFINITIVAS = new Set([400, 403, 404, 409, 422]);
+const REJEICOES_DEFINITIVAS = new Set([400, 401, 403, 404, 409, 422]);
+const K_QUARENTENA = K.syncQuarentena;
 
 function lerFilaSync(): void {
   try {
     const valor = localStorage.getItem(K.syncPendentes);
     const lista: unknown = valor ? JSON.parse(valor) : [];
-    filaSync = Array.isArray(lista) ? lista as SyncPendente[] : [];
+    const itens = Array.isArray(lista) ? lista as SyncPendente[] : [];
+    const legados = itens.filter(isSyncPendenteLegacy);
+    if (legados.length) {
+      sv(K_QUARENTENA, [...lv<SyncPendente>(K_QUARENTENA), ...legados.map((op) => ({
+        ...op, estado: 'quarentenada', motivo: 'proprietario-nao-verificavel',
+        quarentenadaEm: new Date().toISOString(),
+      }))]);
+    }
+    filaSync = itens.filter((op) => !isSyncPendenteLegacy(op));
+    if (legados.length) salvarFilaSync();
   } catch {
+    const bruto = localStorage.getItem(K.syncPendentes);
+    if (bruto) {
+      sv(K_QUARENTENA, [...lv<unknown>(K_QUARENTENA), {
+        bruto, motivo: 'fila-invalida', quarentenadaEm: new Date().toISOString(),
+      }]);
+    }
     filaSync = [];
   }
 }
@@ -231,10 +388,21 @@ function payloadDaColecao(key: Colecao, tipo: 'criados' | 'alteracoes', item: un
 }
 
 function persist(key: Colecao, payload?: SyncPayload, entidade?: object): void {
-  sv(K[key], CACHE[key]);
+  salvarPrivado(key, CACHE[key]);
   const delta = payload ?? payloadDaColecao(key, 'alteracoes', CACHE[key][CACHE[key].length - 1]);
   const promessa = enfileirar(delta);
   if (entidade) syncPromises.set(entidade, promessa);
+  void promessa.then((resultado) => {
+    if (resultado.confirmado) {
+      invalidatePendingDataRead();
+      publishDataUpdate();
+    }
+  });
+}
+
+/** Invalida qualquer GET em andamento sem apagar o cache atual. */
+export function invalidatePendingDataRead(): void {
+  cacheReadVersion.invalidate();
 }
 
 /** Coloca um id na fila de remocoes pendentes. */
@@ -266,19 +434,31 @@ function aplicarIdsOficiais(res: unknown): void {
           (item as unknown as Record<string, unknown>)[campo] = resolve(colecao, atual);
       });
     });
-    sv(K[key], CACHE[key]);
+    salvarPrivado(key, CACHE[key]);
   });
 }
 
 async function flushPendentes(): Promise<SyncResult> {
   if (flushPromise) return flushPromise;
-  flushPromise = (async (): Promise<SyncResult> => {
+  flushPromise = withSyncQueueLock(async (): Promise<SyncResult> => {
+    // Outra aba pode ter confirmado ou rejeitado itens desde o último load.
+    lerFilaSync();
     while (filaSync.length) {
-      const atual = filaSync[0];
+      const sessao = identidadeAtual();
+      const atual = sessao
+        ? filaSync.find((op) => op.estado !== 'rejeitada' && isSyncPendenteOwnedBy(op, sessao.id))
+        : undefined;
+      if (!atual || !sessao) return { confirmado: true, pendente: false };
       try {
         const resposta = await sincronizar(atual.payload);
+        const identidadeDepois = identidadeAtual();
+        if (identidadeDepois?.id !== sessao.id
+          || identidadeDepois.unidadeId !== sessao.unidadeId
+          || lowerPerfil(identidadeDepois.perfil) !== lowerPerfil(sessao.perfil)) {
+          return { confirmado: false, pendente: true, erro: new Error('Identidade alterada durante a sincronizacao.') };
+        }
         aplicarIdsOficiais(resposta);
-        filaSync.shift();
+        filaSync = filaSync.filter((op) => op !== atual);
         salvarFilaSync();
         if (resposta && typeof resposta === 'object' && 'banco' in resposta) {
           const banco = (resposta as { banco?: Record<string, unknown> }).banco;
@@ -286,16 +466,21 @@ async function flushPendentes(): Promise<SyncResult> {
             const key = nome as Colecao;
             if (Array.isArray(banco?.[key])) {
               CACHE[key] = banco[key] as never;
-              sv(K[key], banco[key]);
+              salvarPrivado(key, banco[key]);
             }
           });
         }
       } catch (erro) {
         // Rejeicao definitiva de negocio/validacao (4xx): o servidor recusou a
-        // operacao. Retira-a da fila para nao bloquear as demais, mas NUNCA de
-        // forma silenciosa — o erro segue para a interface.
+        // A rejeicao fica registrada para recuperacao; nunca descartamos
+        // silenciosamente uma operacao offline.
         if (erro instanceof ErroApi && REJEICOES_DEFINITIVAS.has(erro.status)) {
-          filaSync.shift();
+          atual.estado = 'rejeitada';
+          atual.erro = {
+            status: erro.status,
+            mensagem: erro.message,
+            em: new Date().toISOString(),
+          };
           salvarFilaSync();
           return { confirmado: false, pendente: false, erro };
         }
@@ -304,13 +489,27 @@ async function flushPendentes(): Promise<SyncResult> {
       }
     }
     return { confirmado: true, pendente: false };
-  })().finally(() => { flushPromise = null; });
+  }).finally(() => { flushPromise = null; });
   return flushPromise;
 }
 
 function enfileirar(payload: SyncPayload): Promise<SyncResult> {
   const operacaoId = payload.operacaoId ?? novoOperacaoId();
-  const operacao: SyncPendente = { operacaoId, payload: { ...payload, operacaoId } };
+  const sessao = identidadeAtual();
+  if (!sessao) return Promise.resolve({
+    confirmado: false,
+    pendente: true,
+    erro: new Error('Sessao sem identidade verificavel.'),
+  });
+  const criadaEm = new Date().toISOString();
+  const payloadComIdentidade = { ...payload, operacaoId, userId: sessao.id };
+  const operacao: SyncPendente = {
+    operacaoId,
+    userId: sessao.id,
+    unidadeId: sessao.unidadeId ?? undefined,
+    criadaEm,
+    payload: payloadComIdentidade,
+  };
   filaSync.push(operacao);
   salvarFilaSync();
   return flushPendentes().then((resultado) => {
@@ -359,9 +558,9 @@ async function confirmarFila(): Promise<void> {
  * central com dados divergentes. Cada alteracao local ja foi (ou sera)
  * propagada por {@link pushColecao}.
  */
-export async function sincronizarServidor(): Promise<void> {
+async function sincronizarServidorInterno(): Promise<boolean> {
   if (!filaSync.length) lerFilaSync();
-  if (filaSync.length && !(await flushPendentes()).confirmado) return;
+  if (filaSync.length && !(await flushPendentes()).confirmado) return true;
   // Sem token JWT nao ha o que sincronizar: /api/dados exige autenticacao e a
   // chamada retornaria 401 (logado antes como "modo offline"/"sessao expirada",
   // mensagem enganosa na tela de login, que roda este fluxo antes do login).
@@ -375,8 +574,16 @@ export async function sincronizarServidor(): Promise<void> {
     } catch {
       /* API indisponivel: preserva o cache local e segue offline. */
     }
-    return;
+    return true;
   }
+  if (!identidadeAtual()) {
+    // Um JWT órfão não autoriza carregar domínio privado sem sessão local
+    // verificável; o usuário precisa autenticar novamente.
+    invalidarCacheEmMemoria();
+    return true;
+  }
+  const identidadeDaLeitura = identidadeAtual();
+  const readVersion = cacheReadVersion.beginRead();
   try {
     if (CACHE._remocoes && Object.keys(CACHE._remocoes).length) {
       const remocoes: Partial<Record<Colecao, number[]>> = {};
@@ -392,19 +599,46 @@ export async function sincronizarServidor(): Promise<void> {
     }
 
     const remoto = await buscarDados();
+    if (!cacheReadVersion.isCurrent(readVersion)
+      || identidadeAtual()?.id !== identidadeDaLeitura?.id
+      || identidadeAtual()?.unidadeId !== identidadeDaLeitura?.unidadeId
+      || lowerPerfil(identidadeAtual()?.perfil) !== lowerPerfil(identidadeDaLeitura?.perfil)) return false;
 
     COLECOES.forEach((chave) => {
       const dados = remoto[chave];
       if (Array.isArray(dados)) {
         (CACHE[chave] as unknown[]) = dados as unknown[];
-        sv(K[chave], dados);
+        salvarPrivado(chave, dados);
       }
     });
 
     console.log('[web] Banco sincronizado com o servidor central.');
+    _ultimaSincronizacaoFalhou = false;
+    return true;
   } catch (err) {
     console.warn('[web] Sincronizacao falhou (modo offline):', err);
+    _ultimaSincronizacaoFalhou = true;
+    return true;
   }
+}
+
+/**
+ * Evita duas abas/acoes da mesma pagina baixarem o banco simultaneamente.
+ * A segunda chamada aguarda exatamente a mesma promessa, sem iniciar outra
+ * leitura potencialmente mais antiga.
+ */
+export function sincronizarServidor(): Promise<void> {
+  _ultimaSincronizacaoFalhou = false; // Limpa erro no início de nova tentativa
+  if (!sincronizacaoPromise) {
+    sincronizacaoPromise = (async () => {
+      // Uma leitura invalidada nao pode ser aplicada; repete-se apenas a
+      // leitura, sem republicar eventos ou iniciar um ciclo de notificacoes.
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        if (await sincronizarServidorInterno()) return;
+      }
+    })().finally(() => { sincronizacaoPromise = null; });
+  }
+  return sincronizacaoPromise;
 }
 
 // ---------------------------------------------------------------------------
@@ -1017,7 +1251,7 @@ export async function addSolicAsync(d: NovaSolicitacao): Promise<Solicitacao> {
     if (erro instanceof ErroApi && REJEICOES_DEFINITIVAS.has(erro.status)) {
       const idx = CACHE.solicitacoes.findIndex((s) => s.id === item.id);
       if (idx >= 0) CACHE.solicitacoes.splice(idx, 1);
-      sv(K.solicitacoes, CACHE.solicitacoes);
+      salvarPrivado('solicitacoes', CACHE.solicitacoes);
     }
     throw erro;
   }
@@ -1037,6 +1271,25 @@ export async function updSolicAsync(id: number | string, d: Atualizar<Solicitaca
   if (!item) return null;
   await confirmar(CACHE.solicitacoes.find((s) => String(s.id) === String(id)) ?? null);
   return item;
+}
+
+/** Responde uma solicitação pela transação autoritativa do backend. */
+export async function responderSolicAsync(
+  id: number,
+  decisao: 'aprovar' | 'recusar',
+  resposta?: string,
+): Promise<void> {
+  await responderSolicitacao(id, decisao, resposta);
+  invalidatePendingDataRead();
+  await sincronizarServidor();
+  publishDataUpdate();
+}
+
+export async function cancelarSolicAsync(id: number, motivo?: string): Promise<void> {
+  await cancelarSolicitacao(id, motivo);
+  invalidatePendingDataRead();
+  await sincronizarServidor();
+  publishDataUpdate();
 }
 
 // ---------------------------------------------------------------------------
@@ -1158,7 +1411,7 @@ export async function setOverrideAsync(
     // que o servidor recusou, incluindo todos os metadados do override.
     if (erro instanceof ErroApi && REJEICOES_DEFINITIVAS.has(erro.status) && anterior && indice >= 0) {
       CACHE.salas[indice] = anterior;
-      sv(K.salas, CACHE.salas);
+      salvarPrivado('salas', CACHE.salas);
     }
     throw erro;
   }
@@ -1182,7 +1435,12 @@ export type { Sessao };
  * ser a fonte da verdade — assim, alteracoes feitas no mobile aparecem no web.
  */
 export async function loadAllData(force = false): Promise<CacheDados> {
-  if (!CACHE.loaded || force) {
+  const identidade = identidadeAtual();
+  const contextoAtual = identidade
+    ? cacheKeyForIdentity('usuarios', identidade).replace(/_usuarios$/, '')
+    : null;
+  if (!CACHE.loaded || force || contextoCache !== contextoAtual) {
+    if (contextoCache !== contextoAtual) invalidarCacheEmMemoria();
     loadCache();
     CACHE.loaded = true;
   }

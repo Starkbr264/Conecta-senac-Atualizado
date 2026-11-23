@@ -47,6 +47,14 @@ class ResetAuthorizationTest {
     @Autowired
     private JwtService jwt;
 
+    @Autowired
+    private conecta.demo.service.SeedService seed;
+
+    @org.junit.jupiter.api.BeforeEach
+    void semearBancoDoTeste() {
+        seed.semear();
+    }
+
     @Test
     @DisplayName("POST /api/reset sem token responde 401")
     void resetSemTokenResponde401() throws Exception {
@@ -57,7 +65,7 @@ class ResetAuthorizationTest {
     @Test
     @DisplayName("POST /api/reset com token COORDENADOR responde 403")
     void resetCoordenadorResponde403() throws Exception {
-        String token = jwt.gerar("coord@edu.df.senac.br", "COORDENADOR");
+        String token = jwt.gerar(2L, "coord@edu.df.senac.br", "COORDENADOR");
         mockMvc.perform(post("/api/reset").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
@@ -65,7 +73,7 @@ class ResetAuthorizationTest {
     @Test
     @DisplayName("POST /api/reset com token INSTRUTOR responde 403")
     void resetInstrutorResponde403() throws Exception {
-        String token = jwt.gerar("inst@edu.df.senac.br", "INSTRUTOR");
+        String token = jwt.gerar(13L, "inst@edu.df.senac.br", "INSTRUTOR");
         mockMvc.perform(post("/api/reset").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
@@ -73,7 +81,7 @@ class ResetAuthorizationTest {
     @Test
     @DisplayName("POST /api/reset com token RECEPCAO responde 403")
     void resetRecepcaoResponde403() throws Exception {
-        String token = jwt.gerar("recep@edu.df.senac.br", "RECEPCAO");
+        String token = jwt.gerar(33L, "recep@edu.df.senac.br", "RECEPCAO");
         mockMvc.perform(post("/api/reset").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
@@ -81,7 +89,7 @@ class ResetAuthorizationTest {
     @Test
     @DisplayName("POST /api/reset com token ADMIN executa o reset (H2 isolado)")
     void resetAdminExecutaComportamentoAutorizado() throws Exception {
-        String token = jwt.gerar("admin@edu.df.senac.br", "ADMIN");
+        String token = jwt.gerar(1L, "admin@edu.df.senac.br", "ADMIN");
         mockMvc.perform(post("/api/reset").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true));

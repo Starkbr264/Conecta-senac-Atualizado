@@ -51,8 +51,10 @@ class SincTransferenciaUnidadeTest {
 
     @BeforeEach
     void autenticarAdmin() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+        var autenticacao = new TestingAuthenticationToken(
+                "admin@senac.test", "n/a", "ROLE_ADMIN");
+        autenticacao.setDetails(java.util.Map.of("userId", 1L));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
     }
 
     @AfterEach
@@ -182,8 +184,10 @@ class SincTransferenciaUnidadeTest {
 
         // Coordenador autenticado tenta mover a sala para outra unidade: isolamento
         // por unidade deve continuar valendo (nao-admin nao pode trocar unidade).
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("coord.isolado@edu.df.senac.br", "n/a", "ROLE_COORDENADOR"));
+        var autenticacaoCoordenador = new TestingAuthenticationToken(
+                "coord.isolado@edu.df.senac.br", "n/a", "ROLE_COORDENADOR");
+        autenticacaoCoordenador.setDetails(java.util.Map.of("userId", coordenadorId));
+        SecurityContextHolder.getContext().setAuthentication(autenticacaoCoordenador);
 
         String payload = "{\"alteracoes\":{\"salas\":[{\"id\":" + salaId
                 + ",\"nome\":\"Sala Isolada\",\"tipo\":\"teorica\",\"capacidade\":40,"
@@ -203,8 +207,10 @@ class SincTransferenciaUnidadeTest {
         long coordenadorId = criarUsuario("Coord Autor", "coord.autor@edu.df.senac.br", unidadeA);
         assertThat(coordenadorId).isPositive();
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("coord.autor@edu.df.senac.br", "n/a", "ROLE_COORDENADOR"));
+        var autenticacaoCoordenador = new TestingAuthenticationToken(
+                "coord.autor@edu.df.senac.br", "n/a", "ROLE_COORDENADOR");
+        autenticacaoCoordenador.setDetails(java.util.Map.of("userId", coordenadorId));
+        SecurityContextHolder.getContext().setAuthentication(autenticacaoCoordenador);
 
         String payload = "{\"alteracoes\":{\"usuarios\":[{\"id\":" + vitimaId
                 + ",\"nome\":\"Vitima Coordenador\",\"email\":\"vitima.coord@edu.df.senac.br\","

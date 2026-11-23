@@ -47,6 +47,7 @@ import { calcStatus, esc, fmtData, fmtDateTime, hojeISO, htmlStatus } from '../.
 import { modalAbrir, modalFechar, toast } from '../../core/ui';
 import { getSessao } from '../../core/theme';
 import { buscarStatusSalas, ErroApi, type SalaStatusRemoto } from '../../core/api';
+import { carregarConfiguracaoTemporal, classificarTurno, hojeTemporalISO, temConfiguracaoTemporal } from '../../core/temporal';
 import { initLogo, initSidebar, requirePerfil } from '../../core/auth';
 import {
   filtrarLista,
@@ -58,6 +59,7 @@ import { byId, qsa, tryById } from '../../core/dom';
 import { rdCalendario } from '../calendario/calendario';
 import type { DiaSemana, Sessao, Turno } from '../../types';
 import { STATUS_UI } from '../mapa/sala-status';
+import { turnosCompativeisComTurma } from './turnos';
 
 const TODOS_OS_TURNOS: Turno[] = ['Matutino', 'Vespertino', 'Noturno'];
 const DIAS_SEMANA: DiaSemana[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -72,6 +74,7 @@ function uid(): number | null {
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initInstrutor(): Promise<void> {
   await initDados();
+  await carregarConfiguracaoTemporal();
   requirePerfil('instrutor');
   sess = getSessao();
   initSidebar();
@@ -305,11 +308,16 @@ function mostrarErroTurno(msg: string): void {
     'display:block;color:var(--red);font-size:.82rem;margin-top:2px;font-weight:600';
 }
 
-function atualizarTurnosSolic(salaId: number, preferidos: Turno[] = []): void {
+function atualizarTurnosSolic(
+  salaId: number,
+  preferidos: Turno[] = [],
+  turnosTurma: Turno[] | null = null,
+): void {
   const permitidos = turnosDaSalaSolic(salaId);
+  const permitidosPelaTurma = turnosCompativeisComTurma(permitidos, turnosTurma);
   qsa('#slTurnosChips .chip').forEach((c) => {
     const v = (c as HTMLElement).dataset['v'] ?? '';
-    const permitido = permitidos.indexOf(v as Turno) !== -1;
+    const permitido = permitidosPelaTurma.indexOf(v as Turno) !== -1;
     c.classList.toggle(
       'ativo',
       permitido && (preferidos.length ? preferidos.indexOf(v as Turno) !== -1 : true),
@@ -320,7 +328,9 @@ function atualizarTurnosSolic(salaId: number, preferidos: Turno[] = []): void {
     (c as HTMLElement).style.cursor = permitido ? 'pointer' : 'not-allowed';
     (c as HTMLElement).title = permitido
       ? ''
-      : 'Esta sala nao atende o turno ' + v;
+      : turnosTurma && permitidos.indexOf(v as Turno) !== -1
+        ? 'Este turno nao esta disponivel para a turma selecionada'
+        : 'Esta sala nao atende o turno ' + v;
   });
 }
 
@@ -344,8 +354,11 @@ export function abrirSolic(salaId: number): void {
   const s = getSalaById(salaId);
   byId('slNome').textContent = s ? s.nome : '';
   byId<HTMLInputElement>('slData').value = '';
+  byId<HTMLInputElement>('slData').min = hojeISO();
   byId<HTMLInputElement>('slDataIni').value = '';
+  byId<HTMLInputElement>('slDataIni').min = hojeISO();
   byId<HTMLInputElement>('slDataFim').value = '';
+  byId<HTMLInputElement>('slDataFim').min = hojeISO();
   byId<HTMLTextAreaElement>('slMotivo').value = '';
   byId<HTMLInputElement>('slHoraIni').value = '';
   byId<HTMLInputElement>('slHoraFim').value = '';
@@ -450,10 +463,16 @@ export function slRemoverData(iso: string): void {
 export function slOnTurmaChange(): void {
   const sel = byId<HTMLSelectElement>('slTurma');
   const opt = sel.options[sel.selectedIndex];
-  if (!opt || !opt.value) return;
+  const salaId = parseInt(byId<HTMLInputElement>('slSalaId').value, 10);
+  if (!opt || !opt.value) {
+    atualizarTurnosSolic(salaId);
+    const erEl = tryById('slTurnoErro');
+    if (erEl !== null) erEl.style.display = 'none';
+    verificarDisponibilidadeSolic();
+    return;
+  }
   const turma = getTurmaById(parseInt(opt.value, 10));
   if (!turma) return;
-  const salaId = parseInt(byId<HTMLInputElement>('slSalaId').value, 10);
   const turnosSala = turnosDaSalaSolic(salaId);
   if (turnosSala.indexOf(turma.turno as Turno) === -1) {
     atualizarTurnosSolic(salaId);
@@ -461,7 +480,9 @@ export function slOnTurmaChange(): void {
       `A turma e ${turma.turno}, mas esta sala atende apenas: ${turnosSala.join(', ')}.`,
     );
   } else {
-    atualizarTurnosSolic(salaId, [turma.turno as Turno]);
+    atualizarTurnosSolic(salaId, [turma.turno as Turno], [turma.turno as Turno]);
+    const erEl = tryById('slTurnoErro');
+    if (erEl !== null) erEl.style.display = 'none';
   }
 
   if (modoData === 'periodo') {
@@ -626,6 +647,31 @@ export async function enviarSolic(): Promise<void> {
     dataFimGlobal = datasParaEnviar[datasParaEnviar.length - 1];
   }
 
+  const hoje = hojeTemporalISO();
+  if (!temConfiguracaoTemporal()) {
+    toast('Não foi possível validar os horários oficiais. Tente novamente.', 'erro');
+    return;
+  }
+  const invalidas = datasParaEnviar.filter((data) => data < hoje);
+  if (invalidas.length) {
+    toast('Não é possível solicitar uma sala para uma data que já passou.', 'erro');
+    return;
+  }
+  const impedimentoTemporal = turnos
+    .map((turno) => classificarTurno(dataIniGlobal, turno, horaIni, horaFim))
+    .find((diagnostico) => diagnostico === 'Data passada' || diagnostico === 'Turno em andamento' || diagnostico === 'Turno encerrado');
+  if (impedimentoTemporal) {
+    toast(
+      impedimentoTemporal === 'Data passada'
+        ? 'Não é possível solicitar uma sala para uma data que já passou.'
+        : impedimentoTemporal === 'Turno encerrado'
+          ? 'Este turno já foi encerrado. Selecione um turno futuro.'
+          : 'Este turno já começou. Selecione um turno futuro.',
+      'erro',
+    );
+    return;
+  }
+
   const diasSel = diasSemanaDatas(datasParaEnviar);
 
   if (turnos.length === 0) {
@@ -639,6 +685,12 @@ export async function enviarSolic(): Promise<void> {
   const invalidos = turnos.filter((t) => turnosSala.indexOf(t) === -1);
   if (invalidos.length) {
     mostrarErroTurno('Esta sala atende apenas: ' + turnosSala.join(', ') + '.');
+    return;
+  }
+  if (turmaSel && turnos.some((t) => t !== turmaSel.turno)) {
+    mostrarErroTurno(
+      'Este turno não está disponível para a turma selecionada. Selecione um turno compatível.',
+    );
     return;
   }
   if (turmaSel && turnosSala.indexOf(turmaSel.turno as Turno) === -1) {

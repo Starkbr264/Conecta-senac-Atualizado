@@ -17,6 +17,10 @@ public class SincOperacao {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String respostaJson;
 
+    /** Proprietario imutavel da operacao; nulo apenas em registros legados. */
+    @Column(name = "usuario_id")
+    private Long usuarioId;
+
     @Column(nullable = false)
     private Instant criadaEm = Instant.now();
 
@@ -28,12 +32,22 @@ public class SincOperacao {
         this.respostaJson = respostaJson;
     }
 
+    public SincOperacao(String id, Long usuarioId, String respostaJson) {
+        this.id = id;
+        this.usuarioId = usuarioId;
+        this.respostaJson = respostaJson;
+    }
+
     public String getId() {
         return id;
     }
 
     public String getRespostaJson() {
         return respostaJson;
+    }
+
+    public Long getUsuarioId() {
+        return usuarioId;
     }
 
     public Instant getCriadaEm() {
