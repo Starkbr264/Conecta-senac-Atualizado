@@ -37,6 +37,7 @@ import {
   getReservaById,
   getReservas,
   getSalaById,
+  getSalas,
   getSalasByUnidade,
   getSolics,
   getTurmaById,
@@ -53,6 +54,7 @@ import {
   updTurmaAsync,
   responderSolicAsync,
   cancelarSolicAsync,
+  cacheDashboardConfiavel,
   invalidatePendingDataRead,
   unidadePadrao,
   type NovoSala,
@@ -91,9 +93,12 @@ import type {
   DiaSemana,
   Sessao,
   Solicitacao,
+  Reserva,
+  Sala,
   StatusManualSala,
   StatusSala,
   StatusSolicitacao,
+  Turma,
   Turno,
 } from '../../types';
 
@@ -129,20 +134,133 @@ let modalMotivoSalaState: ModalMotivoSalaState | null = null;
 let recusaSolicId: number | null = null;
 let recusaSalvando = false;
 let recusaErro: string | null = null;
+export type DashboardEstado = 'carregando' | 'pronto' | 'offline' | 'erro';
+export interface DashboardIndicadores {
+  salas: number;
+  turmasAtivas: number;
+  reservas: number;
+  solicitacoesPendentes: number;
+}
+
+export interface DashboardViewModel {
+  salas: string;
+  turmasAtivas: string;
+  reservas: string;
+  solicitacoesPendentes: string;
+  mensagem: string | null;
+}
+
+function unidadeIdDashboardValido(valor: number | string | null | undefined): boolean {
+  if (typeof valor === 'number') return Number.isSafeInteger(valor) && valor > 0;
+  if (typeof valor !== 'string' || !/^\d+$/.test(valor.trim())) return false;
+  const normalizado = Number(valor);
+  return Number.isSafeInteger(normalizado) && normalizado > 0;
+}
+
+function mesmaUnidadeDashboard(
+  registro: number | string | null | undefined,
+  atual: number | string | null | undefined,
+): boolean {
+  if (!unidadeIdDashboardValido(registro) || !unidadeIdDashboardValido(atual)) return false;
+  return Number(registro) === Number(atual);
+}
+
+/**
+ * Mantém o estado visual do dashboard separado dos dados numéricos.
+ * Assim, zero só é exibido quando o cálculo terminou de fato.
+ */
+export function dashboardViewModel(
+  estado: DashboardEstado,
+  indicadores: DashboardIndicadores = { salas: 0, turmasAtivas: 0, reservas: 0, solicitacoesPendentes: 0 },
+): DashboardViewModel {
+  if (estado === 'carregando') {
+    return {
+      salas: 'Carregando...',
+      turmasAtivas: 'Carregando...',
+      reservas: 'Carregando...',
+      solicitacoesPendentes: 'Carregando...',
+      mensagem: 'Carregando indicadores...',
+    };
+  }
+  if (estado === 'erro') {
+    return {
+      salas: 'Indisponível',
+      turmasAtivas: 'Indisponível',
+      reservas: 'Indisponível',
+      solicitacoesPendentes: 'Indisponível',
+      mensagem: 'Não foi possível carregar os indicadores.',
+    };
+  }
+  if (estado === 'offline') {
+    return {
+      salas: String(indicadores.salas),
+      turmasAtivas: String(indicadores.turmasAtivas),
+      reservas: String(indicadores.reservas),
+      solicitacoesPendentes: String(indicadores.solicitacoesPendentes),
+      mensagem: 'Sem conexão com o servidor. Exibindo dados salvos localmente.',
+    };
+  }
+  return {
+    salas: String(indicadores.salas),
+    turmasAtivas: String(indicadores.turmasAtivas),
+    reservas: String(indicadores.reservas),
+    solicitacoesPendentes: String(indicadores.solicitacoesPendentes),
+    mensagem: null,
+  };
+}
+
+export function calcularIndicadoresDashboard(
+  unidadeId: number | string | null | undefined,
+  salas: Sala[],
+  turmas: Turma[],
+  reservas: Reserva[],
+  solicitacoes: Solicitacao[],
+): DashboardIndicadores {
+  const turmasDaUnidade = turmas.filter((t) => mesmaUnidadeDashboard(t.unidadeId, unidadeId));
+  return {
+    salas: salas.filter((s) => mesmaUnidadeDashboard(s.unidadeId, unidadeId)).length,
+    turmasAtivas: turmasDaUnidade.filter((t) => calcStatus(t) === 'ativa').length,
+    reservas: reservas.filter((r) => mesmaUnidadeDashboard(r.unidadeId, unidadeId)).length,
+    solicitacoesPendentes: solicitacoes.filter(
+      (s) => mesmaUnidadeDashboard(s.unidadeId, unidadeId) && s.status === 'pendente',
+    ).length,
+  };
+}
+
+let dashboardEstado: DashboardEstado = 'carregando';
 // Estado de carregamento inicial da área de solicitações: true até a primeira
 // sincronização concluída (com sucesso ou falha). Evita exibir "Nenhuma
 // solicitação recebida" enquanto os dados ainda estão sendo carregados.
 let solicitacoesCarregando = true;
 let autoSync: ReturnType<typeof createDataSyncController> | null = null;
 
+export function estadoDashboardAposSincronizacao(
+  falhou: boolean,
+  possuiCacheConfiavel: boolean,
+): DashboardEstado {
+  if (!falhou) return 'pronto';
+  return possuiCacheConfiavel ? 'offline' : 'erro';
+}
+
+function atualizarEstadoAposLeitura(falhou: boolean): void {
+  dashboardEstado = estadoDashboardAposSincronizacao(
+    falhou || ultimaSincronizacaoFalhou(),
+    cacheDashboardConfiavel(),
+  );
+}
+
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initCoordenador(): Promise<void> {
   autoSync?.stop();
+  dashboardEstado = 'carregando';
+  renderDashboardEstado();
   solicitacoesCarregando = true;
   try {
     await initDados();
+    atualizarEstadoAposLeitura(false);
   } catch (err) {
     console.error('Falha ao carregar dados iniciais:', err);
+    atualizarEstadoAposLeitura(true);
   }
   try {
     await carregarConfiguracaoTemporal();
@@ -161,6 +279,10 @@ export async function initCoordenador(): Promise<void> {
     sync: async () => {
       try {
         await initDados();
+        atualizarEstadoAposLeitura(false);
+      } catch (err) {
+        atualizarEstadoAposLeitura(true);
+        console.error('Falha ao atualizar dados do dashboard:', err);
       } finally {
         solicitacoesCarregando = false;
         rdSolics();
@@ -169,6 +291,7 @@ export async function initCoordenador(): Promise<void> {
     onInvalidated: invalidatePendingDataRead,
     onUpdated: () => {
       solicitacoesCarregando = false;
+      rdDash();
       rdSolics();
       atualizarBadges();
     },
@@ -245,6 +368,23 @@ function setText(id: string, valor: string | number): void {
   if (el !== null) el.textContent = String(valor);
 }
 
+function renderDashboardEstado(): void {
+  const pg = tryById<HTMLElement>('pg-dashboard');
+  const view = dashboardViewModel(dashboardEstado);
+  if (pg === null) return;
+  pg.dataset['dashboardState'] = dashboardEstado;
+  pg.setAttribute('aria-busy', String(dashboardEstado === 'carregando'));
+  setText('stSalas', view.salas);
+  setText('stTurmas', view.turmasAtivas);
+  setText('stRes', view.reservas);
+  setText('stSol', view.solicitacoesPendentes);
+  const aviso = tryById<HTMLElement>('dashboardLoadMessage');
+  if (aviso !== null) {
+    aviso.textContent = view.mensagem ?? '';
+    aviso.hidden = view.mensagem === null;
+  }
+}
+
 /** Turnos disponiveis de uma sala; cai para os 3 turnos quando vazio. */
 function turnosSalaReserva(salaId: number | string | null): Turno[] {
   const sala = salaId ? getSalaById(parseInt(String(salaId), 10)) : null;
@@ -290,18 +430,24 @@ function diasSemanaDeDatas(datas: string[] | null | undefined): DiaSemana[] {
 // ---------------------------------------------------------------------------
 
 function rdDash(): void {
-  const salas = getSalasByUnidade(uid() as number);
-  const turmas = getTurmas().filter((t) => t.unidadeId === uid());
-  const res = getReservas().filter((r) => r.unidadeId === uid());
-  const solic = getSolics().filter(
-    (s) => s.unidadeId === uid() && s.status === 'pendente',
-  );
-  setText('stSalas', salas.length);
-  setText('stTurmas', turmas.filter((t) => calcStatus(t) === 'ativa').length);
-  setText('stRes', res.length);
-  setText('stSol', solic.length);
+  if (dashboardEstado === 'carregando' || dashboardEstado === 'erro') {
+    renderDashboardEstado();
+    return;
+  }
+  const indicadores = calcularIndicadoresDashboard(uid(), getSalas(), getTurmas(), getReservas(), getSolics());
+  const view = dashboardViewModel(dashboardEstado, indicadores);
+  setText('stSalas', view.salas);
+  setText('stTurmas', view.turmasAtivas);
+  setText('stRes', view.reservas);
+  setText('stSol', view.solicitacoesPendentes);
+  const aviso = tryById<HTMLElement>('dashboardLoadMessage');
+  if (aviso !== null) {
+    aviso.textContent = view.mensagem ?? '';
+    aviso.hidden = view.mensagem === null;
+  }
 
   const tb = byId('tbDash');
+  const turmas = getTurmas().filter((t) => mesmaUnidadeDashboard(t.unidadeId, uid()));
   const rec = turmas
     .slice()
     .sort((a, b) => b.id - a.id)

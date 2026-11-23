@@ -48,13 +48,14 @@
     </header>
 
     
-    <div class="pg ativa" id="pg-dashboard">
+    <div class="pg ativa" id="pg-dashboard" data-dashboard-state="carregando" aria-busy="true">
       <div class="stats s4">
-        <div class="stat s-primary"><div class="stat-lbl">Salas</div>      <div class="stat-val" id="stSalas">0</div></div>
-        <div class="stat s-green"> <div class="stat-lbl">Turmas Ativas</div><div class="stat-val" id="stTurmas">0</div></div>
-        <div class="stat s-amber"> <div class="stat-lbl">Reservas</div>    <div class="stat-val" id="stRes">0</div></div>
-        <div class="stat s-red">   <div class="stat-lbl">Solicitações</div><div class="stat-val" id="stSol">0</div></div>
+        <div class="stat s-primary"><div class="stat-lbl">Salas</div>      <div class="stat-val" id="stSalas">Carregando...</div></div>
+        <div class="stat s-green"> <div class="stat-lbl">Turmas Ativas</div><div class="stat-val" id="stTurmas">Carregando...</div></div>
+        <div class="stat s-amber"> <div class="stat-lbl">Reservas</div>    <div class="stat-val" id="stRes">Carregando...</div></div>
+        <div class="stat s-red">   <div class="stat-lbl">Solicitações</div><div class="stat-val" id="stSol">Carregando...</div></div>
       </div>
+      <p id="dashboardLoadMessage" class="txt2" role="status">Carregando indicadores...</p>
       <div class="card">
         <div class="card-head"><div class="card-title">Turmas Recentes</div>
           <button class="btn btn-ghost btn-sm" data-action="ir" data-arg="turmas"><i class="ph ph-caret-right"></i> Ver todas</button></div>
