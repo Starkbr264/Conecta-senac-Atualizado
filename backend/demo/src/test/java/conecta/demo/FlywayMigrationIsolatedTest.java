@@ -2,7 +2,6 @@ package conecta.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.flywaydb.core.Flyway;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,7 +26,7 @@ class FlywayMigrationIsolatedTest {
     static void criarSchemaLegado() throws Exception {
         postgres = EmbeddedPostgres.start();
         jdbcUrl = postgres.getJdbcUrl("postgres", "postgres");
-        try (ConfigurableApplicationContext ignored = contexto("create")) {
+        try (ConfigurableApplicationContext ignored = contexto("create", false)) {
             // Hibernate cria o schema completo representativo da aplicacao.
         }
         DriverManagerDataSource dataSource = new DriverManagerDataSource(jdbcUrl, "postgres", "postgres");
@@ -43,22 +42,27 @@ class FlywayMigrationIsolatedTest {
     }
 
     @Test
-    void aplicaV1PreservaLegadoCriaOwnerIndexEForeignKeyNaoValidada() {
-        Flyway.configure()
-                .dataSource(jdbc.getDataSource())
-                .locations("classpath:db/migration")
-                .baselineOnMigrate(true)
-                .baselineVersion("0")
-                .load()
-                .migrate();
+    void autoConfiguracaoAplicaV1PreservaLegadoEValidaNasInicializacoesSeguintes() {
+        try (ConfigurableApplicationContext ignored = contexto("validate", true)) {
+            // A inicializacao prova a auto-configuracao do Spring Boot; nao ha
+            // chamada manual ao Flyway neste teste.
+        }
 
         assertThat(jdbc.queryForObject(
                 "SELECT usuario_id FROM sinc_operacoes WHERE id = 'legacy-op'", Long.class))
                 .isNull();
         assertThat(jdbc.queryForObject(
                 "SELECT data_type FROM information_schema.columns "
+                 + "WHERE table_name = 'sinc_operacoes' AND column_name = 'usuario_id'",
+                 String.class)).isEqualTo("bigint");
+        assertThat(jdbc.queryForObject(
+                "SELECT is_nullable FROM information_schema.columns "
                         + "WHERE table_name = 'sinc_operacoes' AND column_name = 'usuario_id'",
-                String.class)).isEqualTo("bigint");
+                String.class)).isEqualTo("YES");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history "
+                        + "WHERE version = '1' AND success",
+                Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM pg_indexes WHERE tablename = 'sinc_operacoes' "
                         + "AND indexname = 'ux_sinc_operacoes_id_global'", Integer.class))
@@ -73,8 +77,12 @@ class FlywayMigrationIsolatedTest {
                 .isEqualTo(1);
         assertThat(jdbc.queryForObject(
                 "SELECT convalidated FROM pg_constraint "
-                        + "WHERE conname = 'fk_sinc_operacoes_usuario'", Boolean.class))
+                + "WHERE conname = 'fk_sinc_operacoes_usuario'", Boolean.class))
                 .isFalse();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM information_schema.table_constraints "
+                        + "WHERE table_name = 'sinc_operacoes' AND constraint_type = 'PRIMARY KEY'",
+                Integer.class)).isEqualTo(1);
 
         jdbc.update("INSERT INTO usuarios "
                 + "(id, nome, email, senha, perfil, unidade_id) "
@@ -87,12 +95,19 @@ class FlywayMigrationIsolatedTest {
                 "SELECT usuario_id FROM sinc_operacoes WHERE id = 'owned-op'", Long.class))
                 .isEqualTo(42L);
 
-        try (ConfigurableApplicationContext ignored = contexto("validate")) {
-            // A inicializacao so conclui se ddl-auto=validate aceitar o schema migrado.
+        int historicoAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success",
+                Integer.class);
+        try (ConfigurableApplicationContext ignored = contexto("validate", true)) {
+            // Uma segunda inicializacao prova que a migration nao e repetida e
+            // que o Hibernate continua validando o schema migrado.
         }
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success",
+                Integer.class)).isEqualTo(historicoAntes);
     }
 
-    private static ConfigurableApplicationContext contexto(String ddlAuto) {
+    private static ConfigurableApplicationContext contexto(String ddlAuto, boolean flywayEnabled) {
         return new SpringApplicationBuilder(DemoApplication.class)
                 .web(WebApplicationType.NONE)
                 .initializers(context -> context.getEnvironment().getPropertySources().addFirst(
@@ -101,7 +116,9 @@ class FlywayMigrationIsolatedTest {
                                 "spring.datasource.username", "postgres",
                                 "spring.datasource.password", "postgres",
                                 "spring.datasource.driver-class-name", "org.postgresql.Driver",
-                                "spring.flyway.enabled", "false",
+                                 "spring.flyway.enabled", Boolean.toString(flywayEnabled),
+                                 "spring.flyway.baseline-on-migrate", "true",
+                                 "spring.flyway.baseline-version", "0",
                                 "spring.jpa.hibernate.ddl-auto", ddlAuto,
                                 "JWT_SECRET", "teste-seguro-com-pelo-menos-32-caracteres-123456"))))
                 .run();
