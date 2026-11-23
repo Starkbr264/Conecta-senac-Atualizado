@@ -43,7 +43,7 @@ async function importaStorage(buscarDados: ReturnType<typeof vi.fn>) {
   }));
   vi.doMock('./theme', () => ({
     clearSessao: vi.fn(),
-    getSessao: vi.fn(() => null),
+    getSessao: vi.fn(() => ({ id: 10, nome: 'Fixture', email: 'fixture@edu.df.senac.br', senha: '', perfil: 'coordenador', unidadeId: 1 })),
     getTema: vi.fn(),
     initTema: vi.fn(),
     setSessao: vi.fn(),
@@ -67,7 +67,10 @@ describe('storage e sincronizacao de solicitacoes', () => {
       return Promise.resolve(cacheCom([{ ...initialSolicitacao, status: 'aprovada' }]));
     });
     const storage = await importaStorage(buscarDados);
-    localStorage.setItem(storage.K.solicitacoes, JSON.stringify([initialSolicitacao]));
+    localStorage.setItem(
+      storage.cacheKeyForIdentity('solicitacoes', { id: 10, unidadeId: 1, perfil: 'coordenador' }),
+      JSON.stringify([initialSolicitacao]),
+    );
     storage.loadCache();
 
     const leituraPendente = storage.sincronizarServidor();
@@ -87,13 +90,52 @@ describe('storage e sincronizacao de solicitacoes', () => {
   it('preserva exatamente o cache quando o GET falha', async () => {
     const buscarDados = vi.fn().mockRejectedValue(new Error('offline'));
     const storage = await importaStorage(buscarDados);
-    localStorage.setItem(storage.K.solicitacoes, JSON.stringify([initialSolicitacao]));
+    localStorage.setItem(
+      storage.cacheKeyForIdentity('solicitacoes', { id: 10, unidadeId: 1, perfil: 'coordenador' }),
+      JSON.stringify([initialSolicitacao]),
+    );
     storage.loadCache();
     const antes = storage.getSolics();
 
     await storage.sincronizarServidor();
 
     expect(storage.getSolics()).toEqual(antes);
+  });
+
+  it('limpa flag de erro quando sincronizacao conclui com sucesso', async () => {
+    const buscarDados = vi.fn().mockResolvedValue(cacheCom([]));
+    const storage = await importaStorage(buscarDados);
+    storage.loadCache();
+
+    await storage.sincronizarServidor();
+
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(false);
+  });
+
+  it('define flag de erro quando sincronizacao falha (offline)', async () => {
+    const buscarDados = vi.fn().mockRejectedValue(new Error('offline'));
+    const storage = await importaStorage(buscarDados);
+    storage.loadCache();
+
+    await storage.sincronizarServidor();
+
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+  });
+
+  it('limpa flag de erro no inicio de nova tentativa', async () => {
+    const buscarDados = vi.fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(cacheCom([]));
+    const storage = await importaStorage(buscarDados);
+    storage.loadCache();
+
+    // Primeira tentativa falha
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(true);
+
+    // Segunda tentativa: flag limpa no inicio, sync sucede
+    await storage.sincronizarServidor();
+    expect(storage.ultimaSincronizacaoFalhou()).toBe(false);
   });
 
   it('deduplica chamadas concorrentes de sincronizarServidor no storage', async () => {

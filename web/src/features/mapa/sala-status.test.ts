@@ -7,7 +7,7 @@
  * (null) e a mesclagem com `GET /api/salas/status` descartava o override local.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadCache, K } from '../../core/storage';
+import { cacheKeyForIdentity, loadCache, K } from '../../core/storage';
 import { calcularStatusSala, diaDaSemanaDe, mesclarStatusRemoto } from './sala-status';
 import type { SalaStatusRemoto } from '../../core/api';
 import type { Reserva, Sala } from '../../types';
@@ -27,6 +27,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 const HOJE = '2026-11-17';
 const SALA_ID = 5002;
 const UNIDADE_ID = 1001;
+const IDENTIDADE = { id: 10, unidadeId: UNIDADE_ID, perfil: 'coordenador' };
 
 function salaCom(statusManual?: Sala['statusManual']): Sala {
   return {
@@ -58,10 +59,14 @@ function reservaAvulsaAtiva(): Reserva {
 }
 
 function gravar(sala: Sala, reservas: Reserva[] = []): void {
-  mem.set(K.salas, JSON.stringify([sala]));
-  mem.set(K.reservas, JSON.stringify(reservas));
-  mem.set(K.turmas, JSON.stringify([]));
-  mem.set(K.usuarios, JSON.stringify([]));
+  mem.set(K.sessao, JSON.stringify({
+    id: IDENTIDADE.id, nome: 'Fixture', email: 'fixture@edu.df.senac.br',
+    senha: '', perfil: IDENTIDADE.perfil, unidadeId: IDENTIDADE.unidadeId,
+  }));
+  mem.set(cacheKeyForIdentity('salas', IDENTIDADE), JSON.stringify([sala]));
+  mem.set(cacheKeyForIdentity('reservas', IDENTIDADE), JSON.stringify(reservas));
+  mem.set(cacheKeyForIdentity('turmas', IDENTIDADE), JSON.stringify([]));
+  mem.set(cacheKeyForIdentity('usuarios', IDENTIDADE), JSON.stringify([]));
   loadCache();
 }
 

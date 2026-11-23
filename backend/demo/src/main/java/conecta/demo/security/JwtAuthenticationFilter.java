@@ -1,5 +1,6 @@
 package conecta.demo.security;
 
+import conecta.demo.repository.UsuarioRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,9 +20,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwt;
+    private final UsuarioRepository usuarios;
 
-    public JwtAuthenticationFilter(JwtService jwt) {
+    public JwtAuthenticationFilter(JwtService jwt, UsuarioRepository usuarios) {
         this.jwt = jwt;
+        this.usuarios = usuarios;
     }
 
     @Override
@@ -33,8 +36,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 String email = jwt.email(token);
                 String perfil = jwt.perfil(token);
+                Long userId = jwt.exigirUserId(token);
+                if (!usuarios.existsById(userId)) throw new IllegalArgumentException("Usuario JWT inexistente");
                 var authorities = java.util.List.of(new SimpleGrantedAuthority("ROLE_" + perfil.toUpperCase()));
                 var auth = new UsernamePasswordAuthenticationToken(email, null, authorities);
+                if (userId != null) auth.setDetails(java.util.Map.of("userId", userId));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception e) {
                 // Token invalido ou expirado — segue sem autenticacao (401 sera retornado pelo SecurityFilterChain)

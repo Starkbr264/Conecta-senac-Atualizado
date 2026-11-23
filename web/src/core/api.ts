@@ -29,6 +29,7 @@ import type {
   Usuario,
 } from '../types';
 import { clearSessao } from './theme';
+import { invalidatePrivateContext } from './auth-context';
 
 /**
  * 401 = token invalido/expirado. Alem de remover o JWT, limpa a sessao para
@@ -36,6 +37,7 @@ import { clearSessao } from './theme';
  * vez de manter uma identidade visual sem token por tras.
  */
 function encerrarSessaoExpirada(): never {
+  invalidatePrivateContext();
   salvarToken(null);
   clearSessao();
   throw new ErroApi('Sessao expirada. Faca login novamente.', 401);

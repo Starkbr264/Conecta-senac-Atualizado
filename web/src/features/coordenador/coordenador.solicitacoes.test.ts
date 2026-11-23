@@ -12,7 +12,7 @@
  * `disabled` do botão Aprovar. A validação definitiva continua no backend.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { K, loadCache } from '../../core/storage';
+import { cacheKeyForIdentity, K, loadCache } from '../../core/storage';
 import type { Solicitacao, Turno, Turma } from '../../types';
 import { cardSolic, diagnosticarSolicitacao } from './coordenador';
 
@@ -48,6 +48,7 @@ const TURMA_MATUTINO: Turma = {
   turno: 'Matutino',
   unidadeId: 1003,
 };
+const IDENTIDADE = { id: 10, unidadeId: 1003, perfil: 'coordenador' };
 
 /** Espelho da solicitação 717: turma Matutino x turnos Matutino/Vespertino/Noturno. */
 function solic717(turmaId: number | null = 6010, turnos: Turno[] = ['Matutino', 'Vespertino', 'Noturno']): Solicitacao {
@@ -70,14 +71,18 @@ function solic717(turmaId: number | null = 6010, turnos: Turno[] = ['Matutino', 
 
 function semear(turmas: Turma[], solicitacoes: Solicitacao[]): void {
   mem.clear();
-  localStorage.setItem(K.turmas, JSON.stringify(turmas));
-  localStorage.setItem(K.solicitacoes, JSON.stringify(solicitacoes));
-  localStorage.setItem(K.reservas, JSON.stringify([]));
-  localStorage.setItem(K.salas, JSON.stringify([]));
-  localStorage.setItem(K.usuarios, JSON.stringify([]));
+  localStorage.setItem(K.sessao, JSON.stringify({
+    id: IDENTIDADE.id, nome: 'Fixture', email: 'fixture@edu.df.senac.br',
+    senha: '', perfil: IDENTIDADE.perfil, unidadeId: IDENTIDADE.unidadeId,
+  }));
+  localStorage.setItem(cacheKeyForIdentity('turmas', IDENTIDADE), JSON.stringify(turmas));
+  localStorage.setItem(cacheKeyForIdentity('solicitacoes', IDENTIDADE), JSON.stringify(solicitacoes));
+  localStorage.setItem(cacheKeyForIdentity('reservas', IDENTIDADE), JSON.stringify([]));
+  localStorage.setItem(cacheKeyForIdentity('salas', IDENTIDADE), JSON.stringify([]));
+  localStorage.setItem(cacheKeyForIdentity('usuarios', IDENTIDADE), JSON.stringify([]));
   localStorage.setItem(K.unidades, JSON.stringify([]));
-  localStorage.setItem(K.notificacoes, JSON.stringify([]));
-  localStorage.setItem(K.chaves, JSON.stringify([]));
+  localStorage.setItem(cacheKeyForIdentity('notificacoes', IDENTIDADE), JSON.stringify([]));
+  localStorage.setItem(cacheKeyForIdentity('chaves', IDENTIDADE), JSON.stringify([]));
   loadCache();
 }
 

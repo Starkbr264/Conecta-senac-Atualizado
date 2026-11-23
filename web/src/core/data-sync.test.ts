@@ -202,7 +202,7 @@ describe('atualizacao de dados entre abas', () => {
     expect(channel.closed).toBe(true);
   });
 
-  describe('coalescencia de requestRefresh', () => {
+  // (placeholder removed)
     it('agenda um unico run mesmo com chamadas repetidas', () => {
       const sync = vi.fn().mockResolvedValue(undefined);
       const scheduled: Array<() => void> = [];
@@ -256,4 +256,3 @@ describe('atualizacao de dados entre abas', () => {
       }, { timeout: 1000 });
     });
   });
-});

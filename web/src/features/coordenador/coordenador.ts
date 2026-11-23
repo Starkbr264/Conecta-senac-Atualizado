@@ -81,6 +81,7 @@ import {
 } from '../../core/filters';
 import { byId, tryById } from '../../core/dom';
 import { createDataSyncController } from '../../core/data-sync';
+import { ultimaSincronizacaoFalhou } from '../../core/storage';
 import { rdCalendario } from '../calendario/calendario';
 import { verificarConflito, type ReservaCandidata } from '../dashboard/reservas';
 import { renderMapaChips, type MapaStatus } from '../mapa/mapa-ui';
@@ -128,13 +129,26 @@ let modalMotivoSalaState: ModalMotivoSalaState | null = null;
 let recusaSolicId: number | null = null;
 let recusaSalvando = false;
 let recusaErro: string | null = null;
+// Estado de carregamento inicial da área de solicitações: true até a primeira
+// sincronização concluída (com sucesso ou falha). Evita exibir "Nenhuma
+// solicitação recebida" enquanto os dados ainda estão sendo carregados.
+let solicitacoesCarregando = true;
 let autoSync: ReturnType<typeof createDataSyncController> | null = null;
 
 /** Inicializa o painel. Deve ser chamado uma vez pelo entry da pagina. */
 export async function initCoordenador(): Promise<void> {
   autoSync?.stop();
-  await initDados();
-  await carregarConfiguracaoTemporal();
+  solicitacoesCarregando = true;
+  try {
+    await initDados();
+  } catch (err) {
+    console.error('Falha ao carregar dados iniciais:', err);
+  }
+  try {
+    await carregarConfiguracaoTemporal();
+  } catch (err) {
+    console.warn('Configuração temporal indisponível:', err);
+  }
   requirePerfil('coordenador');
   sess = getSessao();
   initModalMotivoSala();
@@ -142,10 +156,19 @@ export async function initCoordenador(): Promise<void> {
   initLogo();
   ir('dashboard');
   atualizarBadges();
+  solicitacoesCarregando = false;
   autoSync = createDataSyncController({
-    sync: async () => { await initDados(); },
+    sync: async () => {
+      try {
+        await initDados();
+      } finally {
+        solicitacoesCarregando = false;
+        rdSolics();
+      }
+    },
     onInvalidated: invalidatePendingDataRead,
     onUpdated: () => {
+      solicitacoesCarregando = false;
       rdSolics();
       atualizarBadges();
     },
@@ -155,7 +178,10 @@ export async function initCoordenador(): Promise<void> {
 }
 
 function uid(): number | null {
-  return sess ? sess.unidadeId : null;
+  // Fallback para getSessao() caso initCoordenador tenha abortado antes de
+  // definir `sess` (ex.: erro em carregarConfiguracaoTemporal). Evita que
+  // rdSolics filtre todas as solicitações por unidadeId === null.
+  return sess?.unidadeId ?? getSessao()?.unidadeId ?? null;
 }
 
 function refreshMapaCoord(): void {
@@ -1872,6 +1898,22 @@ export function rdSolics(): void {
   });
   const aba = (window as Window & { _solicTab?: string })._solicTab ?? 'pendente';
   const list = todos.filter((s) => s.status === aba);
+
+  // Estado de carregamento inicial: exibe mensagem clara enquanto a primeira
+  // sincronização não concluiu. Evita "Nenhuma solicitação recebida" prematuro.
+  // (Não renderiza do cache durante o carregamento — cache-first fica para etapa futura.)
+  if (solicitacoesCarregando) {
+    cont.innerHTML = '<p class="txt2">Carregando solicitações...</p>';
+    return;
+  }
+
+  // Estado de erro: última sincronização falhou e não há dados para exibir.
+  // O erro é limpo no início de cada nova tentativa de sincronização
+  // (sincronizarServidor), não na renderização.
+  if (ultimaSincronizacaoFalhou() && todos.length === 0) {
+    cont.innerHTML = '<p class="txt2" style="color:var(--red)">Não foi possível carregar as solicitações. Tentando novamente...</p>';
+    return;
+  }
 
   const fingerprint =
     `${aba}|${list.map((s) => `${s.id}:${s.status}:${s.respondidaEm || ''}:${s.motivo || ''}`).join(',')}|` +

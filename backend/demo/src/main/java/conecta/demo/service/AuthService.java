@@ -42,7 +42,7 @@ public class AuthService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> login(LoginRequest request) {
         UsuarioResponse user = usuarios.login(request);
-        String token = jwt.gerar(user.email(), user.perfil());
+        String token = jwt.gerar(user.id(), user.email(), user.perfil());
         return Map.of("usuario", user, "token", token);
     }
 

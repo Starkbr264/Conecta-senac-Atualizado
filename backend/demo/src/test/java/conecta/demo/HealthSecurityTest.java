@@ -38,6 +38,14 @@ class HealthSecurityTest {
     @Autowired
     private JwtService jwt;
 
+    @Autowired
+    private conecta.demo.service.SeedService seed;
+
+    @org.junit.jupiter.api.BeforeEach
+    void semearBancoDoTeste() {
+        seed.semear();
+    }
+
     @Test
     @DisplayName("GET /health sem token responde 200 com status UP")
     void healthPublicoResponde200SemToken() throws Exception {
@@ -56,7 +64,7 @@ class HealthSecurityTest {
     @Test
     @DisplayName("GET /api/dados com token valido responde 200")
     void dadosComTokenResponde200() throws Exception {
-        String token = jwt.gerar("health@edu.df.senac.br", "ADMIN");
+        String token = jwt.gerar(1L, "health@edu.df.senac.br", "ADMIN");
         mockMvc.perform(get("/api/dados").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }

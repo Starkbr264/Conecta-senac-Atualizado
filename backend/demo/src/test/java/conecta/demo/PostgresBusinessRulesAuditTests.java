@@ -120,8 +120,10 @@ class PostgresBusinessRulesAuditTests {
         jdbc.update("DELETE FROM notificacoes WHERE id > 9004");
         jdbc.update("DELETE FROM solicitacoes WHERE id > 10004");
         // Padrao do grupo: autenticar como ADMIN por omissao.
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+        var autenticacao = new TestingAuthenticationToken(
+                "admin@senac.test", "n/a", "ROLE_ADMIN");
+        autenticacao.setDetails(java.util.Map.of("userId", 1L));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
     }
 
     @AfterEach
@@ -148,13 +150,14 @@ class PostgresBusinessRulesAuditTests {
     }
 
     private ResultActions sinc(String papel, String email, Map<String, Object> corpo) throws Exception {
-        if (papel == null) {
-            SecurityContextHolder.getContext().setAuthentication(
-                    new TestingAuthenticationToken(email, "n/a"));
-        } else {
-            SecurityContextHolder.getContext().setAuthentication(
-                    new TestingAuthenticationToken(email, "n/a", "ROLE_" + papel));
-        }
+        Long userId = "admin@senac.test".equalsIgnoreCase(email) ? Long.valueOf(1L) : jdbc.query(
+                "SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?)", (rs, row) -> rs.getLong(1), email)
+                .stream().findFirst().orElse(null);
+        var autenticacao = papel == null
+                ? new TestingAuthenticationToken(email, "n/a")
+                : new TestingAuthenticationToken(email, "n/a", "ROLE_" + papel);
+        if (userId != null) autenticacao.setDetails(java.util.Map.of("userId", userId));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
         return mockMvc.perform(post("/api/sinc")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(corpo)));
@@ -575,8 +578,10 @@ class PostgresBusinessRulesAuditTests {
                 "criadaEm", java.time.Instant.now().toString(),
                 "turnos", List.of("Matutino"), "motivo", "Aula extra de auditoria",
                 "status", "pendente")));
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+        var autenticacao = new TestingAuthenticationToken(
+                "admin@senac.test", "n/a", "ROLE_ADMIN");
+        autenticacao.setDetails(java.util.Map.of("userId", 1L));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
         var resp = mockMvc.perform(post("/api/sinc")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(corpo))).andReturn().getResponse();
@@ -720,7 +725,7 @@ class PostgresBusinessRulesAuditTests {
 
     @Test
     void segurancaSincronizarSemPerfilValido() throws Exception {
-        sinc(null, "anonimo@senac.test",
+        sinc(null, "admin@senac.test",
                 lote("criados", "notificacoes", List.of(obj(
                         "id", 97080L, "tipo", "info", "titulo", "Sem perfil",
                         "msg", "sem autoridade", "unidadeId", 1001L))))

@@ -20,6 +20,12 @@ public class UsuarioAtual {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName()))
             return Optional.empty();
-        return usuarios.findByEmailIgnoreCase(auth.getName());
+        if (auth.getDetails() instanceof java.util.Map<?, ?> details
+                && details.get("userId") instanceof Number id) {
+            return usuarios.findById(id.longValue());
+        }
+        // O e-mail e um atributo mutavel e nao pode funcionar como fallback de
+        // identidade. Tokens sem uid sao rejeitados pelo filtro JWT.
+        return Optional.empty();
     }
 }

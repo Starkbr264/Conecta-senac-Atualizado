@@ -97,8 +97,10 @@ class SincSolicitacaoTemporalTest {
 
     @BeforeEach
     void preparar() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(
-                new TestingAuthenticationToken("admin@senac.test", "n/a", "ROLE_ADMIN"));
+        var autenticacao = new TestingAuthenticationToken(
+                "admin@senac.test", "n/a", "ROLE_ADMIN");
+        autenticacao.setDetails(java.util.Map.of("userId", 1L));
+        SecurityContextHolder.getContext().setAuthentication(autenticacao);
         long n = SEQUENCIA.incrementAndGet();
         unidadeId = criarUnidade("Unidade sinc temporal " + n, "719" + String.format("%05d", n));
         instrutorId = criarUsuario("Instrutor Temporal " + n,

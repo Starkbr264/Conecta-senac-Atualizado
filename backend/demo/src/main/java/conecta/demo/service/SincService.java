@@ -127,11 +127,32 @@ public class SincService {
      */
     @Transactional
     public Map<String, Object> sincronizar(Map<String, Object> corpo) {
+        Long usuarioAutenticado = usuarioAutenticadoId();
+        if (usuarioAutenticado == null) {
+            throw new AcessoNegadoException("JWT sem identidade de usuario verificavel");
+        }
         String operacaoId = corpo == null || corpo.get("operacaoId") == null
                 ? null : corpo.get("operacaoId").toString().trim();
+        Long proprietario = corpo == null || corpo.get("userId") == null
+                ? usuarioAutenticado : longOuNull(corpo.get("userId"), "userId");
+        // O payload declara apenas metadado; a identidade efetiva vem do JWT.
+        if (!usuarioAutenticado.equals(proprietario)) {
+            throw new AcessoNegadoException("Operacao sem proprietario verificavel ou fora da identidade autenticada");
+        }
         if (operacoes != null && operacaoId != null && !operacaoId.isEmpty()) {
-            var anterior = operacoes.findById(operacaoId);
-            if (anterior.isPresent()) return lerResposta(anterior.get().getRespostaJson());
+            int reservada = operacoes.reservar(
+                    operacaoId, usuarioAutenticado, "{\"ok\":false,\"processando\":true}");
+            if (reservada == 0) {
+                var anterior = operacoes.findById(operacaoId);
+                if (anterior.isEmpty()) {
+                    throw new IllegalStateException("Reserva de operacao nao encontrada");
+                }
+                if (anterior.get().getUsuarioId() == null
+                        || !usuarioAutenticado.equals(anterior.get().getUsuarioId())) {
+                    throw new AcessoNegadoException("Operacao pertence a outro usuario");
+                }
+                return lerResposta(anterior.get().getRespostaJson());
+            }
         }
         // Recupera vencimentos ocorridos enquanto o cliente ou o Render estavam
         // suspensos; o agendador em memória nunca é a única garantia.
@@ -152,12 +173,24 @@ public class SincService {
         if (operacoes != null && operacaoId != null && !operacaoId.isEmpty()) {
             try {
                 operacoes.save(new conecta.demo.model.SincOperacao(
-                        operacaoId, new tools.jackson.databind.ObjectMapper().writeValueAsString(resposta)));
+                        operacaoId, usuarioAutenticado,
+                        new tools.jackson.databind.ObjectMapper().writeValueAsString(resposta)));
             } catch (Exception ex) {
                 throw new IllegalStateException("Falha ao registrar operacao de sincronizacao", ex);
             }
         }
         return resposta;
+    }
+
+    private Long usuarioAutenticadoId() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName())) return null;
+        if (auth.getDetails() instanceof java.util.Map<?, ?> details
+                && details.get("userId") instanceof Number id) {
+            return id.longValue();
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -208,6 +241,7 @@ public class SincService {
         notificacoes.findAll().forEach(notificacoes::delete);
         solicitacoes.findAll().forEach(solicitacoes::delete);
         sessoes.findAll().forEach(sessoes::delete);
+        if (operacoes != null) operacoes.deleteAll();
         seedService.semear();
 
         Map<String, Object> resposta = new LinkedHashMap<>();

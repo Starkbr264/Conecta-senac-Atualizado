@@ -23,6 +23,7 @@ public class SalaService {
     private final UsuarioRepository usuarios;
     private final ReservaRepository reservas;
     private final IdAllocatorService ids;
+    private final UsuarioAtual usuarioAtual;
 
     public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios) {
         this(salas, unidades, usuarios, null, null);
@@ -33,14 +34,20 @@ public class SalaService {
         this(salas, unidades, usuarios, reservas, null);
     }
 
-    @Autowired
     public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios,
                        ReservaRepository reservas, IdAllocatorService ids) {
+        this(salas, unidades, usuarios, reservas, ids, null);
+    }
+
+    @Autowired
+    public SalaService(SalaRepository salas, UnidadeRepository unidades, UsuarioRepository usuarios,
+                       ReservaRepository reservas, IdAllocatorService ids, UsuarioAtual usuarioAtual) {
         this.salas = salas;
         this.unidades = unidades;
         this.usuarios = usuarios;
         this.reservas = reservas;
         this.ids = ids;
+        this.usuarioAtual = usuarioAtual;
     }
 
     @Transactional(readOnly = true)
@@ -65,10 +72,8 @@ public class SalaService {
     }
 
     /**
-     * Atualiza uma sala. O id do usuario que faz a solicitacao e obrigatorio e
-     * informado pelo chamador (o controlador recebe-o do cabecalho
-     * {@code X-Usuario-Id}) porque este backend ainda nao possui filtro de
-     * autenticacao — nao existe contexto de seguranca de onde le-lo.
+     * Atualiza uma sala usando um identificador resolvido pelo chamador interno.
+     * O endpoint HTTP usa a sobrecarga que obtem a identidade autenticada.
      *
      * <p>So e permitido alterar salas da propria unidade do usuario; caso
      * contrario, {@link AcessoNegadoException} (HTTP 403).</p>
@@ -89,6 +94,14 @@ public class SalaService {
         atual.setUnidadeId(entrada.getUnidadeId());
         atual.setAtiva(entrada.isAtiva());
         return salas.save(atual);
+    }
+
+    /** Atualiza usando exclusivamente a identidade autenticada do backend. */
+    public Sala atualizar(Long id, Sala entrada) {
+        Long usuarioId = usuarioAtual == null
+                ? null
+                : usuarioAtual.buscar().map(Usuario::getId).orElse(null);
+        return atualizar(id, usuarioId, entrada);
     }
 
     public void excluir(Long id) {

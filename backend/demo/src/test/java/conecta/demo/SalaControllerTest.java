@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -81,32 +82,33 @@ class SalaControllerTest {
     void atualizarMesmaUnidadeResponde200() throws Exception {
         Sala salva = new Sala();
         salva.setId(1L);
-        when(service.atualizar(anyLong(), anyLong(), any(Sala.class))).thenReturn(salva);
+        when(service.atualizar(anyLong(), any(Sala.class))).thenReturn(salva);
 
         mockMvc.perform(put("/api/salas/1")
-                        .header("X-Usuario-Id", "20")
+                        .header("X-Usuario-Id", "999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CORPO_SALA))
                 .andExpect(status().isOk());
+        verify(service).atualizar(anyLong(), any(Sala.class));
     }
 
     @Test
     @DisplayName("PUT /api/salas/{id} de outra unidade responde 403")
     void atualizarOutraUnidadeResponde403() throws Exception {
-        when(service.atualizar(anyLong(), anyLong(), any(Sala.class)))
+        when(service.atualizar(anyLong(), any(Sala.class)))
                 .thenThrow(new AcessoNegadoException("Nao e possivel atualizar salas de outras unidades"));
 
         mockMvc.perform(put("/api/salas/1")
-                        .header("X-Usuario-Id", "20")
+                        .header("X-Usuario-Id", "999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CORPO_SALA))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("PUT /api/salas/{id} sem cabecalho de usuario responde 403")
+    @DisplayName("PUT /api/salas/{id} delega a identidade autenticada do backend")
     void atualizarSemUsuarioResponde403() throws Exception {
-        when(service.atualizar(anyLong(), any(), any(Sala.class)))
+        when(service.atualizar(anyLong(), any(Sala.class)))
                 .thenThrow(new AcessoNegadoException("Identificacao do usuario e obrigatoria para alterar sala"));
 
         mockMvc.perform(put("/api/salas/1")

@@ -76,19 +76,136 @@ Use a variante **pooler** (transacional, porta 5432).
 > A senha **nao precisa** de URL-encode, porque ela nao fica na URL. Em
 > `SUPABASE_DB_PASSWORD` use sempre a senha **original**.
 
-### 2.3 Criar o schema
+### 2.3 Schema, Flyway e ambientes
 
-O backend cria as tabelas sozinho (`spring.jpa.hibernate.ddl-auto=update`).
-Para semear os dados de demonstracao, depois que a API subir:
+O comportamento do schema depende do ambiente:
+
+| Ambiente | Banco | Flyway | Hibernate |
+|---|---|---|---|
+| Testes automatizados | H2 em memoria | desabilitado | `ddl-auto=update` |
+| Desenvolvimento local | PostgreSQL do `compose.yaml` | habilitado por padrao | `ddl-auto=validate` |
+| Demonstracao | PostgreSQL de teste externo | habilitado | `ddl-auto=validate` |
+| Produção | PostgreSQL de produção externo | habilitado | `ddl-auto=validate` |
+
+O `ddl-auto=update` dos testes existe somente para preparar o banco isolado dos
+testes. Ele **não** é o mecanismo de provisionamento do desenvolvimento local,
+da demonstração ou da produção.
+
+No **desenvolvimento local**, o Compose fornece um PostgreSQL descartável ou
+persistido em volume local. O objetivo é desenvolver e testar a aplicação; não
+é uma cópia do banco de demonstração ou de produção.
+
+Na **demonstração**, o Render conecta a API a um PostgreSQL externo de teste.
+Mesmo sendo um ambiente de demonstração, o banco deve ser tratado como
+persistente: faça backup, confira o histórico Flyway e execute a V1 em janela
+controlada antes de liberar o ambiente.
+
+Na **produção**, use um banco separado, credenciais separadas, backup
+verificável, janela aprovada e monitoramento. Não reutilize o banco, a chave
+JWT ou as credenciais da demonstração. A sequência de migration é a mesma, mas
+exige aprovação operacional e smoke test antes da liberação aos usuários.
+
+Nesses ambientes, o Flyway é responsável por aplicar as migrations versionadas
+antes da validação JPA. A configuração atual é:
+
+```properties
+spring.flyway.baseline-on-migrate=true
+spring.flyway.baseline-version=0
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+`baseline-on-migrate=true` permite adotar um banco legado que ainda não possui
+`flyway_schema_history`: se o schema já tiver objetos e a tabela de histórico
+não existir, o Flyway registra o estado inicial como baseline `0` e, em seguida,
+aplica as versões pendentes, incluindo `V1__sinc_operacoes_identity.sql`.
+Isso **não** significa que o Flyway já tenha sido executado no Supabase; a
+existência e o conteúdo de `flyway_schema_history` devem ser verificados
+explicitamente antes da publicação.
+
+Se `flyway_schema_history` já existir, não se deve criar outro baseline
+manualmente. Deve-se conferir as versões e estados registrados: uma V1 já
+aplicada será ignorada; uma V1 pendente será aplicada no startup.
+
+### 2.4 Escopo da V1 e compatibilidade do banco legado
+
+A V1 altera somente a estrutura de `sinc_operacoes` necessária para a
+idempotência e o isolamento por usuário:
+
+- cria a tabela caso ela não exista;
+- adiciona `usuario_id BIGINT NULL` caso esteja ausente;
+- garante a chave primária e o índice único global de `id`;
+- cria o índice de `usuario_id`;
+- adiciona condicionalmente a FK para `usuarios(id)` como `NOT VALID`.
+
+A V1 **não cria todo o schema da aplicação**. Ela pressupõe que um banco legado
+já possua as demais tabelas exigidas pelo modelo JPA, especialmente `usuarios`
+e as tabelas usadas pelos serviços. Um banco vazio não estará pronto apenas com
+essa migration: primeiro é necessário provisionar o schema completo e somente
+depois iniciar o backend com `ddl-auto=validate`.
+
+`CREATE TABLE IF NOT EXISTS` não corrige automaticamente uma tabela existente
+com colunas, tipos ou constraints incompatíveis. Antes da aplicação, compare a
+estrutura real de `sinc_operacoes` com a entidade `SincOperacao` e confirme que
+as demais tabelas esperadas pelo JPA já existem.
+
+Registros antigos são preservados. `usuario_id` permanece nullable para que
+operações criadas antes da introdução do `uid` não sejam atribuídas
+retroativamente a outro usuário. A FK `NOT VALID` permite manter dados
+históricos sem proprietário ou com proprietário removido; novas gravações
+válidas continuam sujeitas à referência existente.
+
+### 2.5 Sequência controlada para banco legado
+
+Não presuma que o histórico Flyway do Supabase existe. Para demonstração ou
+produção, siga esta sequência:
+
+1. **Congelar a janela de mudança** e fazer backup verificável do PostgreSQL.
+2. Registrar a contagem e a estrutura de `sinc_operacoes`, das tabelas usadas
+   pelo JPA e das constraints existentes.
+3. Consultar `flyway_schema_history`, se existir, e confirmar se a V1 está
+   aplicada, pendente ou ausente.
+4. Confirmar que o banco não é vazio e que o schema legado é compatível com a
+   entidade `SincOperacao` e com o restante do modelo.
+5. Aplicar a V1 por uma inicialização controlada do backend/Flyway, ou pelo
+   procedimento Flyway aprovado pela operação. Não marque a V1 como aplicada
+   manualmente sem verificar seus objetos.
+6. Conferir a preservação das linhas antigas, `usuario_id` nullable, o índice
+   único de `id`, o índice de proprietário e a FK esperada.
+7. Somente depois iniciar o backend com `spring.jpa.hibernate.ddl-auto=validate`.
+8. Executar smoke tests de `/health`, login, `/api/dados`, autorização e
+   sincronização.
+9. Semear dados de demonstração somente após o startup validado:
 
 ```bash
 curl -X POST https://<SUA-API>/api/reset
 ```
 
-O `SeedService` roda **apenas** se a tabela `unidades` estiver vazia, entao
-esse comando e seguro para repetir.
+O `SeedService` roda **apenas** se a tabela `unidades` estiver vazia. Isso não
+substitui a criação do schema nem deve ser usado como etapa de recuperação de
+uma migration falha.
 
-### 2.4 Travar o acesso direto as tabelas (RLS) — obrigatorio
+### 2.6 Recuperação de falha no startup
+
+Se o backend falhar durante o Flyway ou durante `ddl-auto=validate`:
+
+1. Não tente contornar o erro trocando produção para `ddl-auto=update`.
+2. Preserve os logs do startup e identifique se a falha ocorreu na conexão, no
+   baseline, na V1 ou na validação JPA.
+3. Não execute novamente às cegas e não altere `flyway_schema_history` para
+   mascarar uma migration incompleta.
+4. Se a migration não iniciou ou foi revertida, corrija o schema legado e
+   repita a etapa em uma nova janela controlada.
+5. Se o histórico indicar uma migration parcialmente aplicada, interrompa o
+   deploy e faça a recuperação a partir do backup/procedimento Flyway aprovado.
+6. Se a V1 estiver aplicada mas a validação JPA falhar, corrija o schema
+   ausente ou incompatível antes de reiniciar a aplicação.
+7. Após a correção, confirme novamente contagens, constraints e
+   `flyway_schema_history`, e só então faça o smoke test.
+
+Para um banco vazio, a recuperação correta é provisionar o schema completo
+antes do backend. A V1 isoladamente não deve ser usada como bootstrap completo.
+
+### 2.7 Travar o acesso direto as tabelas (RLS) — obrigatorio
 
 > ⚠️ **O Advisor do Supabase vai acusar `RLS Disabled in Public` (CRITICAL)
 > em uma tabela por vez** assim que o backend criar o schema. Nao e
@@ -105,15 +222,30 @@ Rode o script versionado no projeto (SQL Editor do Supabase → cole e execute):
 backend/demo/sql/rls-public.sql
 ```
 
-Ele habilita RLS nas 15 tabelas e revoga os grants de `anon`/`authenticated`.
-Com RLS ligado e **sem** politicas, o Postgres nega tudo para quem nao e
-owner — e o app **continua funcionando**, porque o backend conecta como
-`postgres` (owner, com `rolbypassrls = t`).
+Ele habilita RLS nas 18 tabelas diagnosticadas e revoga os grants de
+`anon`/`authenticated`. O diagnóstico confirmou a habilitação do RLS, mas não
+validou a correção das políticas, grants efetivos ou o comportamento completo
+de cada papel. Com RLS ligado e **sem** políticas, o Postgres normalmente nega
+o acesso a quem não é owner; o comportamento do app ainda deve ser confirmado
+em um smoke test controlado, porque o backend conecta como `postgres`
+(owner, com `rolbypassrls = t`).
 
 O script e idempotente: pode rodar quantas vezes quiser. Se voce recriar o
 schema do zero, rode de novo.
 
-### 2.5 Opcional: rodando o Postgres localmente com o mesmo schema
+### 2.8 Desenvolvimento local com PostgreSQL
+
+No desenvolvimento local, `docker compose up -d --build` sobe PostgreSQL,
+backend e frontend. O Compose fornece `SPRING_DATASOURCE_URL` apontando para o
+serviço local. O Flyway continua sendo executado no startup e o backend também
+usa `ddl-auto=validate`; portanto, o volume local deve conter um schema
+compatível antes de testar a aplicação.
+
+Para um banco local descartável, destrua somente o volume local e reprovisione
+o schema completo por um procedimento de desenvolvimento aprovado. Não use
+esse fluxo para o Supabase.
+
+### 2.9 Postgres local opcional
 
 ```powershell
 docker run -d --name conectasenac-db `
@@ -241,14 +373,21 @@ descoberta automatica do host do Metro.
 
 ---
 
-## 6. Checklist de publicacao
+## 6. Checklist de publicação
 
 - [ ] Chave publica do Supabase **revogada e rotacionada**
 - [ ] Senha do banco do Supabase trocada (nunca a de exemplo)
-- [ ] Schema criado no Supabase (`/api/reset` depois que a API subir)
-- [ ] **RLS aplicado** (`backend/demo/sql/rls-public.sql`) — sem isso o
-      Advisor acusa 15 avisos CRITICAL e o banco fica aberto para a chave
-      publica
+- [ ] Backup verificável do banco legado realizado
+- [ ] Existência/estado de `flyway_schema_history` verificados; nenhum baseline
+      foi presumido
+- [ ] Schema legado completo e compatível com `ddl-auto=validate`
+- [ ] V1 aplicada e verificada antes da inicialização normal
+- [ ] Registros antigos de `sinc_operacoes` preservados e sem `usuario_id`
+- [ ] Backend iniciado sem erro de Flyway ou validação JPA
+- [ ] Schema criado/provisionado no Supabase antes de usar `/api/reset`
+- [ ] **RLS habilitado** (`backend/demo/sql/rls-public.sql`) nas 18 tabelas
+      diagnosticadas — este item não confirma que políticas ou grants estejam
+      corretos; ambos precisam de validação separada
 - [ ] `SUPABASE_DB_USER`, `SUPABASE_DB_PASSWORD` e `SPRING_DATASOURCE_URL`
       preenchidos no Render
 - [ ] `VITE_API_BASE` = URL do Render na Vercel
@@ -269,6 +408,10 @@ descoberta automatica do host do Metro.
 | `Driver org.postgresql.Driver claims to not accept jdbcUrl, postgresql://...` | faltou o prefixo `jdbc:` na URL | `SPRING_DATASOURCE_URL` = `jdbc:postgresql://...` (a URI do Supabase vem sem o prefixo) |
 | `No open ports detected` | o app escutou numa porta diferente da que o Render espera | nao defina `PORT` no blueprint; o Render injeta a dele e o app le `${PORT:8081}` |
 | `FATAL: role "postgres" does not exist` | banco recem-criado ainda sem o role pronto | aguarde 30 s e rode `/api/reset` |
+| `Found non-empty schema(s) but no schema history table` | banco legado sem histórico Flyway | faça backup, confirme o schema e deixe `baseline-on-migrate` registrar baseline `0`; não presuma que a V1 já foi aplicada |
+| `Validate failed` ou tabela/coluna ausente | schema legado incompleto ou incompatível | não troque para `ddl-auto=update` em demonstração/produção; corrija o schema e reinicie após a migration |
+| banco vazio não inicia com a V1 | a V1 cobre apenas `sinc_operacoes` | provisione o schema completo antes de iniciar o backend |
+| migration falhou no startup | conexão, histórico ou estrutura incompatível | interrompa o deploy, preserve logs, não edite o histórico manualmente e siga o procedimento de recuperação da seção 2.6 |
 | Vercel build falha com `npm ci` | `package-lock.json` do `web/` fora de sincronia | rode `cd web && npm install` e commite o lock |
 | `ERR_CONNECTION_REFUSED` | API do Render dormiu (free tier) | a primeira requisicao acorda; use plano `starter` para nao dormir |
 | App mostra lista de unidades vazia | `VITE_API_BASE` vazio ou apontando para o host antigo | use o token `same-origin` (Render) ou a URL completa (Vercel) |
