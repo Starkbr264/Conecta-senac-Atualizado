@@ -35,5 +35,9 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "typescript": "~5.3.3"
   },
+  "overrides": {
+    "decode-uri-component": "npm:@marmelab/decode-uri-component@0.2.3",
+    "query-string": "npm:@marmelab/query-string@7.1.4"
+  },
   "private": true
 }
