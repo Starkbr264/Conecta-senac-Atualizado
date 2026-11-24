@@ -32,6 +32,7 @@ import { Usuario } from '@/types';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { invalidatePrivateContext } from '@/services/auth-context';
+import { resolverApiUrl } from '@/config/api-environment';
 
 // Armazenamento de token: AsyncStorage (compativel com Expo Go).
 // TODO: migrar para expo-secure-store em producao para armazenamento criptografado.
@@ -54,19 +55,9 @@ export async function salvarToken(token: string | null): Promise<void> {
   }
 }
 
-/**
- * Descobre o IP da máquina que roda o Metro/Expo.
- * Exemplo de hostUri: "192.168.0.10:8081" -> API em "192.168.0.10:3333".
- */
-function descobrirHost(): string {
-  const hostUri = Constants.expoConfig?.hostUri || Constants.expoGoConfig?.debuggerHost;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    if (host) return host;
-  }
-  // Fallback: mesma máquina (emulador Android usa 10.0.2.2 para o host)
-  return '10.0.2.2';
-}
+// Descoberta automatica removida: hostUri representa o Metro, nao o Spring Boot.
+// Enderecos devem ser configurados explicitamente (EXPO_PUBLIC_API_URL ou extra.apiUrl).
+
 
 /**
  * Para apontar para outro servidor (produção ou IP fixo), use UMA das duas
@@ -80,9 +71,9 @@ function descobrirHost(): string {
  * Se nenhuma estiver presente, usamos a descoberta automática pelo IP do
  * Metro/Expo. O valor "same-origin" significa "a origem da propria pagina".
  */
+
 const extra =
   Constants.expoConfig?.extra as Record<string, string> | undefined;
-const apiUrlConfig = extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL;
 
 /**
  * Porta padrao da API.
@@ -93,10 +84,22 @@ const apiUrlConfig = extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL;
  */
 export const API_PORTA_PADRAO = 8081;
 
-const apiPortaConfig = process.env.EXPO_PUBLIC_API_PORT;
+// Resolucao centralizada (ver src/config/api-environment.ts).
+// Sem configuracao explicita, resolverApiUrl LANCA (sem descoberta automatica
+// nem fallback silencioso para host de teste).
+const _resolvido = resolverApiUrl({
+  envUrl: process.env.EXPO_PUBLIC_API_URL,
+  extraUrl: extra?.apiUrl,
+  appEnv: extra?.appEnv,
+  envAppEnv: process.env.EXPO_PUBLIC_APP_ENV,
+  buildProfile: extra?.buildProfile,
+  isDev: typeof __DEV__ !== 'undefined' ? __DEV__ : false,
+});
 
-export const API_URL =
-  apiUrlConfig || `http://${descobrirHost()}:${apiPortaConfig || API_PORTA_PADRAO}`;
+export const API_AMBIENTE = _resolvido.ambiente;
+export const API_FONTE = _resolvido.fonte;
+
+export const API_URL = _resolvido.url;
 
 // ---- Helpers privados ------------------------------------------------------
 
